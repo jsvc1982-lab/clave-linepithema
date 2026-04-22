@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Admin - Clave Linepithema</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0A0E17 0%, #1A1F36 100%);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: #121826;
+            padding: 45px 40px;
+            border-radius: 24px;
+            border: 1px solid #00D4FF40;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+
+        .login-box:hover {
+            border-color: #00D4FF60;
+            box-shadow: 0 20px 40px rgba(0,212,255,0.1);
+        }
+
+        h2 {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+
+        .subtitle {
+            color: #A0A0B0;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #00D4FF30;
+            padding-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            color: #00D4FF;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 16px;
+            background: #1A1F36;
+            border: 2px solid #00D4FF40;
+            border-radius: 12px;
+            color: #E0E0E0;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #00D4FF;
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        input::placeholder {
+            color: #A0A0B080;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,212,255,0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: #FF375F;
+            margin-top: 20px;
+            display: none;
+            font-size: 0.9rem;
+            padding: 12px;
+            background: #FF375F20;
+            border-radius: 10px;
+            border-left: 3px solid #FF375F;
+            text-align: left;
+        }
+
+        .error.show {
+            display: block;
+            animation: shake 0.5s ease;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .info {
+            margin-top: 25px;
+            color: #A0A0B0;
+            font-size: 0.75rem;
+            padding-top: 20px;
+            border-top: 1px solid #00D4FF20;
+        }
+
+        .info i {
+            color: #00D4FF;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>🔐 Acceso Administrador</h2>
+        <div class="subtitle">Panel de gestión - Clave Linepithema</div>
+        
+        <div class="input-group">
+            <label>👤 Usuario o Email</label>
+            <input type="text" id="username" placeholder="admin@tesis.com" autocomplete="username">
+        </div>
+        
+        <div class="input-group">
+            <label>🔒 Contraseña</label>
+            <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        
+        <button id="loginBtn" onclick="login()">Ingresar al Panel</button>
+        <div id="error" class="error"></div>
+        <div class="info">
+            <i>🔒</i> Acceso restringido solo para administradores
+        </div>
+    </div>
+
+    <script>
+        let intentos = 0;
+        const MAX_INTENTOS = 5;
+        
+        // Permitir Enter para enviar
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+        document.getElementById('username').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            const errorDiv = document.getElementById('error');
+            
+            // Validar campos
+            if (!username || !password) {
+                mostrarError('❌ Por favor, ingresa usuario y contraseña');
+                return;
+            }
+            
+            // Limitar intentos
+            if (intentos >= MAX_INTENTOS) {
+                mostrarError('🔒 Demasiados intentos. Espera 5 minutos.');
+                btn.disabled = true;
+                setTimeout(() => {
+                    intentos = 0;
+                    btn.disabled = false;
+                    errorDiv.classList.remove('show');
+                }, 300000);
+                return;
+            }
+            
+            // Mostrar loading
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner"></span> Verificando...';
+            btn.disabled = true;
+            errorDiv.classList.remove('show');
+            
+            try {
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ 
+                        username: username,
+                        password: password 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Guardar en sessionStorage si hay token
+                    if (data.token) {
+                        sessionStorage.setItem('admin_token', data.token);
+                    }
+                    // Redirigir al panel
+                    window.location.href = '/admin';
+                } else {
+                    intentos++;
+                    const msg = data.error || data.message || '❌ Credenciales incorrectas';
+                    mostrarError(`${msg} (Intento ${intentos}/${MAX_INTENTOS})`);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    
+                    // Limpiar contraseña
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').focus();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarError('❌ Error de conexión con el servidor');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+        
+        function mostrarError(mensaje) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.innerHTML = mensaje;
+            errorDiv.classList.add('show');
+            
+            // Auto ocultar después de 4 segundos
+            setTimeout(() => {
+                if (errorDiv.innerHTML === mensaje) {
+                    errorDiv.classList.remove('show');
+                }
+            }, 4000);
+        }
+        
+        // Verificar si ya hay sesión activa
+        async function verificarSesionActiva() {
+            try {
+                const response = await fetch('/api/admin/verificar', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.authenticated) {
+                        window.location.href = '/admin';
+                    }
+                }
+            } catch(e) {
+                // No hay sesión, continuar normalmente
+            }
+        }
+        
+        // Ejecutar al cargar
+        verificarSesionActiva();
+    </script>
+</body>
+</html>

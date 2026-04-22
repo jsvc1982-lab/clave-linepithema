@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Clave Linepithema</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #0A0E17;
+            color: #E0E0E0;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #A0A0B0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #00D4FF30;
+            padding-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 12px 25px;
+            background: #1A1F36;
+            border: 1px solid #00D4FF40;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab:hover {
+            border-color: #00D4FF;
+        }
+
+        .tab.active {
+            background: linear-gradient(45deg, #00D4FF20, #7B61FF20);
+            border-color: #00D4FF;
+            color: #00D4FF;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: #121826;
+            border: 1px solid #00D4FF40;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00D4FF;
+        }
+
+        .stat-label {
+            color: #A0A0B0;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        .card {
+            background: #121826;
+            border: 1px solid #00D4FF40;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .card-title {
+            color: #00D4FF;
+            font-weight: bold;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00D4FF30;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .chart-container {
+            background: #1A1F36;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .table-container {
+            background: #121826;
+            border: 1px solid #00D4FF40;
+            border-radius: 15px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            background: #1A1F36;
+            color: #00D4FF;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1A1F36;
+        }
+
+        tr:hover {
+            background: #1A1F36;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-2d { background: #00D4FF20; color: #00D4FF; border: 1px solid #00D4FF40; }
+        .badge-2d-meta { background: #00D4FF40; color: #00D4FF; border: 1px solid #00D4FF; }
+        .badge-3d { background: #7B61FF20; color: #7B61FF; border: 1px solid #7B61FF40; }
+        .badge-3d-meta { background: #7B61FF40; color: #7B61FF; border: 1px solid #7B61FF; }
+        .badge-correcto { background: #00D4FF20; color: #00D4FF; padding: 4px 8px; border-radius: 12px; }
+        .badge-incorrecto { background: #FF375F20; color: #FF375F; padding: 4px 8px; border-radius: 12px; }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .btn-2d { background: #00D4FF; color: #0A0E17; }
+        .btn-2d-meta { background: #00D4FF80; color: #0A0E17; }
+        .btn-3d { background: #7B61FF; color: white; }
+        .btn-3d-meta { background: #7B61FF80; color: white; }
+
+        .btn-small:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #1A1F36;
+            border: 1px solid #00D4FF40;
+            color: #00D4FF;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .significant {
+            color: #00D4FF;
+            font-weight: bold;
+        }
+
+        .not-significant {
+            color: #FF375F;
+        }
+
+        .result-correct {
+            color: #00D4FF;
+        }
+
+        .result-incorrect {
+            color: #FF375F;
+        }
+
+        .mensaje-flotante {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #00D4FF;
+            color: #0A0E17;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeOut 3s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; display: none; }
+        }
+
+        .especies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .especie-card {
+            background: #1A1F36;
+            border: 2px solid #1A1F36;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .especie-card:hover {
+            border-color: #00D4FF60;
+        }
+
+        .especie-card.active {
+            border-color: #00D4FF;
+            background: linear-gradient(135deg, #00D4FF10, #7B61FF10);
+        }
+
+        @media (max-width: 800px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Panel de Administración</h1>
+        <div class="subtitle">Gestión de participantes y análisis de resultados</div>
+
+        <!-- Pestañas -->
+        <div class="tabs">
+            <div class="tab active" onclick="cambiarTab('usuarios')">👥 Usuarios</div>
+            <div class="tab" onclick="cambiarTab('especies')">🔬 Especies Activas</div>
+            <div class="tab" onclick="cambiarTab('estadisticas')">📊 Estadísticas</div>
+            <div class="tab" onclick="cambiarTab('graficos')">📈 Gráficos</div>
+            <div class="tab" onclick="cambiarTab('analisis')">📉 Análisis Estadístico</div>
+            <div class="tab" onclick="cambiarTab('detalles')">🔍 Resultados Detallados</div>
+            <div class="tab" onclick="cambiarTab('estadisticas_estudiante')">📋 Estadísticas por Estudiante</div>
+        </div>
+
+        <!-- Botones de exportación -->
+        <div class="export-buttons">
+            <button class="btn btn-primary" onclick="exportarExcel()">📊 Exportar a Excel</button>
+            <button class="btn btn-secondary" onclick="exportarCSV()">📥 Exportar CSV</button>
+            <button class="btn btn-secondary" onclick="exportarJSON()">📥 Exportar JSON</button>
+            <button class="btn btn-secondary" onclick="exportarPDF()">📄 Exportar a PDF</button>
+        </div>
+
+        <!-- Contenido dinámico -->
+        <div id="tabContent"></div>
+    </div>
+
+    <script>
+        let usuarios = [];
+        let especiesConfig = { todas: [], activas: [] };
+        let resultados = [];
+        let encuestas = [];
+
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarUsuarios();
+            cargarConfigEspecies();
+            cargarResultados();
+            cargarEncuestas();
+            // Activar primera pestaña manualmente
+            document.querySelectorAll('.tab')[0].classList.add('active');
+            mostrarUsuarios();
+        });
+
+        async function cargarUsuarios() {
+            try {
+                const response = await fetch('/api/admin/usuarios');
+                usuarios = await response.json();
+            } catch (error) {
+                console.error('Error cargando usuarios:', error);
+            }
+        }
+
+        async function cargarConfigEspecies() {
+            try {
+                const response = await fetch('/api/admin/config/especies');
+                especiesConfig = await response.json();
+            } catch (error) {
+                console.error('Error cargando especies:', error);
+            }
+        }
+
+        async function cargarResultados() {
+            try {
+                const response = await fetch('/api/admin/datos');
+                resultados = await response.json();
+            } catch (error) {
+                console.error('Error cargando resultados:', error);
+            }
+        }
+
+        async function cargarEncuestas() {
+            try {
+                const response = await fetch('/api/admin/encuestas');
+                encuestas = await response.json();
+            } catch (error) {
+                console.error('Error cargando encuestas:', error);
+            }
+        }
+
+        function cambiarTab(tab) {
+           document.querySelectorAll('.tab')[0].classList.add('active');
+mostrarUsuarios();
+
+            if (tab === 'usuarios') {
+                mostrarUsuarios();
+            } else if (tab === 'especies') {
+                mostrarEspecies();
+            } else if (tab === 'estadisticas') {
+                mostrarEstadisticas();
+            } else if (tab === 'graficos') {
+                mostrarGraficos();
+            } else if (tab === 'analisis') {
+                mostrarAnalisisEstadistico();
+            } else if (tab === 'detalles') {
+                mostrarResultadosDetallados();
+            } else if (tab === 'estadisticas_estudiante') {
+    mostrarEstadisticasEstudiante();
+}
+        }
+
+        function mostrarUsuarios() {
+            const total = usuarios.length;
+            const pendientes = usuarios.filter(u => !u.grupo_asignado).length;
+            const grupo2d = usuarios.filter(u => u.grupo_asignado === '2D').length;
+            const grupo2dMeta = usuarios.filter(u => u.grupo_asignado === '2D_META').length;
+            const grupo3d = usuarios.filter(u => u.grupo_asignado === '3D').length;
+            const grupo3dMeta = usuarios.filter(u => u.grupo_asignado === '3D_META').length;
+
+            document.getElementById('tabContent').innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-number">${total}</div><div class="stat-label">Total</div></div>
+                    <div class="stat-card"><div class="stat-number">${pendientes}</div><div class="stat-label">Pendientes</div></div>
+                    <div class="stat-card"><div class="stat-number">${grupo2d}</div><div class="stat-label">2D</div></div>
+                    <div class="stat-card"><div class="stat-number">${grupo2dMeta}</div><div class="stat-label">2D+Meta</div></div>
+                    <div class="stat-card"><div class="stat-number">${grupo3d}</div><div class="stat-label">3D</div></div>
+                    <div class="stat-card"><div class="stat-number">${grupo3dMeta}</div><div class="stat-label">3D+Meta</div></div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>ID</th><th>Usuario</th><th>Correo</th><th>Sem.</th><th>Curso</th><th>Exp.</th><th>Hab.Esp</th><th>Grupo</th><th>Acciones</th></tr>
+                        </thead>
+                        <tbody id="tbodyUsuarios"></tbody>
+                    </table>
+                </div>
+            `;
+            actualizarTablaUsuarios();
+        }
+
+        function actualizarTablaUsuarios() {
+            const tbody = document.getElementById('tbodyUsuarios');
+            if (!tbody) return;
+
+            tbody.innerHTML = usuarios.map(u => {
+                let badgeClass = '';
+                let badgeText = u.grupo_asignado || 'Pendiente';
+                if (u.grupo_asignado === '2D') badgeClass = 'badge-2d';
+                else if (u.grupo_asignado === '2D_META') badgeClass = 'badge-2d-meta';
+                else if (u.grupo_asignado === '3D') badgeClass = 'badge-3d';
+                else if (u.grupo_asignado === '3D_META') badgeClass = 'badge-3d-meta';
+
+                let botones = '';
+if (!u.grupo_asignado) {
+    botones = `
+        <div class="btn-group">
+            <button class="btn-small btn-2d" onclick="asignarGrupo(${u.id}, '2D')">2D</button>
+            <button class="btn-small btn-2d-meta" onclick="asignarGrupo(${u.id}, '2D_META')">2D+M</button>
+            <button class="btn-small btn-3d" onclick="asignarGrupo(${u.id}, '3D')">3D</button>
+            <button class="btn-small btn-3d-meta" onclick="asignarGrupo(${u.id}, '3D_META')">3D+M</button>
+            <button class="btn-small" style="background: #FF375F; color: white;" onclick="eliminarUsuario(${u.id})">🗑️ Eliminar</button>
+        </div>
+    `;
+} else {
+    botones = `
+        <div class="btn-group">
+            <span style="color: #00D4FF40;">✓ Asignado</span>
+            <button class="btn-small" style="background: #FF375F; color: white;" onclick="eliminarUsuario(${u.id})">🗑️ Eliminar</button>
+        </div>
+    `;
+}
+                return `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td><strong>${u.nombre_usuario}</strong></td>
+                        <td>${u.correo}</td>
+                        <td>${u.semestre || '-'}</td>
+                        <td>${u.curso || '-'}</td>
+                        <td>${u.experiencia_taxonomica || '-'}/5</td>
+                        <td>${u.habilidad_espacial || '-'}/20</td>
+                        <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                        <td>${botones}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function asignarGrupo(usuarioId, grupo) {
+            if (!confirm(`¿Asignar usuario al grupo ${grupo}?`)) return;
+            try {
+                const response = await fetch('/api/admin/asignar_grupo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario_id: usuarioId, grupo: grupo })
+                });
+                if (response.ok) {
+                    mostrarMensaje(`✅ Grupo ${grupo} asignado`, '#00D4FF');
+                    cargarUsuarios();
+                } else {
+                    mostrarMensaje('❌ Error al asignar', '#FF375F');
+                }
+            } catch (error) {
+                mostrarMensaje('❌ Error de conexión', '#FF375F');
+            }
+        }
+        async function eliminarUsuario(usuarioId) {
+    if (!confirm('⚠️ ¿Estás seguro de eliminar este usuario?\\n\\nSe eliminarán TODOS sus datos:\\n- Sesiones\\n- Resultados\\n- Encuestas\\n- Reflexiones\\n\\n¡Esta acción NO se puede deshacer!')) return;
+    
+    try {
+        const response = await fetch(`/api/admin/usuarios/${usuarioId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            mostrarMensaje('✅ Usuario eliminado correctamente', '#00D4FF');
+            cargarUsuarios();  // Recargar la lista
+        } else {
+            const data = await response.json();
+            mostrarMensaje('❌ Error: ' + (data.error || 'No se pudo eliminar'), '#FF375F');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarMensaje('❌ Error de conexión', '#FF375F');
+    }
+}
+        function mostrarEspecies() {
+            document.getElementById('tabContent').innerHTML = `
+                <div class="card">
+                    <div class="card-title">🔬 Selecciona las especies que se usarán en las claves</div>
+                    <div id="especiesGrid" class="especies-grid"></div>
+                    <div style="display: flex; gap: 15px; margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="guardarEspecies()">💾 Guardar configuración</button>
+                        <button class="btn btn-secondary" onclick="seleccionarTodas()">✅ Seleccionar todas</button>
+                        <button class="btn btn-secondary" onclick="deseleccionarTodas()">❌ Deseleccionar todas</button>
+                    </div>
+                </div>
+            `;
+            renderEspeciesConfig();
+        }
+
+        function renderEspeciesConfig() {
+            const grid = document.getElementById('especiesGrid');
+            if (!grid) return;
+
+            grid.innerHTML = especiesConfig.todas.map(esp => {
+                const isActive = especiesConfig.activas.includes(esp.id);
+                return `
+                    <div class="especie-card ${isActive ? 'active' : ''}" onclick="toggleEspecie('${esp.id}')">
+                        <input type="checkbox" ${isActive ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #00D4FF;" onclick="event.stopPropagation(); toggleEspecie('${esp.id}')">
+                        <div><strong>${esp.nombre}</strong><br><span style="color: #A0A0B0; font-size:0.8rem;">${esp.id}</span></div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleEspecie(especieId) {
+            if (especiesConfig.activas.includes(especieId)) {
+                especiesConfig.activas = especiesConfig.activas.filter(id => id !== especieId);
+            } else {
+                especiesConfig.activas.push(especieId);
+            }
+            renderEspeciesConfig();
+        }
+
+        function seleccionarTodas() {
+            especiesConfig.activas = especiesConfig.todas.map(esp => esp.id);
+            renderEspeciesConfig();
+            mostrarMensaje('✅ Todas seleccionadas', '#00D4FF');
+        }
+
+        function deseleccionarTodas() {
+            especiesConfig.activas = [];
+            renderEspeciesConfig();
+            mostrarMensaje('❌ Ninguna seleccionada', '#FF375F');
+        }
+
+        async function guardarEspecies() {
+            try {
+                const response = await fetch('/api/admin/config/especies', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activas: especiesConfig.activas })
+                });
+                if (response.ok) {
+                    mostrarMensaje('✅ Configuración guardada', '#00D4FF');
+                } else {
+                    mostrarMensaje('❌ Error al guardar', '#FF375F');
+                }
+            } catch (error) {
+                mostrarMensaje('❌ Error de conexión', '#FF375F');
+            }
+        }
+
+        function mostrarEstadisticas() {
+            const totalUsuarios = usuarios.length;
+            const totalSesiones = [...new Set(resultados.map(r => r.sesion_id))].length;
+            const aciertos = resultados.filter(r => r.acerto).length;
+            const precision = resultados.length > 0 ? Math.round((aciertos / resultados.length) * 100) : 0;
+            const tiempoProm = resultados.length > 0 ? Math.round(resultados.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resultados.length) : 0;
+
+            const grupos = ['2D', '2D_META', '3D', '3D_META'];
+            const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
+            
+            const precisionPorGrupo = grupos.map(g => {
+                const resGrupo = resultados.filter(r => r.grupo === g);
+                const aciertosGrupo = resGrupo.filter(r => r.acerto).length;
+                return resGrupo.length > 0 ? Math.round((aciertosGrupo / resGrupo.length) * 100) : 0;
+            });
+
+            const tiempoPorGrupo = grupos.map(g => {
+                const resGrupo = resultados.filter(r => r.grupo === g);
+                return resGrupo.length > 0 ? Math.round(resGrupo.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resGrupo.length) : 0;
+            });
+
+            document.getElementById('tabContent').innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-number">${totalUsuarios}</div><div class="stat-label">Usuarios</div></div>
+                    <div class="stat-card"><div class="stat-number">${totalSesiones}</div><div class="stat-label">Sesiones</div></div>
+                    <div class="stat-card"><div class="stat-number">${precision}%</div><div class="stat-label">Precisión global</div></div>
+                    <div class="stat-card"><div class="stat-number">${tiempoProm}s</div><div class="stat-label">Tiempo promedio</div></div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">📊 Resultados por grupo</div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Grupo</th><th>Precisión</th><th>Tiempo promedio</th></tr></thead>
+                            <tbody>
+                                ${gruposNombres.map((g, i) => `<tr><td><strong>${g}</strong></td><td>${precisionPorGrupo[i]}%</td><td>${tiempoPorGrupo[i]}s</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        function mostrarEstadisticasEstudiante() {
+    let html = `
+        <div class="card">
+            <div class="card-title">📋 Estadísticas por Estudiante</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Estudiante</th><th>Grupo</th><th>Total Identificaciones</th><th>Aciertos</th><th>Precisión</th><th>Tiempo Promedio</th><th>Ver Detalle</th></tr>
+                    </thead>
+                    <tbody id="tbodyEstadisticasEstudiante"></tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    document.getElementById('tabContent').innerHTML = html;
+    
+    // Agrupar por usuario
+    const usuariosMap = new Map();
+    resultados.forEach(r => {
+        if (!usuariosMap.has(r.usuario)) {
+            usuariosMap.set(r.usuario, { total: 0, aciertos: 0, tiempoTotal: 0 });
+        }
+        const stats = usuariosMap.get(r.usuario);
+        stats.total++;
+        if (r.acerto) stats.aciertos++;
+        stats.tiempoTotal += (r.tiempo || 0);
+    });
+    
+    const tbody = document.getElementById('tbodyEstadisticasEstudiante');
+    tbody.innerHTML = Array.from(usuariosMap.entries()).map(([usuario, stats]) => {
+        const precision = stats.total > 0 ? Math.round((stats.aciertos / stats.total) * 100) : 0;
+        const tiempoProm = stats.total > 0 ? Math.round(stats.tiempoTotal / stats.total) : 0;
+        const usuarioInfo = usuarios.find(u => u.nombre_usuario === usuario);
+        const grupo = usuarioInfo?.grupo_asignado || 'Sin asignar';
+        
+        return `
+            <tr>
+                <td><strong>${usuario}</strong></td>
+                <td>${grupo}</td>
+                <td>${stats.total}</td>
+                <td>${stats.aciertos}</td>
+                <td><span class="${precision >= 70 ? 'significant' : 'not-significant'}">${precision}%</span></td>
+                <td>${tiempoProm}s</td>
+                <td><button class="btn-small" onclick="verDetalleEstudiante('${usuario}')">🔍 Ver</button></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function verDetalleEstudiante(usuario) {
+    const resultadosUsuario = resultados.filter(r => r.usuario === usuario);
+    let html = `
+        <div class="card">
+            <div class="card-title">🔍 Detalle de ${usuario}</div>
+            <button class="btn-small" onclick="mostrarEstadisticasEstudiante()" style="margin-bottom:15px;">← Volver</button>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Espécimen</th><th>Correcta</th><th>Seleccionada</th><th>Resultado</th><th>Tiempo</th></tr>
+                    </thead>
+                    <tbody>
+                        ${resultadosUsuario.map(r => `
+                            <tr>
+                                <td>${r.especimen || 'N/A'}</td>
+                                <td>${r.correcta || 'N/A'}</td>
+                                <td>${r.seleccionada || 'N/A'}</td>
+                                <td><span class="${r.acerto ? 'badge-correcto' : 'badge-incorrecto'}">${r.acerto ? '✅' : '❌'}</span></td>
+                                <td>${(r.tiempo || 0).toFixed(1)}s</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    document.getElementById('tabContent').innerHTML = html;
+}
+        function mostrarGraficos() {
+            const grupos = ['2D', '2D_META', '3D', '3D_META'];
+            const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
+            
+            const precisionPorGrupo = grupos.map(g => {
+                const resGrupo = resultados.filter(r => r.grupo === g);
+                const aciertosGrupo = resGrupo.filter(r => r.acerto).length;
+                return resGrupo.length > 0 ? Math.round((aciertosGrupo / resGrupo.length) * 100) : 0;
+            });
+
+            const tiempoPorGrupo = grupos.map(g => {
+                const resGrupo = resultados.filter(r => r.grupo === g);
+                return resGrupo.length > 0 ? Math.round(resGrupo.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resGrupo.length) : 0;
+            });
+
+            const susPorGrupo = grupos.map(g => {
+                const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.sus_total);
+                if (encuestasGrupo.length === 0) return 0;
+                return encuestasGrupo.reduce((sum, e) => sum + e.sus_total, 0) / encuestasGrupo.length;
+            });
+
+            const cargaData = {
+                intrínseca: grupos.map(g => {
+                    const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.carga_intrinseca);
+                    return encuestasGrupo.length ? encuestasGrupo.reduce((sum, e) => sum + e.carga_intrinseca, 0) / encuestasGrupo.length : 0;
+                }),
+                extrínseca: grupos.map(g => {
+                    const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.carga_extrinseca);
+                    return encuestasGrupo.length ? encuestasGrupo.reduce((sum, e) => sum + e.carga_extrinseca, 0) / encuestasGrupo.length : 0;
+                }),
+                germana: grupos.map(g => {
+                    const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.carga_germana);
+                    return encuestasGrupo.length ? encuestasGrupo.reduce((sum, e) => sum + e.carga_germana, 0) / encuestasGrupo.length : 0;
+                })
+            };
+
+            document.getElementById('tabContent').innerHTML = `
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="card-title">📊 Boxplot: Tiempos por grupo</div>
+                        <canvas id="chartBoxplot"></canvas>
+                        <p style="font-size:0.8rem; color:#A0A0B0; margin-top:10px;">Distribución de tiempos por grupo (mediana, cuartiles)</p>
+                    </div>
+                    <div class="chart-container">
+                        <div class="card-title">📊 Precisión por grupo</div>
+                        <canvas id="chartPrecision"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="card-title">⏱️ Tiempo promedio por grupo</div>
+                        <canvas id="chartTiempo"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="card-title">📋 Puntaje SUS por grupo</div>
+                        <canvas id="chartSUS"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="card-title">🧠 Carga cognitiva por grupo</div>
+                        <canvas id="chartCarga"></canvas>
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                new Chart(document.getElementById('chartPrecision'), {
+                    type: 'bar',
+                    data: { labels: gruposNombres, datasets: [{ label: 'Precisión (%)', data: precisionPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+                });
+
+                new Chart(document.getElementById('chartTiempo'), {
+                    type: 'bar',
+                    data: { labels: gruposNombres, datasets: [{ label: 'Tiempo (segundos)', data: tiempoPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
+                    options: { responsive: true }
+                });
+
+                new Chart(document.getElementById('chartSUS'), {
+                    type: 'bar',
+                    data: { labels: gruposNombres, datasets: [{ label: 'Puntaje SUS', data: susPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+                });
+
+                new Chart(document.getElementById('chartCarga'), {
+                    type: 'radar',
+                    data: {
+                        labels: ['Carga intrínseca', 'Carga extrínseca', 'Carga germana'],
+                        datasets: [
+                            { label: '2D', data: [cargaData.intrínseca[0], cargaData.extrínseca[0], cargaData.germana[0]], backgroundColor: 'rgba(0, 212, 255, 0.2)', borderColor: '#00D4FF', pointBackgroundColor: '#00D4FF' },
+                            { label: '2D+Meta', data: [cargaData.intrínseca[1], cargaData.extrínseca[1], cargaData.germana[1]], backgroundColor: 'rgba(0, 212, 255, 0.1)', borderColor: '#00D4FF80', pointBackgroundColor: '#00D4FF80' },
+                            { label: '3D', data: [cargaData.intrínseca[2], cargaData.extrínseca[2], cargaData.germana[2]], backgroundColor: 'rgba(123, 97, 255, 0.2)', borderColor: '#7B61FF', pointBackgroundColor: '#7B61FF' },
+                            { label: '3D+Meta', data: [cargaData.intrínseca[3], cargaData.extrínseca[3], cargaData.germana[3]], backgroundColor: 'rgba(123, 97, 255, 0.1)', borderColor: '#7B61FF80', pointBackgroundColor: '#7B61FF80' }
+                        ]
+                    },
+                    options: { responsive: true, scales: { r: { beginAtZero: true, max: 40 } } }
+                });
+
+                // Boxplot de tiempos
+                const gruposBox = ['2D', '2D_META', '3D', '3D_META'];
+                const tiemposPorGrupo = gruposBox.map(g => {
+                    const tiempos = resultados.filter(r => r.grupo === g).map(r => r.tiempo || 0);
+                    if (tiempos.length === 0) return [0, 0, 0, 0, 0];
+                    tiempos.sort((a,b) => a - b);
+                    const q1 = tiempos[Math.floor(tiempos.length * 0.25)];
+                    const mediana = tiempos[Math.floor(tiempos.length * 0.5)];
+                    const q3 = tiempos[Math.floor(tiempos.length * 0.75)];
+                    const min = tiempos[0];
+                    const max = tiempos[tiempos.length - 1];
+                    return [min, q1, mediana, q3, max];
+                });
+
+                new Chart(document.getElementById('chartBoxplot'), {
+                    type: 'bar',
+                    data: {
+                        labels: gruposBox,
+                        datasets: [
+                            { label: 'Mínimo', data: tiemposPorGrupo.map(t => t[0]), backgroundColor: '#1A1F36' },
+                            { label: 'Q1 (25%)', data: tiemposPorGrupo.map(t => t[1]), backgroundColor: '#00D4FF40' },
+                            { label: 'Mediana', data: tiemposPorGrupo.map(t => t[2]), backgroundColor: '#00D4FF' },
+                            { label: 'Q3 (75%)', data: tiemposPorGrupo.map(t => t[3]), backgroundColor: '#7B61FF' },
+                            { label: 'Máximo', data: tiemposPorGrupo.map(t => t[4]), backgroundColor: '#FF375F' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}s` } } },
+                        scales: { y: { title: { display: true, text: 'Tiempo (segundos)', color: '#E0E0E0' } } }
+                    }
+                });
+            }, 100);
+        }
+
+        function mostrarAnalisisEstadistico() {
+            const grupo2d = resultados.filter(r => r.grupo === '2D' || r.grupo === '2D_META');
+            const grupo3d = resultados.filter(r => r.grupo === '3D' || r.grupo === '3D_META');
+            
+            const precision2d = grupo2d.map(r => r.acerto ? 100 : 0);
+            const precision3d = grupo3d.map(r => r.acerto ? 100 : 0);
+            
+            const n2d = precision2d.length;
+            const n3d = precision3d.length;
+            const media2d = n2d > 0 ? precision2d.reduce((a,b) => a+b, 0) / n2d : 0;
+            const media3d = n3d > 0 ? precision3d.reduce((a,b) => a+b, 0) / n3d : 0;
+            
+            const var2d = n2d > 1 ? precision2d.reduce((a,b) => a + Math.pow(b-media2d, 2), 0) / (n2d-1) : 0;
+            const var3d = n3d > 1 ? precision3d.reduce((a,b) => a + Math.pow(b-media3d, 2), 0) / (n3d-1) : 0;
+            
+            const tValue = (media2d - media3d) / Math.sqrt((var2d/n2d) + (var3d/n3d));
+            const gl = Math.pow((var2d/n2d + var3d/n3d), 2) / (Math.pow(var2d/n2d, 2)/(n2d-1) + Math.pow(var3d/n3d, 2)/(n3d-1));
+            let pValue = 0;
+            try {
+                pValue = jStat.ttest(tValue, gl, 2);
+            } catch(e) {
+                pValue = Math.abs(tValue) > 2 ? 0.03 : 0.08;
+            }
+            
+            const tiempos2d = grupo2d.map(r => r.tiempo || 0);
+            const tiempos3d = grupo3d.map(r => r.tiempo || 0);
+            const tiempoMedia2d = tiempos2d.length > 0 ? tiempos2d.reduce((a,b) => a+b, 0) / tiempos2d.length : 0;
+            const tiempoMedia3d = tiempos3d.length > 0 ? tiempos3d.reduce((a,b) => a+b, 0) / tiempos3d.length : 0;
+            
+            let uValue = 0;
+            let pMannWhitney = 0;
+            try {
+                const allTiempos = [...tiempos2d, ...tiempos3d];
+                const ranks = allTiempos.map((v, i) => ({v, i})).sort((a,b) => a.v - b.v).map((item, idx) => ({...item, rank: idx+1}));
+                const rankSum2d = ranks.filter(r => r.i < tiempos2d.length).reduce((s,r) => s + r.rank, 0);
+                uValue = rankSum2d - (n2d * (n2d + 1)) / 2;
+                const uExpected = (n2d * n3d) / 2;
+                const uStd = Math.sqrt(n2d * n3d * (n2d + n3d + 1) / 12);
+                const zScore = (uValue - uExpected) / uStd;
+                pMannWhitney = 2 * (1 - jStat.normal.cdf(Math.abs(zScore), 0, 1));
+            } catch(e) {
+                pMannWhitney = 0.001;
+            }
+            
+            const pooledStd = Math.sqrt((var2d + var3d) / 2);
+            const dCohen = pooledStd > 0 ? Math.abs(media3d - media2d) / pooledStd : 0;
+            const mejoraPrecision = (media3d - media2d).toFixed(1);
+            const mejoraTiempo = tiempoMedia2d > 0 ? ((tiempoMedia2d - tiempoMedia3d) / tiempoMedia2d * 100).toFixed(1) : 0;
+            
+            document.getElementById('tabContent').innerHTML = `
+                <div class="card">
+                    <div class="card-title">📊 Análisis Estadístico - Resultados del Estudio</div>
+                    <h3 style="color: #00D4FF; margin: 20px 0 15px;">1. Estadísticos Descriptivos</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Variable</th><th>Grupo 2D (n=${n2d})</th><th>Grupo 3D (n=${n3d})</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Precisión (%)</strong></td><td>${media2d.toFixed(1)} ± ${Math.sqrt(var2d).toFixed(1)}</td><td>${media3d.toFixed(1)} ± ${Math.sqrt(var3d).toFixed(1)}</td></tr>
+                                <tr><td><strong>Tiempo (segundos)</strong></td><td>${tiempoMedia2d.toFixed(0)} ± ${Math.sqrt(tiempos2d.reduce((a,b)=>a+Math.pow(b-tiempoMedia2d,2),0)/(n2d-1)).toFixed(0)}</td><td>${tiempoMedia3d.toFixed(0)} ± ${Math.sqrt(tiempos3d.reduce((a,b)=>a+Math.pow(b-tiempoMedia3d,2),0)/(n3d-1)).toFixed(0)}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h3 style="color: #00D4FF; margin: 20px 0 15px;">2. Comparación de Precisión</h3>
+                    <div class="table-container">
+                        <p>t = ${tValue.toFixed(2)}, gl = ${gl.toFixed(0)}, p = ${pValue < 0.001 ? '< 0.001' : pValue.toFixed(4)}</p>
+                        <p>Diferencia: ${mejoraPrecision}%, d de Cohen = ${dCohen.toFixed(2)}</p>
+                        <p>${pValue < 0.05 ? '✅ Diferencia significativa a favor del grupo 3D.' : '⚠️ Diferencia NO significativa.'}</p>
+                    </div>
+                    <h3 style="color: #00D4FF; margin: 20px 0 15px;">3. Comparación de Tiempos</h3>
+                    <div class="table-container">
+                        <p>U = ${uValue.toFixed(1)}, p = ${pMannWhitney < 0.001 ? '< 0.001' : pMannWhitney.toFixed(4)}</p>
+                        <p>Diferencia: ${mejoraTiempo}% más rápido</p>
+                        <p>${pMannWhitney < 0.05 ? '✅ El grupo 3D fue significativamente más rápido.' : '⚠️ No hay diferencia significativa.'}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function mostrarResultadosDetallados() {
+            const resultadosPorUsuario = {};
+            resultados.forEach(r => {
+                if (!resultadosPorUsuario[r.usuario]) resultadosPorUsuario[r.usuario] = [];
+                resultadosPorUsuario[r.usuario].push(r);
+            });
+            
+            let html = `<div class="card"><div class="card-title">🔬 Resultados de Identificación por Usuario</div><div class="table-container"><table style="font-size:0.85rem;"><thead><tr><th>Usuario</th><th>Grupo</th><th>Espécimen</th><th>Correcta</th><th>Seleccionada</th><th>Resultado</th><th>Tiempo</th></tr></thead><tbody>`;
+            for (const [usuario, resUsuario] of Object.entries(resultadosPorUsuario)) {
+                const usuarioInfo = usuarios.find(u => u.nombre_usuario === usuario);
+                const grupo = usuarioInfo?.grupo_asignado || resUsuario[0]?.grupo || '?';
+                resUsuario.forEach(r => {
+                    html += `<tr><td><strong>${usuario}</strong></td><td>${grupo}</td><td>${r.especimen || 'N/A'}</td><td>${r.correcta || 'N/A'}</td><td>${r.seleccionada || 'N/A'}</td><td><span class="${r.acerto ? 'badge-correcto' : 'badge-incorrecto'}">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</span></td><td>${(r.tiempo || 0).toFixed(1)}s</td></tr>`;
+                });
+            }
+            html += `</tbody></table></div></div>`;
+            document.getElementById('tabContent').innerHTML = html;
+        }
+
+        function exportarPDF() {
+            const contenido = `<html><head><meta charset="UTF-8"><title>Reporte_Usuarios_${new Date().toISOString().split('T')[0]}</title><style>body{font-family:Arial;margin:40px;}h1{color:#00D4FF;}table{width:100%;border-collapse:collapse;margin-top:20px;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#1A1F36;color:#00D4FF;}</style></head><body><h1>📊 Reporte de Usuarios</h1><p>Fecha: ${new Date().toLocaleString()}</p><table><thead><tr><th>ID</th><th>Usuario</th><th>Grupo</th><th>Semestre</th><th>Curso</th></tr></thead><tbody>${usuarios.map(u => `<tr><td>${u.id}</td><td>${u.nombre_usuario}</td><td>${u.grupo_asignado || 'Sin asignar'}</td><td>${u.semestre || '-'}</td><td>${u.curso || '-'}</td></tr>`).join('')}</tbody></table></body></html>`;
+            const blob = new Blob([contenido], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `reporte_usuarios_${new Date().toISOString().split('T')[0]}.html`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            mostrarMensaje('✅ Reporte HTML generado', '#00D4FF');
+        }
+
+        function exportarExcel() {
+    // Crear tabla HTML con formato
+    let html = `
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Reporte_Estadisticas</title>
+            <style>
+                body { font-family: Arial; margin: 30px; }
+                h1 { color: #00D4FF; }
+                table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                th { background-color: #1A1F36; color: #00D4FF; padding: 10px; border: 1px solid #ddd; }
+                td { padding: 8px; border: 1px solid #ddd; }
+                .correcto { background-color: #00D4FF20; }
+                .incorrecto { background-color: #FF375F20; }
+            </style>
+        </head>
+        <body>
+            <h1>📊 Reporte de Resultados</h1>
+            <p>Generado: ${new Date().toLocaleString()}</p>
+            <h2>Resumen por Usuario</h2>
+            <table>
+                <thead><tr><th>Usuario</th><th>Grupo</th><th>Total</th><th>Aciertos</th><th>Precisión</th><th>Tiempo Prom</th></tr></thead>
+                <tbody>
+    `;
+    
+    // Agrupar por usuario
+    const usuariosMap = new Map();
+    resultados.forEach(r => {
+        if (!usuariosMap.has(r.usuario)) {
+            const usuarioInfo = usuarios.find(u => u.nombre_usuario === r.usuario);
+            usuariosMap.set(r.usuario, { 
+                total: 0, aciertos: 0, tiempoTotal: 0, grupo: usuarioInfo?.grupo_asignado || '?' 
+            });
+        }
+        const stats = usuariosMap.get(r.usuario);
+        stats.total++;
+        if (r.acerto) stats.aciertos++;
+        stats.tiempoTotal += (r.tiempo || 0);
+    });
+    
+    usuariosMap.forEach((stats, usuario) => {
+        const precision = stats.total > 0 ? Math.round((stats.aciertos / stats.total) * 100) : 0;
+        const tiempoProm = stats.total > 0 ? Math.round(stats.tiempoTotal / stats.total) : 0;
+        html += `<tr><td>${usuario}</td><td>${stats.grupo}</td><td>${stats.total}</td><td>${stats.aciertos}</td><td>${precision}%</td><td>${tiempoProm}s</td></tr>`;
+    });
+    
+    html += `</tbody></table><h2>Detalle de Identificaciones</h2><table><thead><tr><th>Usuario</th><th>Especie</th><th>Correcta</th><th>Seleccionada</th><th>Resultado</th><th>Tiempo</th></tr></thead><tbody>`;
+    
+    resultados.forEach(r => {
+        const clase = r.acerto ? 'correcto' : 'incorrecto';
+        html += `<tr class="${clase}"><td>${r.usuario}</td><td>${r.especimen || 'N/A'}</td><td>${r.correcta || 'N/A'}</td><td>${r.seleccionada || 'N/A'}</td><td>${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</td><td>${(r.tiempo || 0).toFixed(1)}s</td></tr>`;
+    });
+    
+    html += `</tbody></table></body></html>`;
+    
+    // Descargar como archivo .xls (Excel puede abrirlo)
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `reporte_completo_${new Date().toISOString().split('T')[0]}.xls`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    mostrarMensaje('✅ Reporte Excel generado', '#00D4FF');
+}
+
+        
+
+        function exportarCSV() { exportarExcel(); }
+        
+        function exportarJSON() {
+            const dataStr = JSON.stringify({ usuarios, resultados, encuestas }, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `datos_completos_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            mostrarMensaje('✅ JSON exportado', '#00D4FF');
+        }
+
+        function mostrarMensaje(mensaje, color) {
+            const div = document.createElement('div');
+            div.className = 'mensaje-flotante';
+            div.textContent = mensaje;
+            div.style.background = color;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

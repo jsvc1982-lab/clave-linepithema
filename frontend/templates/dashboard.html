@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Dashboard - Clave Linepithema</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #0A0E17;
+            color: #E0E0E0;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #00D4FF30;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        h1 {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.8rem;
+        }
+
+        .user-info {
+            background: #1A1F36;
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid #00D4FF40;
+        }
+
+        .user-info span {
+            color: #00D4FF;
+            font-weight: bold;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #121826;
+            border: 1px solid #00D4FF40;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: #00D4FF;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #00D4FF;
+        }
+
+        .stat-label {
+            color: #A0A0B0;
+            margin-top: 10px;
+        }
+
+        .card {
+            background: #121826;
+            border: 1px solid #00D4FF40;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card-title {
+            color: #00D4FF;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00D4FF30;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            background: #1A1F36;
+            color: #00D4FF;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1A1F36;
+        }
+
+        .badge-correcto {
+            background: #00D4FF20;
+            color: #00D4FF;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .badge-incorrecto {
+            background: #FF375F20;
+            color: #FF375F;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .badge-pendiente {
+            background: #FFAA0020;
+            color: #FFAA00;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid #FF375F;
+            color: #FF375F;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .flex-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .mensaje-flotante {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #00D4FF;
+            color: #0A0E17;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeOut 3s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; display: none; }
+        }
+        /* Animaciones de feedback */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.stat-card {
+    transition: all 0.3s ease;
+    animation: fadeInUp 0.5s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,212,255,0.2);
+}
+
+.btn-primary {
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    animation: pulse 0.5s ease;
+}
+/* Animación para resultados nuevos */
+@keyframes slideIn {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.resultado-nuevo {
+    animation: slideIn 0.5s ease;
+    display: inline-block;
+    background: #00D4FF20;
+    border-left: 3px solid #00D4FF;
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+
+@media (max-width: 700px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    table {
+        font-size: 0.8rem;
+    }
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>📊 Mi Panel de Control</h1>
+                <p style="color: #A0A0B0;">Seguimiento de tu participación en el estudio</p>
+            </div>
+            <div class="user-info">
+                👤 Usuario: <span id="userName">Cargando...</span>
+            </div>
+        </div>
+
+        <!-- Tarjetas de estadísticas -->
+        <div class="stats-grid">
+            <div class="card">
+    <div class="card-title">📈 Tu progreso</div>
+    <canvas id="progressChart" width="400" height="200" style="max-width:100%; height:auto;"></canvas>
+    <p id="mensajeProgreso" style="text-align:center; margin-top:15px; color:#A0A0B0;"></p>
+</div>
+            <div class="stat-card">
+                <div class="stat-number" id="especiesCompletadas">0</div>
+                <div class="stat-label">Especies identificadas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="porcentajeAciertos">0%</div>
+                <div class="stat-label">Aciertos</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="tiempoTotal">0s</div>
+                <div class="stat-label">Tiempo total</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="encuestasEstado">Pendiente</div>
+                <div class="stat-label">Encuestas</div>
+            </div>
+        </div>
+
+        <!-- Información del grupo -->
+        <div class="card">
+            <div class="card-title">🎯 Tu grupo asignado</div>
+            <p id="grupoAsignado" style="font-size: 1.2rem; font-weight: bold; color: #7B61FF;">Cargando...</p>
+            <p id="mensajeGrupo" style="color: #A0A0B0; margin-top: 10px;"></p>
+        </div>
+
+        <!-- Resultados de identificación -->
+        <div class="card">
+            <div class="card-title">🔬 Resultados de tus identificaciones</div>
+            <div style="overflow-x: auto;">
+                <table id="tablaResultados">
+                    <thead>
+                        <tr>
+                            <th>Espécimen</th>
+                            <th>Especie correcta</th>
+                            <th>Tu respuesta</th>
+                            <th>Resultado</th>
+                            <th>Tiempo</th>
+                            <th>Detalle del error</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodyResultados">
+                        <tr><td colspan="6" style="text-align: center;">Cargando tus resultados...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="flex-buttons">
+            <button class="btn btn-primary" id="btnIniciar" onclick="iniciarIdentificacion()">🔬 Iniciar identificación</button>
+            <button class="btn btn-secondary" onclick="cerrarSesion()">🔓 Cerrar sesión</button>
+        </div>
+    </div>
+
+    <script>
+
+        let usuario = null;
+        let usuarioId = null;
+        let datosUsuario = null;
+        let resultados = [];
+        let sesionActiva = null;
+
+        // ===== INICIALIZACIÓN =====
+        // Cargar Chart.js si no está
+if (typeof Chart === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+    document.head.appendChild(script);
+    setTimeout(() => crearGraficoProgreso(), 500);
+} else {
+    crearGraficoProgreso();
+}
+
+function crearGraficoProgreso() {
+    const aciertos = resultados.filter(r => r.acerto).length;
+    const incorrectos = resultados.length - aciertos;
+    
+    const ctx = document.getElementById('progressChart');
+    if (!ctx) return;
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['✅ Correctos', '❌ Incorrectos'],
+            datasets: [{
+                data: [aciertos, incorrectos],
+                backgroundColor: ['#00D4FF', '#FF375F'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#E0E0E0' } }
+            }
+        }
+    });
+    
+    const total = resultados.length;
+    const porcentaje = total > 0 ? Math.round((aciertos/total)*100) : 0;
+    document.getElementById('mensajeProgreso').innerHTML = `Has completado ${total} identificación(es) con un ${porcentaje}% de aciertos. ¡Sigue así! 🎯`;
+}
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            usuario = urlParams.get('usuario');
+            
+            if (!usuario) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = usuario;
+            
+            // Verificar sesión con el servidor
+            const sesionValida = await verificarSesion();
+            if (!sesionValida) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            await cargarDatos();
+        });
+
+        async function verificarSesion() {
+            try {
+                const response = await fetch('/api/verificar_sesion', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.activa && data.usuario === usuario) {
+                        usuarioId = data.id;
+                        return true;
+                    }
+                }
+                return false;
+            } catch (error) {
+                console.error('Error verificando sesión:', error);
+                return false;
+            }
+        }
+
+        async function cargarDatos() {
+    try {
+        const responseUser = await fetch(`/api/usuario/${encodeURIComponent(usuario)}`);
+        if (responseUser.ok) {
+            datosUsuario = await responseUser.json();
+            document.getElementById('grupoAsignado').textContent = datosUsuario.grupo_asignado || 'Sin asignar';
+            
+            // Verificar si ya completó las 2 identificaciones
+            await cargarResultados();
+            
+            // Verificar si ya tiene 2 especies completadas
+            if (resultados.length >= 2) {
+                document.getElementById('btnIniciar').disabled = true;
+                document.getElementById('btnIniciar').style.opacity = '0.5';
+                document.getElementById('btnIniciar').title = 'Ya completaste las identificaciones';
+                
+                // Mostrar mensaje
+                const mensajeDiv = document.getElementById('mensajeGrupo');
+                if (mensajeDiv) {
+                    mensajeDiv.innerHTML = '✅ ¡Ya completaste las dos identificaciones! Gracias por participar.';
+                }
+            } else {
+                document.getElementById('btnIniciar').disabled = false;
+                document.getElementById('btnIniciar').style.opacity = '1';
+            }
+            
+            if (!datosUsuario.grupo_asignado) {
+                document.getElementById('mensajeGrupo').innerHTML = '⚠️ Aún no tienes grupo asignado. Espera a que el administrador te asigne un grupo.';
+                document.getElementById('btnIniciar').disabled = true;
+            } else {
+                let mensajeGrupo = '';
+                if (datosUsuario.grupo_asignado === '2D') mensajeGrupo = 'Usarás imágenes 2D para identificar las especies.';
+                else if (datosUsuario.grupo_asignado === '2D_META') mensajeGrupo = 'Usarás imágenes 2D con reflexiones metacognitivas.';
+                else if (datosUsuario.grupo_asignado === '3D') mensajeGrupo = 'Usarás modelos 3D interactivos.';
+                else if (datosUsuario.grupo_asignado === '3D_META') mensajeGrupo = 'Usarás modelos 3D con reflexiones metacognitivas.';
+                document.getElementById('mensajeGrupo').textContent = mensajeGrupo;
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando datos:', error);
+        mostrarMensaje('Error al cargar datos', '#FF375F');
+    }
+}
+
+        async function cargarResultados() {
+    try {
+        const response = await fetch(`/api/usuario/${usuarioId}/resultados`);
+        if (response.ok) {
+            resultados = await response.json();
+        } else {
+            resultados = [];
+        }
+        
+        // Calcular estadísticas
+        const sesiones = [...new Set(resultados.map(r => r.sesion_id))];
+        const especiesCompletadas = sesiones.length;
+        const aciertos = resultados.filter(r => r.acerto).length;
+        const porcentaje = resultados.length > 0 ? Math.round((aciertos / resultados.length) * 100) : 0;
+        const tiempoTotal = resultados.reduce((sum, r) => sum + (r.tiempo || 0), 0);
+        
+        document.getElementById('especiesCompletadas').textContent = especiesCompletadas;
+        document.getElementById('porcentajeAciertos').textContent = `${porcentaje}%`;
+        document.getElementById('tiempoTotal').textContent = `${tiempoTotal}s`;
+        
+        // Mostrar tabla con detalle de error
+        const tbody = document.getElementById('tbodyResultados');
+        
+        if (resultados.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Aún no has realizado ninguna identificación</td></tr>';
+        } else {
+            tbody.innerHTML = resultados.map(r => `
+                <tr>
+                    <td>${r.especimen || 'N/A'}</td>
+                    <td>${r.correcta || 'N/A'}</td>
+                    <td>${r.seleccionada || 'N/A'}</td>
+                    <td><span class="${r.acerto ? 'badge-correcto' : 'badge-incorrecto'}">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</span></td>
+                    <td>${(r.tiempo || 0).toFixed(1)}s</td>
+                    <td>${!r.acerto ? `⚠️ La especie correcta era: <strong>${r.correcta}</strong>` : '✓'}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // Verificar si ya completó las 2 identificaciones y deshabilitar botón
+        if (resultados.length >= 2) {
+            const btnIniciar = document.getElementById('btnIniciar');
+            if (btnIniciar) {
+                btnIniciar.disabled = true;
+                btnIniciar.style.opacity = '0.5';
+                btnIniciar.style.cursor = 'not-allowed';
+                btnIniciar.title = 'Ya completaste las dos identificaciones';
+            }
+            
+            // Mostrar mensaje de felicitaciones
+            const mensajeGrupo = document.getElementById('mensajeGrupo');
+            if (mensajeGrupo && !datosUsuario?.grupo_asignado) {
+                mensajeGrupo.innerHTML = '✅ ¡Felicidades! Ya completaste las dos identificaciones. Gracias por participar.';
+            }
+        }
+        
+        // Crear gráfico de progreso si existe la función
+        if (typeof crearGraficoProgreso === 'function') {
+            crearGraficoProgreso();
+        }
+        
+    } catch (error) {
+        console.error('Error cargando resultados:', error);
+        const tbody = document.getElementById('tbodyResultados');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Error al cargar resultados</td></tr>';
+        }
+    }tbody.innerHTML = resultados.map(r => `
+    <tr>
+        ... (tu código existente)
+        <td class="${r.acerto ? 'badge-correcto' : 'badge-incorrecto'} resultado-nuevo">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</td>
+        ...
+    </tr>
+`).join('');
+}
+        function iniciarIdentificacion() {
+    // Verificar si ya completó las 2 identificaciones
+    if (resultados.length >= 2) {
+        alert('✅ Ya completaste las dos identificaciones. ¡Gracias por participar!');
+        return;
+    }
+    
+    if (!datosUsuario || !datosUsuario.grupo_asignado) {
+        alert('No tienes grupo asignado. Espera a que el administrador te asigne un grupo.');
+        return;
+    }
+    
+    const grupo = datosUsuario.grupo_asignado;
+    
+    if (grupo === '2D') {
+        window.location.href = '/clave_2d?usuario=' + usuario;
+    } else if (grupo === '2D_META') {
+        window.location.href = '/clave_2d_meta?usuario=' + usuario;
+    } else if (grupo === '3D') {
+        window.location.href = '/clave_3d?usuario=' + usuario;
+    } else if (grupo === '3D_META') {
+        window.location.href = '/clave_3d_meta?usuario=' + usuario;
+    }
+}
+
+        async function cerrarSesion() {
+            if (confirm('¿Cerrar sesión?')) {
+                try {
+                    await fetch('/api/logout', { method: 'POST' });
+                } catch(e) {}
+                localStorage.removeItem('usuario');
+                window.location.href = '/login';
+            }
+        }
+
+        function mostrarMensaje(mensaje, color) {
+            const div = document.createElement('div');
+            div.className = 'mensaje-flotante';
+            div.textContent = mensaje;
+            div.style.background = color;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+    </script>
+</body>
+</html>

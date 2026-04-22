@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - Clave Linepithema</title>
+    <style>
+        /* Mantén todos tus estilos exactamente como los tienes */
+        body {
+            background-color: #0A0E17;
+            color: #E0E0E0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .register-container {
+            background: #121826;
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid #00D4FF40;
+            width: 900px;
+            max-width: 100%;
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #A0A0B0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #00D4FF30;
+            padding-bottom: 15px;
+        }
+        
+        .info-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            background: #1A1F36;
+            padding: 10px;
+            border-radius: 50px;
+            border: 1px solid #00D4FF40;
+        }
+        
+        .info-tab {
+            flex: 1;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 40px;
+            color: #A0A0B0;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .info-tab.active {
+            background: linear-gradient(45deg, #00D4FF20, #7B61FF20);
+            color: #00D4FF;
+        }
+        
+        .info-content {
+            background: #1A1F36;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #00D4FF40;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .info-section {
+            line-height: 1.6;
+        }
+        
+        .info-section h3 {
+            color: #00D4FF;
+            margin-bottom: 15px;
+        }
+        
+        .instruction-step {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            background: #121826;
+            padding: 12px 15px;
+            border-radius: 10px;
+        }
+        
+        .step-number {
+            background: #00D4FF;
+            color: #0A0E17;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .consent-box {
+            background: #121826;
+            border-left: 4px solid #00D4FF;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.95rem;
+            color: #A0A0B0;
+        }
+        
+        .consent-check {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #121826;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .consent-check input {
+            width: 20px;
+            height: 20px;
+            accent-color: #00D4FF;
+        }
+        
+        .btn-download {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group.full-width {
+            grid-column: span 2;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #00D4FF;
+            font-weight: 600;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            background: #1A1F36;
+            border: 2px solid #1A1F36;
+            border-radius: 10px;
+            color: #E0E0E0;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #00D4FF;
+        }
+        
+        .range-container {
+            background: #1A1F36;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        input[type=range] {
+            width: 100%;
+            padding: 0;
+        }
+        
+        .scale-info {
+            display: flex;
+            justify-content: space-between;
+            color: #A0A0B0;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+        
+        .scale-value {
+            color: #00D4FF;
+            font-weight: bold;
+        }
+        
+        button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 25px;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 212, 255, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .login-link {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #00D4FF30;
+        }
+        
+        a {
+            color: #00D4FF;
+            text-decoration: none;
+        }
+        
+        .error-message, .success-message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+        }
+        
+        .error-message {
+            background: #FF375F20;
+            color: #FF375F;
+            border: 1px solid #FF375F40;
+        }
+        
+        .success-message {
+            background: #00D4FF20;
+            color: #00D4FF;
+            border: 1px solid #00D4FF40;
+        }
+        
+        .required-field::after {
+            content: " *";
+            color: #FF375F;
+        }
+        
+        @media (max-width: 700px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .form-group.full-width {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <h1>🔬 Clave Taxonómica Linepithema</h1>
+        <div class="subtitle">Registro de participantes - Estudio sobre identificación del género <em>Linepithema</em></div>
+        
+        <div class="info-tabs">
+            <button class="info-tab active" onclick="mostrarInfo(event, 'manual')">📖 Manual de uso</button>
+            <button class="info-tab" onclick="mostrarInfo(event, 'consentimiento')">📝 Consentimiento</button>
+        </div>
+        
+        <div id="manualContent" class="info-content">
+            <div class="info-section">
+                <h3>🎯 Objetivo del estudio</h3>
+                <p>Identificar 2 especies del género <em>Linepithema</em> utilizando una clave dicotómica interactiva.</p>
+                
+                <h3>📝 Instrucciones paso a paso</h3>
+                <div class="instruction-step"><span class="step-number">1</span><span>Observa el espécimen (imagen o modelo 3D)</span></div>
+                <div class="instruction-step"><span class="step-number">2</span><span>Responde las preguntas seleccionando A o B</span></div>
+                <div class="instruction-step"><span class="step-number">3</span><span>Al final, <strong>escribe el nombre</strong> de la especie</span></div>
+                <div class="instruction-step"><span class="step-number">4</span><span>Recibirás retroalimentación inmediata</span></div>
+                <div class="instruction-step"><span class="step-number">5</span><span>Repite para el segundo espécimen</span></div>
+                <div class="instruction-step"><span class="step-number">6</span><span>Completa las dos encuestas</span></div>
+            </div>
+        </div>
+        
+        <div id="consentimientoContent" class="info-content" style="display: none;">
+            <div class="info-section">
+                <h3>📄 Consentimiento Informado</h3>
+                <div style="text-align: center;">
+                    <button class="btn-download" onclick="descargarConsentimiento()">📥 Descargar consentimiento</button>
+                </div>
+                <div class="consent-box">
+                    <p><strong>UNIVERSIDAD PEDAGÓGICA NACIONAL</strong><br>FACULTAD DE CIENCIA Y TECNOLOGÍA</p>
+                    <p><strong>Título:</strong> Macrofotografía y fotogrametría para la identificación de Linepithema</p>
+                    <p><strong>Investigador:</strong> John Steve Vanegas Canchón</p>
+                    <p>Declaro que he sido informado sobre los objetivos del estudio, comprendo que mi participación es voluntaria y autorizo el uso anónimo de mis datos para fines académicos.</p>
+                </div>
+                <div class="consent-check">
+                    <input type="checkbox" id="aceptoConsentimiento">
+                    <label>Acepto los términos del consentimiento informado</label>
+                </div>
+            </div>
+        </div>
+        
+        <div id="formularioRegistro" style="opacity: 0.5; pointer-events: none;">
+            <div class="info-box" style="background: #1A1F36; border-left: 4px solid #FF375F; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+                ⚠️ Debes aceptar el consentimiento para poder registrarte
+            </div>
+            
+            <form id="registerForm">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>👤 Nombre de usuario <span class="required-field"></span></label>
+                        <input type="text" id="usuario" required minlength="4">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>📧 Correo electrónico <span class="required-field"></span></label>
+                        <input type="email" id="correo" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>🔑 Contraseña <span class="required-field"></span></label>
+                        <input type="password" id="contrasena" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>📚 Semestre</label>
+                        <select id="semestre" required>
+                            <option value="">Seleccione...</option>
+                            <option value="1">1°</option><option value="2">2°</option>
+                            <option value="3">3°</option><option value="4">4°</option>
+                            <option value="5">5°</option><option value="6">6°</option>
+                            <option value="7">7°</option><option value="8">8°</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>👥 Curso</label>
+                        <select id="curso" required>
+                            <option value="">Seleccione...</option>
+                            <option value="1">Curso 1</option>
+                            <option value="2">Curso 2</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>⚥ Género</label>
+                        <select id="genero">
+                            <option value="">Prefiero no decirlo</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>🔬 Experiencia previa en taxonomía</label>
+                    <div class="range-container">
+                        <input type="range" id="experiencia" min="1" max="5" value="3" step="1" oninput="updateValue('experienciaValue', this.value)">
+                        <div class="scale-info"><span>Muy baja</span><span class="scale-value" id="experienciaValue">3</span><span>Muy alta</span></div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>🧠 Habilidad espacial (capacidad para rotar mentalmente objetos 3D)</label>
+                    <div class="range-container">
+                        <input type="range" id="habilidad_espacial" min="1" max="20" value="12" step="1" oninput="updateValue('habilidadValue', this.value)">
+                        <div class="scale-info"><span>Muy baja</span><span class="scale-value" id="habilidadValue">12</span><span>Muy alta</span></div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>🖥️ Familiaridad con tecnologías 3D</label>
+                    <div class="range-container">
+                        <input type="range" id="familiaridad_3d" min="1" max="5" value="3" step="1" oninput="updateValue('familiaridadValue', this.value)">
+                        <div class="scale-info"><span>Muy baja</span><span class="scale-value" id="familiaridadValue">3</span><span>Muy alta</span></div>
+                    </div>
+                </div>
+                
+                <div id="errorMessage" class="error-message"></div>
+                <div id="successMessage" class="success-message"></div>
+                
+                <button type="submit" id="submitBtn" disabled>📝 Completar registro</button>
+            </form>
+        </div>
+        
+        <div class="login-link">
+            ¿Ya tienes cuenta? <a href="/login">Inicia sesión aquí</a>
+        </div>
+    </div>
+
+    <script>
+        function mostrarInfo(event, seccion) {
+            // Remover active de todos los tabs
+            document.querySelectorAll('.info-tab').forEach(btn => btn.classList.remove('active'));
+            // Agregar active al tab clickeado
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+            
+            if (seccion === 'manual') {
+                document.getElementById('manualContent').style.display = 'block';
+                document.getElementById('consentimientoContent').style.display = 'none';
+            } else {
+                document.getElementById('manualContent').style.display = 'none';
+                document.getElementById('consentimientoContent').style.display = 'block';
+            }
+        }
+        
+        function descargarConsentimiento() {
+            const contenido = `CONSENTIMIENTO INFORMADO\n\nUNIVERSIDAD PEDAGÓGICA NACIONAL\nFACULTAD DE CIENCIA Y TECNOLOGÍA\n\nTítulo: Macrofotografía y fotogrametría para la identificación de Linepithema\nInvestigador: John Steve Vanegas Canchón\n\nYo, ____________, acepto participar voluntariamente en este estudio.`;
+            const blob = new Blob([contenido], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'consentimiento.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+        
+        document.getElementById('aceptoConsentimiento').addEventListener('change', function(e) {
+            const formulario = document.getElementById('formularioRegistro');
+            const submitBtn = document.getElementById('submitBtn');
+            if (e.target.checked) {
+                formulario.style.opacity = '1';
+                formulario.style.pointerEvents = 'auto';
+                submitBtn.disabled = false;
+            } else {
+                formulario.style.opacity = '0.5';
+                formulario.style.pointerEvents = 'none';
+                submitBtn.disabled = true;
+            }
+        });
+        
+        function updateValue(elementId, value) {
+            document.getElementById(elementId).textContent = value;
+        }
+        
+        function validarEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+        
+        function mostrarError(mensaje) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = `<div>❌ ${mensaje}</div>`;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+        
+        function mostrarExito(mensaje) {
+            const successDiv = document.getElementById('successMessage');
+            
+            const mensajesMotivacionales = [
+                "🌿 ¡Gracias por ser parte de este estudio! Tu participación ayudará a entender mejor la biodiversidad de hormigas en Colombia.",
+                "🐜 ¡Excelente decisión! Con tu ayuda, la ciencia avanza un paso más en el conocimiento de Linepithema.",
+                "🔬 ¡Bienvenido/a a la investigación! Tu contribución es valiosa para la taxonomía y conservación.",
+                "📚 ¡Gracias por unirte! Cada identificación cuenta para entender mejor nuestras especies nativas.",
+                "🎓 ¡Felicidades! Estás contribuyendo a la formación de nuevos conocimientos en entomología.",
+                "🌎 ¡Gracias por tu compromiso! Tu participación fortalece la ciencia colombiana.",
+                "✨ ¡Excelente! Juntos estamos construyendo un mejor entendimiento de nuestra biodiversidad.",
+                "💚 ¡Agradecemos tu interés en la ciencia! Tu esfuerzo es fundamental para este estudio."
+            ];
+            
+            const mensajeMotivacional = mensajesMotivacionales[Math.floor(Math.random() * mensajesMotivacionales.length)];
+            
+            successDiv.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="font-size: 1.2rem;">✅ ${mensaje}</div>
+                    <div style="font-size: 0.95rem; color: #7B61FF; border-top: 1px solid #00D4FF40; padding-top: 10px;">
+                        ${mensajeMotivacional}
+                    </div>
+                    <div style="font-size: 0.85rem; color: #A0A0B0;">⏳ Redirigiendo al login...</div>
+                </div>
+            `;
+            successDiv.style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const usuario = document.getElementById('usuario').value.trim();
+            const correo = document.getElementById('correo').value.trim();
+            const contrasena = document.getElementById('contrasena').value;
+            const semestre = document.getElementById('semestre').value;
+            const curso = document.getElementById('curso').value;
+            
+            if (usuario.length < 4) { mostrarError('Usuario debe tener al menos 4 caracteres'); return; }
+            if (!validarEmail(correo)) { mostrarError('Correo inválido'); return; }
+            if (contrasena.length < 6) { mostrarError('Contraseña debe tener al menos 6 caracteres'); return; }
+            if (!semestre || !curso) { mostrarError('Completa todos los campos'); return; }
+            
+            const datos = {
+                usuario, correo, contrasena,
+                semestre: parseInt(semestre),
+                curso: parseInt(curso),
+                genero: document.getElementById('genero').value || 'No especificado',
+                experiencia: parseInt(document.getElementById('experiencia').value),
+                habilidad_espacial: parseInt(document.getElementById('habilidad_espacial').value),
+                familiaridad_3d: parseInt(document.getElementById('familiaridad_3d').value)
+            };
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerHTML = '⏳ Procesando...';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/registro', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    mostrarExito('Registro exitoso');
+                    setTimeout(() => window.location.href = '/login', 3000);
+                } else {
+                    mostrarError(data.error || 'Error en el registro');
+                    submitBtn.innerHTML = '📝 Completar registro';
+                    submitBtn.disabled = false;
+                }
+            } catch (error) {
+                mostrarError('Error de conexión con el servidor');
+                submitBtn.innerHTML = '📝 Completar registro';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
