@@ -1225,36 +1225,173 @@ if (cargarProgresoLocal()) {  // ← NUEVA LÍNEA 2
 
         // ===== DESCARGA DE CLAVE COMPLETA =====
         function descargarPDFCompleto() {
-            const contenido = `CLAVE TAXONÓMICA - GÉNERO Linepithema...`;
-            const blob = new Blob([contenido], {type: 'text/plain'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'clave_taxonomica_linepithema.txt';
-            a.click();
-            URL.revokeObjectURL(a.href);
-        }
+    const contenido = `CLAVE TAXONÓMICA - GÉNERO Linepithema
+========================================
 
-        // ===== DESCARGA DE GUÍA RÁPIDA =====
+PREGUNTAS DE LA CLAVE:
+
+1. ¿La porción anterior a la glándula metapleural tiene pelos (pubescencia)?
+   ● Sí, pelos moderados a abundantes → Ir a pregunta 2
+   ● No, sin pelos o muy pocos → Ir a pregunta 4
+
+2. ¿El pronoto tiene un par de setas erectas?
+   ● Sí → L. neotropicum
+   ● No → Ir a pregunta 3
+
+3. ¿Los escapos antenales son cortos (menores que la longitud de la cabeza)?
+   ● Sí → L. gallardoi
+   ● No → L. humile
+
+4. ¿El clípeo tiene un surco pre-sutural bien marcado?
+   ● Sí → Ir a pregunta 6
+   ● No → Ir a pregunta 5
+
+5. ¿El dorso de la cabeza tiene más de 5 setas erectas?
+   ● Sí → L. iniquum
+   ● No → L. dispertitum
+
+6. ¿El pronoto tiene más de 10 setas erectas?
+   ● Sí → L. hirsutum
+   ● No → Ir a pregunta 7
+
+7. ¿El margen posterior de la cabeza es profundamente cóncavo?
+   ● Sí → L. tsachila
+   ● No → Ir a pregunta 8
+
+8. ¿Los escapos antenales son cortos (sobrepasan poco el margen posterior)?
+   ● Sí → L. angulatum
+   ● No → L. piliferum
+
+CARACTERÍSTICAS DE LAS ESPECIES:
+- L. neotropicum: Pubescencia metapleural, pronoto con par de setas
+- L. gallardoi: Pubescencia metapleural, escapos cortos
+- L. humile: Pubescencia metapleural, escapos largos
+- L. iniquum: Sin pubescencia, cabeza con >5 setas
+- L. dispertitum: Sin pubescencia, cabeza con <5 setas
+- L. hirsutum: Sin pubescencia, pronoto muy piloso (>10 setas)
+- L. tsachila: Sin pubescencia, cabeza cóncava
+- L. angulatum: Sin pubescencia, escapos cortos
+- L. piliferum: Sin pubescencia, escapos largos
+
+DISTRIBUCIÓN EN COLOMBIA:
+- L. neotropicum: Región Andina, 260-2600m
+- L. gallardoi: Alta montaña, >1000m
+- L. humile: Armenia, Quindío
+- L. iniquum: Arborícola, 940-2000m
+- L. dispertitum: Serranía del Perijá, >2500m
+- L. hirsutum: Nariño, 640m
+- L. tsachila: Pacífico, 286-1800m
+- L. angulatum: Andes, 10-2430m
+- L. piliferum: Cordilleras, 1500-2800m
+
+Fuente: Escárraga & Guerrero (2016)`;
+    
+    const blob = new Blob([contenido], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'clave_taxonomica_linepithema.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
         function descargarGuiaRapida() {
-            const contenido = `GUÍA RÁPIDA - IDENTIFICACIÓN DE Linepithema...`;
-            const blob = new Blob([contenido], {type: 'text/plain'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'guia_rapida_linepithema.txt';
-            a.click();
-            URL.revokeObjectURL(a.href);
-        }
+    const contenido = `🔬 GUÍA RÁPIDA - IDENTIFICACIÓN DE Linepithema
+=========================================
 
-        // ===== DESCARGA DE GLOSARIO =====
-        function descargarGlosario() {
-            const contenido = `GLOSARIO DE TÉRMINOS MORFOLÓGICOS...`;
-            const blob = new Blob([contenido], {type: 'text/plain'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'glosario_linepithema.txt';
-            a.click();
-            URL.revokeObjectURL(a.href);
-        }
+PASO 1: ¿Glándula metapleural con pelos?
+  ● SÍ → Ir a PASO 2
+  ● NO → Ir a PASO 4
+
+PASO 2: ¿Pronoto con un par de setas?
+  ● SÍ → Linepithema neotropicum
+  ● NO → Ir a PASO 3
+
+PASO 3: ¿Escapos antenales cortos?
+  ● SÍ → Linepithema gallardoi
+  ● NO → Linepithema humile
+
+PASO 4: ¿Clípeo con surco marcado?
+  ● SÍ → Ir a PASO 6
+  ● NO → Ir a PASO 5
+
+PASO 5: ¿Cabeza con más de 5 setas?
+  ● SÍ → Linepithema iniquum
+  ● NO → Linepithema dispertitum
+
+PASO 6: ¿Pronoto con más de 10 setas?
+  ● SÍ → Linepithema hirsutum
+  ● NO → Ir a PASO 7
+
+PASO 7: ¿Cabeza profundamente cóncava?
+  ● SÍ → Linepithema tsachila
+  ● NO → Ir a PASO 8
+
+PASO 8: ¿Escapos antenales cortos?
+  ● SÍ → Linepithema angulatum
+  ● NO → Linepithema piliferum
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 GLOSARIO RÁPIDO:
+• Glándula metapleural: cerca del propodeo, clave taxonómica
+• Setas erectas: pelos erguidos
+• Escapo: primer segmento de la antena
+• Clípeo: placa frontal sobre mandíbulas
+• Propodeo: parte posterior del tórax
+
+Fuente: Escárraga & Guerrero (2016)`;
+    
+    const blob = new Blob([contenido], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'guia_rapida_linepithema.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+       function descargarGlosario() {
+    const contenido = `GLOSARIO DE TÉRMINOS MORFOLÓGICOS
+================================
+
+Cabeza: Parte anterior del cuerpo que contiene los ojos compuestos, las antenas y las mandíbulas.
+
+Mesosoma: Tórax, región del cuerpo donde se insertan las tres pares de patas.
+
+Propodeo: Parte posterior del tórax (primer segmento del abdomen fusionado al tórax). Su forma (redondeada o angulada) es clave para la identificación.
+
+Pecíolo: Nódulo o segmento que conecta el tórax con el gáster. En Linepithema es característico.
+
+Gáster: Abdomen, contiene los órganos digestivos y reproductivos.
+
+Escapo: Primer segmento de la antena, generalmente el más largo. Su longitud relativa a la cabeza es un carácter diagnóstico.
+
+Setas erectas: Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies.
+
+Pubescencia: Pelos finos y cortos, generalmente inclinados. Se observa en la glándula metapleural.
+
+Clípeo: Placa frontal sobre las mandíbulas. Puede presentar un surco (surco pre-sutural) o ser liso.
+
+Glándula metapleural: Órgano secretor ubicado cerca del propodeo, produce sustancias defensivas. Su pubescencia es clave taxonómica.
+
+Pilosidad: Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante.
+
+Pronoto: Primera parte del tórax. La presencia/ausencia de setas es clave.
+
+Margen posterior de la cabeza: Borde occipital. Puede ser recto, cóncavo o profundamente cóncavo.
+
+Surco metanotal: Depresión entre el mesosoma y el propodeo. Puede ser impreso o no.
+
+Ocelos: Ojos simples en la parte superior de la cabeza. Presentes en machos y reinas, ausentes en obreras.
+
+Mandíbulas: Estructuras bucales utilizadas para cortar, transportar y defender.`;
+    
+    const blob = new Blob([contenido], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'glosario_linepithema.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
         // ===== PERSISTENCIA DE PROGRESO =====
 function guardarProgresoLocal() {
     if (!sesionId) return;
