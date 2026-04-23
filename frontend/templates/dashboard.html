@@ -355,10 +355,15 @@ function crearGraficoProgreso() {
     const aciertos = resultados.filter(r => r.acerto).length;
     const incorrectos = resultados.length - aciertos;
     
-    const ctx = document.getElementById('progressChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('progressChart');
+    if (!canvas) return;
     
-    new Chart(ctx, {
+    // ✅ DESTRUIR GRÁFICO ANTERIOR SI EXISTE
+    if (window.progressChartInstance) {
+        window.progressChartInstance.destroy();
+    }
+    
+    window.progressChartInstance = new Chart(canvas, {
         type: 'doughnut',
         data: {
             labels: ['✅ Correctos', '❌ Incorrectos'],
@@ -370,15 +375,22 @@ function crearGraficoProgreso() {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
-                legend: { position: 'bottom', labels: { color: '#E0E0E0' } }
+                legend: { 
+                    position: 'bottom', 
+                    labels: { color: '#E0E0E0' } 
+                }
             }
         }
     });
     
     const total = resultados.length;
     const porcentaje = total > 0 ? Math.round((aciertos/total)*100) : 0;
-    document.getElementById('mensajeProgreso').innerHTML = `Has completado ${total} identificación(es) con un ${porcentaje}% de aciertos. ¡Sigue así! 🎯`;
+    const mensajeDiv = document.getElementById('mensajeProgreso');
+    if (mensajeDiv) {
+        mensajeDiv.innerHTML = `📊 Has completado ${total} identificación(es) con un ${porcentaje}% de aciertos. ¡Sigue así! 🎯`;
+    }
 }
         document.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -466,7 +478,7 @@ function crearGraficoProgreso() {
     }
 }
 
-        async function cargarResultados() {
+    async function cargarResultados() {
     try {
         const response = await fetch(`/api/usuario/${usuarioId}/resultados`);
         if (response.ok) {
@@ -486,22 +498,24 @@ function crearGraficoProgreso() {
         document.getElementById('porcentajeAciertos').textContent = `${porcentaje}%`;
         document.getElementById('tiempoTotal').textContent = `${tiempoTotal}s`;
         
-        // Mostrar tabla con detalle de error
+        // ✅ DEFINIR tbody ANTES DE USARLO
         const tbody = document.getElementById('tbodyResultados');
         
         if (resultados.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Aún no has realizado ninguna identificación</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Aún no has realizado ninguna identificación</td></tr>';
         } else {
-            tbody.innerHTML = resultados.map(r => `
-                <tr>
-                    <td>${r.especimen || 'N/A'}</td>
-                    <td>${r.correcta || 'N/A'}</td>
-                    <td>${r.seleccionada || 'N/A'}</td>
-                    <td><span class="${r.acerto ? 'badge-correcto' : 'badge-incorrecto'}">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</span></td>
-                    <td>${(r.tiempo || 0).toFixed(1)}s</td>
-                    <td>${!r.acerto ? `⚠️ La especie correcta era: <strong>${r.correcta}</strong>` : '✓'}</td>
-                </tr>
-            `).join('');
+            if (tbody) {
+                tbody.innerHTML = resultados.map(r => `
+                    <tr>
+                        <td>${r.especimen || 'N/A'}</td>
+                        <td>${r.correcta || 'N/A'}</td>
+                        <td>${r.seleccionada || 'N/A'}</td>
+                        <td><span class="${r.acerto ? 'badge-correcto' : 'badge-incorrecto'}">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</span></td>
+                        <td>${(r.tiempo || 0).toFixed(1)}s</td>
+                        <td>${!r.acerto ? `⚠️ La especie correcta era: <strong>${r.correcta}</strong>` : '✓'}</td>
+                    </tr>
+                `).join('');
+            }
         }
         
         // Verificar si ya completó las 2 identificaciones y deshabilitar botón
@@ -513,33 +527,21 @@ function crearGraficoProgreso() {
                 btnIniciar.style.cursor = 'not-allowed';
                 btnIniciar.title = 'Ya completaste las dos identificaciones';
             }
-            
-            // Mostrar mensaje de felicitaciones
-            const mensajeGrupo = document.getElementById('mensajeGrupo');
-            if (mensajeGrupo && !datosUsuario?.grupo_asignado) {
-                mensajeGrupo.innerHTML = '✅ ¡Felicidades! Ya completaste las dos identificaciones. Gracias por participar.';
-            }
         }
         
-        // Crear gráfico de progreso si existe la función
+        // ✅ VERIFICAR QUE LA FUNCIÓN EXISTE ANTES DE LLAMARLA
         if (typeof crearGraficoProgreso === 'function') {
             crearGraficoProgreso();
         }
         
-    } catch (error) {
+       } catch (error) {
         console.error('Error cargando resultados:', error);
         const tbody = document.getElementById('tbodyResultados');
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Error al cargar resultados</td></tr>';
         }
-    }tbody.innerHTML = resultados.map(r => `
-    <tr>
-        ... (tu código existente)
-        <td class="${r.acerto ? 'badge-correcto' : 'badge-incorrecto'} resultado-nuevo">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</td>
-        ...
-    </tr>
-`).join('');
-}
+       }
+ }
         function iniciarIdentificacion() {
     // Verificar si ya completó las 2 identificaciones
     if (resultados.length >= 2) {
