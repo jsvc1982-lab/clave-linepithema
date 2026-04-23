@@ -32,6 +32,9 @@ print("📂 Base de datos en memoria (RAM)")
 
 CORS(app, supports_credentials=True, origins="http://127.0.0.1:5000")
 db.init_app(app)
+with app.app_context():
+    db.create_all()
+    print("✅ Tablas creadas/verificadas en la base de datos")
 
 # Pool completo de especies (todas las disponibles)
 POOL_ESPECIES = [
