@@ -1505,19 +1505,18 @@ Mandíbulas: Estructuras bucales utilizadas para cortar, transportar y defender.
 }
         // ===== PERSISTENCIA DE PROGRESO =====
 function guardarProgresoLocal() {
-    if (!sesionId) return;
+    if (!usuarioId) return;
     const progreso = {
-        sesionId: sesionId,
         especiesCompletadas: especiesCompletadas,
         respuestas: respuestas,
         timestamp: Date.now()
     };
-    localStorage.setItem(`progreso_${sesionId}`, JSON.stringify(progreso));
+    localStorage.setItem(`progreso_${usuarioId}`, JSON.stringify(progreso));
 }
 
 function cargarProgresoLocal() {
-    if (!sesionId) return false;
-    const guardado = localStorage.getItem(`progreso_${sesionId}`);
+    if (!usuarioId) return false;
+    const guardado = localStorage.getItem(`progreso_${usuarioId}`);
     if (guardado) {
         const progreso = JSON.parse(guardado);
         if (Date.now() - progreso.timestamp < 24 * 60 * 60 * 1000) {
