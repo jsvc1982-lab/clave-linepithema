@@ -723,27 +723,84 @@
         }
 
         // ===== REFLEXIONES METACOGNITIVAS =====
-        function mostrarReflexionPrevia() {
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content">
-                    <h3>🧠 Reflexión previa</h3>
-                    <p>Antes de comenzar, reflexiona sobre lo que vas a hacer:</p>
-                    <textarea id="reflexionPrevia" placeholder="¿Qué sé sobre las hormigas del género Linepithema? ¿Qué caracteres voy a observar primero? ¿Cuánto tiempo creo que me tomará identificar cada especie?"></textarea>
-                    <button onclick="guardarReflexionPrevia()">Comenzar identificación</button>
+       function mostrarReflexionPrevia() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <h3>🧠 Reflexión previa</h3>
+            <p>Por favor, responde las siguientes preguntas con una escala de 0 a 100:</p>
+            
+            <div style="margin: 20px 0;">
+                <label style="color: #00D4FF;">1. ¿Qué nivel de conocimiento tenías sobre el género Linepithema antes de este estudio?</label>
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                    <span>0</span>
+                    <input type="range" id="reflexion1" min="0" max="100" value="50" style="flex: 1;">
+                    <span>100</span>
                 </div>
-            `;
-            document.body.appendChild(modal);
-        }
+                <div style="text-align: center; margin-top: 5px;">
+                    <span id="valor1" style="color: #00D4FF;">50</span>%
+                </div>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <label style="color: #00D4FF;">2. ¿Qué tan seguro/a te sientes para identificar especies de Linepithema?</label>
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                    <span>0</span>
+                    <input type="range" id="reflexion2" min="0" max="100" value="50" style="flex: 1;">
+                    <span>100</span>
+                </div>
+                <div style="text-align: center; margin-top: 5px;">
+                    <span id="valor2" style="color: #00D4FF;">50</span>%
+                </div>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <label style="color: #00D4FF;">3. ¿Cuánto tiempo crees que te tomará identificar cada especie (en minutos)?</label>
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                    <span>0</span>
+                    <input type="range" id="reflexion3" min="0" max="30" value="10" style="flex: 1;">
+                    <span>30</span>
+                </div>
+                <div style="text-align: center; margin-top: 5px;">
+                    <span id="valor3" style="color: #00D4FF;">10</span> min
+                </div>
+            </div>
+            
+            <button onclick="guardarReflexionPrevia()" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Comenzar identificación</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Actualizar valores mostrados
+    document.getElementById('reflexion1').addEventListener('input', function(e) {
+        document.getElementById('valor1').textContent = e.target.value;
+    });
+    document.getElementById('reflexion2').addEventListener('input', function(e) {
+        document.getElementById('valor2').textContent = e.target.value;
+    });
+    document.getElementById('reflexion3').addEventListener('input', function(e) {
+        document.getElementById('valor3').textContent = e.target.value;
+    });
+}
 
         async function guardarReflexionPrevia() {
-    const contenido = document.getElementById('reflexionPrevia').value;
-    if (contenido && sesionId) {
+    const nivelConocimiento = document.getElementById('reflexion1').value;
+    const nivelConfianza = document.getElementById('reflexion2').value;
+    const tiempoEstimado = document.getElementById('reflexion3').value;
+    
+    const respuesta = `Nivel de conocimiento: ${nivelConocimiento}% | Confianza: ${nivelConfianza}% | Tiempo estimado: ${tiempoEstimado} min`;
+    
+    if (sesionId) {
         await fetch('/api/experimento/guardar_reflexion', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ sesion_id: sesionId, momento: 'pre', pregunta: 'Reflexión previa', respuesta: contenido })
+            body: JSON.stringify({ 
+                sesion_id: sesionId, 
+                momento: 'pre', 
+                pregunta: 'Reflexión previa (escala numérica)', 
+                respuesta: respuesta 
+            })
         });
     }
     document.querySelector('.modal').remove();
@@ -751,64 +808,165 @@
 }
 
         function mostrarReflexionDurante(preguntaNum) {
-            return new Promise((resolve) => {
-                const modal = document.createElement('div');
-                modal.className = 'modal';
-                modal.innerHTML = `
-                    <div class="modal-content">
-                        <h3>💭 Reflexión durante la identificación</h3>
-                        <p>Pregunta ${preguntaNum}: ¿Cómo estás observando los caracteres? ¿Qué dudas tienes? ¿Necesitas cambiar tu estrategia?</p>
-                        <textarea id="reflexionDurante" placeholder="Escribe aquí tu reflexión..."></textarea>
-                        <button onclick="guardarReflexionDurante(${preguntaNum})">Continuar</button>
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <h3>💭 Reflexión durante la identificación</h3>
+                <p>Pregunta ${preguntaNum}: Responde la siguiente pregunta:</p>
+                
+                <div style="margin: 20px 0;">
+                    <label style="color: #00D4FF;">¿Qué tan seguro/a estás de tu respuesta hasta ahora?</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <span>0%</span>
+                        <input type="range" id="reflexionDuranteSeguridad" min="0" max="100" value="50" style="flex: 1;">
+                        <span>100%</span>
                     </div>
-                `;
-                document.body.appendChild(modal);
-                window.resolverReflexion = resolve;
-            });
-        }
+                    <div style="text-align: center; margin-top: 5px;">
+                        <span id="seguridadValor" style="color: #00D4FF;">50</span>%
+                    </div>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <label style="color: #00D4FF;">¿Qué nivel de dificultad tiene esta pregunta?</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <span>0</span>
+                        <input type="range" id="reflexionDuranteDificultad" min="0" max="100" value="50" style="flex: 1;">
+                        <span>100</span>
+                    </div>
+                    <div style="text-align: center; margin-top: 5px;">
+                        <span id="dificultadValor" style="color: #00D4FF;">50</span>%
+                    </div>
+                </div>
+                
+                <button onclick="guardarReflexionDurante(${preguntaNum})" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Continuar</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Actualizar valores
+        document.getElementById('reflexionDuranteSeguridad').addEventListener('input', function(e) {
+            document.getElementById('seguridadValor').textContent = e.target.value;
+        });
+        document.getElementById('reflexionDuranteDificultad').addEventListener('input', function(e) {
+            document.getElementById('dificultadValor').textContent = e.target.value;
+        });
+        
+        window.resolverReflexion = resolve;
+    });
+}
 
         async function guardarReflexionDurante(preguntaNum) {
-            const contenido = document.getElementById('reflexionDurante').value;
-            if (contenido && sesionId) {
-                await fetch('/api/experimento/guardar_reflexion', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ sesion_id: sesionId, momento: 'durante', pregunta: `Pregunta ${preguntaNum}`, respuesta: contenido })
-                });
-            }
-            document.querySelector('.modal').remove();
-            window.resolverReflexion();
-        }
+    const seguridad = document.getElementById('reflexionDuranteSeguridad').value;
+    const dificultad = document.getElementById('reflexionDuranteDificultad').value;
+    
+    const respuesta = `Seguridad: ${seguridad}% | Dificultad: ${dificultad}%`;
+    
+    if (sesionId) {
+        await fetch('/api/experimento/guardar_reflexion', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                sesion_id: sesionId, 
+                momento: 'durante', 
+                pregunta: `Pregunta ${preguntaNum} (escala numérica)`, 
+                respuesta: respuesta 
+            })
+        });
+    }
+    document.querySelector('.modal').remove();
+    window.resolverReflexion();
+}
 
         function mostrarReflexionPost() {
-            return new Promise((resolve) => {
-                const modal = document.createElement('div');
-                modal.className = 'modal';
-                modal.innerHTML = `
-                    <div class="modal-content">
-                        <h3>📝 Reflexión final</h3>
-                        <p>Después de identificar este espécimen:</p>
-                        <textarea id="reflexionPost" placeholder="¿Qué hice bien? ¿Qué podría mejorar? ¿Qué aprendí sobre esta especie?"></textarea>
-                        <button onclick="guardarReflexionPost()">Continuar</button>
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <h3>📝 Reflexión final</h3>
+                <p>Después de identificar este espécimen, responde:</p>
+                
+                <div style="margin: 20px 0;">
+                    <label style="color: #00D4FF;">¿Qué tan acertada crees que fue tu identificación?</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <span>0%</span>
+                        <input type="range" id="reflexionPostAcierto" min="0" max="100" value="50" style="flex: 1;">
+                        <span>100%</span>
                     </div>
-                `;
-                document.body.appendChild(modal);
-                window.resolverReflexionPost = resolve;
-            });
-        }
+                    <div style="text-align: center; margin-top: 5px;">
+                        <span id="aciertoValor" style="color: #00D4FF;">50</span>%
+                    </div>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <label style="color: #00D4FF;">¿Qué nivel de dificultad tuvo este espécimen?</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <span>0</span>
+                        <input type="range" id="reflexionPostDificultad" min="0" max="100" value="50" style="flex: 1;">
+                        <span>100</span>
+                    </div>
+                    <div style="text-align: center; margin-top: 5px;">
+                        <span id="dificultadPostValor" style="color: #00D4FF;">50</span>%
+                    </div>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <label style="color: #00D4FF;">¿Qué nivel de esfuerzo mental te demandó esta identificación?</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <span>0</span>
+                        <input type="range" id="reflexionPostEsfuerzo" min="0" max="100" value="50" style="flex: 1;">
+                        <span>100</span>
+                    </div>
+                    <div style="text-align: center; margin-top: 5px;">
+                        <span id="esfuerzoValor" style="color: #00D4FF;">50</span>%
+                    </div>
+                </div>
+                
+                <button onclick="guardarReflexionPost()" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Continuar</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Actualizar valores
+        document.getElementById('reflexionPostAcierto').addEventListener('input', function(e) {
+            document.getElementById('aciertoValor').textContent = e.target.value;
+        });
+        document.getElementById('reflexionPostDificultad').addEventListener('input', function(e) {
+            document.getElementById('dificultadPostValor').textContent = e.target.value;
+        });
+        document.getElementById('reflexionPostEsfuerzo').addEventListener('input', function(e) {
+            document.getElementById('esfuerzoValor').textContent = e.target.value;
+        });
+        
+        window.resolverReflexionPost = resolve;
+    });
+}
 
         async function guardarReflexionPost() {
-            const contenido = document.getElementById('reflexionPost').value;
-            if (contenido && sesionId) {
-                await fetch('/api/experimento/guardar_reflexion', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ sesion_id: sesionId, momento: 'post', pregunta: `Reflexión final espécimen ${indiceActual+1}`, respuesta: contenido })
-                });
-            }
-            document.querySelector('.modal').remove();
-            window.resolverReflexionPost();
-        }
+    const acierto = document.getElementById('reflexionPostAcierto').value;
+    const dificultad = document.getElementById('reflexionPostDificultad').value;
+    const esfuerzo = document.getElementById('reflexionPostEsfuerzo').value;
+    
+    const respuesta = `Acierto autopercibido: ${acierto}% | Dificultad: ${dificultad}% | Esfuerzo mental: ${esfuerzo}%`;
+    
+    if (sesionId) {
+        await fetch('/api/experimento/guardar_reflexion', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                sesion_id: sesionId, 
+                momento: 'post', 
+                pregunta: `Reflexión final espécimen ${indiceActual+1} (escala numérica)`, 
+                respuesta: respuesta 
+            })
+        });
+    }
+    document.querySelector('.modal').remove();
+    window.resolverReflexionPost();
+}
+        
 
         // ===== INICIAR CON SESIÓN PRIMERO =====
         async function iniciarConReflexion() {

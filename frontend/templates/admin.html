@@ -582,47 +582,62 @@ if (!u.grupo_asignado) {
         }
 
         function mostrarEstadisticas() {
-            const totalUsuarios = usuarios.length;
-            const totalSesiones = [...new Set(resultados.map(r => r.sesion_id))].length;
-            const aciertos = resultados.filter(r => r.acerto).length;
-            const precision = resultados.length > 0 ? Math.round((aciertos / resultados.length) * 100) : 0;
-            const tiempoProm = resultados.length > 0 ? Math.round(resultados.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resultados.length) : 0;
+    const totalUsuarios = usuarios.length;
+    const totalSesiones = [...new Set(resultados.map(r => r.sesion_id))].length;
+    const aciertos = resultados.filter(r => r.acerto).length;
+    const precision = resultados.length > 0 ? Math.round((aciertos / resultados.length) * 100) : 0;
+    const tiempoProm = resultados.length > 0 ? Math.round(resultados.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resultados.length) : 0;
 
-            const grupos = ['2D', '2D_META', '3D', '3D_META'];
-            const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
-            
-            const precisionPorGrupo = grupos.map(g => {
-                const resGrupo = resultados.filter(r => r.grupo === g);
-                const aciertosGrupo = resGrupo.filter(r => r.acerto).length;
-                return resGrupo.length > 0 ? Math.round((aciertosGrupo / resGrupo.length) * 100) : 0;
-            });
+    // 4 GRUPOS SEPARADOS (no agrupados)
+    const grupos = ['2D', '2D_META', '3D', '3D_META'];
+    const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
+    
+    const precisionPorGrupo = grupos.map(g => {
+        const resGrupo = resultados.filter(r => r.grupo === g);
+        const aciertosGrupo = resGrupo.filter(r => r.acerto).length;
+        return resGrupo.length > 0 ? Math.round((aciertosGrupo / resGrupo.length) * 100) : 0;
+    });
 
-            const tiempoPorGrupo = grupos.map(g => {
-                const resGrupo = resultados.filter(r => r.grupo === g);
-                return resGrupo.length > 0 ? Math.round(resGrupo.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resGrupo.length) : 0;
-            });
+    const tiempoPorGrupo = grupos.map(g => {
+        const resGrupo = resultados.filter(r => r.grupo === g);
+        return resGrupo.length > 0 ? Math.round(resGrupo.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resGrupo.length) : 0;
+    });
+    
+    // Contar usuarios por grupo
+    const usuariosPorGrupo = grupos.map(g => {
+        return usuarios.filter(u => u.grupo_asignado === g).length;
+    });
 
-            document.getElementById('tabContent').innerHTML = `
-                <div class="stats-grid">
-                    <div class="stat-card"><div class="stat-number">${totalUsuarios}</div><div class="stat-label">Usuarios</div></div>
-                    <div class="stat-card"><div class="stat-number">${totalSesiones}</div><div class="stat-label">Sesiones</div></div>
-                    <div class="stat-card"><div class="stat-number">${precision}%</div><div class="stat-label">Precisión global</div></div>
-                    <div class="stat-card"><div class="stat-number">${tiempoProm}s</div><div class="stat-label">Tiempo promedio</div></div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-title">📊 Resultados por grupo</div>
-                    <div class="table-container">
-                        <table>
-                            <thead><tr><th>Grupo</th><th>Precisión</th><th>Tiempo promedio</th></tr></thead>
-                            <tbody>
-                                ${gruposNombres.map((g, i) => `<tr><td><strong>${g}</strong></td><td>${precisionPorGrupo[i]}%</td><td>${tiempoPorGrupo[i]}s</td></tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-        }
+    document.getElementById('tabContent').innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-number">${totalUsuarios}</div><div class="stat-label">Usuarios</div></div>
+            <div class="stat-card"><div class="stat-number">${totalSesiones}</div><div class="stat-label">Sesiones</div></div>
+            <div class="stat-card"><div class="stat-number">${precision}%</div><div class="stat-label">Precisión global</div></div>
+            <div class="stat-card"><div class="stat-number">${tiempoProm}s</div><div class="stat-label">Tiempo promedio</div></div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">📊 Resultados por grupo</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Grupo</th><th>Usuarios (n)</th><th>Precisión (%)</th><th>Tiempo promedio (s)</th></tr>
+                    </thead>
+                    <tbody>
+                        ${gruposNombres.map((g, i) => `
+                            <tr>
+                                <td><strong>${g}</strong></td>
+                                <td>${usuariosPorGrupo[i]}</td>
+                                <td><span class="${precisionPorGrupo[i] >= 70 ? 'significant' : ''}">${precisionPorGrupo[i]}%</span></td>
+                                <td>${tiempoPorGrupo[i]}s</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+     }
         function mostrarEstadisticasEstudiante() {
     let html = `
         <div class="card">
