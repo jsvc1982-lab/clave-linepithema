@@ -606,87 +606,98 @@
 
     <script>
         // ===== CONFIGURACIÓN DE LA CLAVE =====
-        const CLAVE = {
-            1: {
-                pregunta: "¿La porción anterior a la glándula metapleural tiene pelos (pubescencia)?",
-                opciones: [
-                    {texto: "Sí, pelos moderados a abundantes", desc: "Especies con pubescencia evidente", siguiente: 2},
-                    {texto: "No, sin pelos o muy pocos", desc: "Especies con glándula lisa", siguiente: 4}
-                ]
-            },
-            2: {
-                pregunta: "¿El pronoto tiene un par de setas erectas?",
-                opciones: [
-                    {texto: "Sí, se observan claramente", desc: "Una especie con este par característico", resultado: "neotropicum"},
-                    {texto: "No, no se observan", desc: "Especies que carecen de este par", siguiente: 3}
-                ]
-            },
-            3: {
-                pregunta: "¿Los escapos antenales son cortos (menores que la longitud de la cabeza)?",
-                opciones: [
-                    {texto: "Sí, escapos cortos", desc: "Especie con escapos que apenas sobrepasan", resultado: "gallardoi"},
-                    {texto: "No, escapos largos", desc: "Especie con escapos que sobrepasan claramente", resultado: "humile"}
-                ]
-            },
-            4: {
-                pregunta: "¿El clípeo tiene un surco pre-sutural bien marcado?",
-                opciones: [
-                    {texto: "Sí, el surco es evidente", desc: "Especies con clípeo claramente surcado", siguiente: 6},
-                    {texto: "No, surco ausente o muy débil", desc: "Especies con clípeo liso", siguiente: 5}
-                ]
-            },
-            5: {
-                pregunta: "¿El dorso de la cabeza tiene más de 5 setas erectas?",
-                opciones: [
-                    {texto: "Sí, muchas setas", desc: "Especie con abundante pilosidad cefálica", resultado: "iniquum"},
-                    {texto: "No, pocas o ninguna", desc: "Especie con cabeza casi sin setas", resultado: "dispertitum"}
-                ]
-            },
-            6: {
-                pregunta: "¿El pronoto tiene más de 10 setas erectas?",
-                opciones: [
-                    {texto: "Sí, muy piloso", desc: "Especie extremadamente pilosa", resultado: "hirsutum"},
-                    {texto: "No, menos de 10", desc: "Especies con pilosidad moderada", siguiente: 7}
-                ]
-            },
-            7: {
-                pregunta: "¿El margen posterior de la cabeza es profundamente cóncavo?",
-                opciones: [
-                    {texto: "Sí, muy cóncavo", desc: "Especie con cabeza marcadamente escotada", resultado: "tsachila"},
-                    {texto: "No, recto o ligeramente cóncavo", desc: "Especies con cabeza recta", siguiente: 8}
-                ]
-            },
-            8: {
-                pregunta: "¿Los escapos antenales son cortos (sobrepasan poco el margen posterior)?",
-                opciones: [
-                    {texto: "Sí, escapos cortos", desc: "Especie con escapos que apenas alcanzan", resultado: "angulatum"},
-                    {texto: "No, escapos largos", desc: "Especie con escapos largos", resultado: "piliferum"}
-                ]
-            }
-        };
+         const CLAVE = {
+    1: {
+        pregunta: "¿La porción anterior a la glándula metapleural tiene pelos adpresos en cantidad moderada a abundante?",
+        opciones: [
+            {texto: "Sí, pelos moderados a abundantes", desc: "Observar en posición dorso-oblicua", siguiente: 2},
+            {texto: "No, sin pelos o muy pocos", desc: "Porción anterior lisa o casi lisa", siguiente: 4}
+        ]
+    },
+    2: {
+        pregunta: "¿El pronoto tiene un par de setas erectas?",
+        opciones: [
+            {texto: "Sí, se observan claramente", desc: "Palpos maxilares largos, surco metanotal débil", resultado: "neotropicum"},
+            {texto: "No, no se observan", desc: "Palpos maxilares cortos, propodeo inclinado", siguiente: 3}
+        ]
+    },
+    3: {
+        pregunta: "¿Los escapos antenales son cortos?",
+        opciones: [
+            {texto: "Sí, escapos cortos", desc: "Menores que la longitud de la cabeza, mesonoto angular", resultado: "gallardoi"},
+            {texto: "No, escapos largos", desc: "Mayores o iguales a la cabeza, mesonoto recto", resultado: "humile"}
+        ]
+    },
+    4: {
+        pregunta: "¿El surco pre-sutural del clípeo está presente y bien marcado?",
+        opciones: [
+            {texto: "Sí, surco evidente", desc: "Clípeo con surco pre-sutural marcado", siguiente: 6},
+            {texto: "No, surco ausente o débil", desc: "Clípeo liso o surco apenas visible", siguiente: 5}
+        ]
+    },
+    5: {
+        pregunta: "¿El dorso de la cabeza tiene más de 5 setas erectas?",
+        opciones: [
+            {texto: "Sí, muchas setas", desc: "Cabeza con más de 5 setas, mesosoma esbelto", resultado: "iniquum"},
+            {texto: "No, pocas o ninguna", desc: "Cabeza con menos de 5 setas, mesosoma robusto", resultado: "dispertitum"}
+        ]
+    },
+    6: {
+        pregunta: "¿El pronoto tiene más de 10 setas erectas?",
+        opciones: [
+            {texto: "Sí, muy piloso", desc: "Cuerpo cubierto de setas erectas", resultado: "hirsutum"},
+            {texto: "No, menos de 10", desc: "Cuerpo sin muchas setas erectas", siguiente: 7}
+        ]
+    },
+    7: {
+        pregunta: "¿El margen posterior de la cabeza es profundamente cóncavo?",
+        opciones: [
+            {texto: "Sí, muy cóncavo", desc: "Borde occipital con escotadura profunda", resultado: "tsachila"},
+            {texto: "No, recto o ligeramente cóncavo", desc: "Borde occipital recto o apenas cóncavo", siguiente: 8}
+        ]
+    },
+    8: {
+        pregunta: "¿Los escapos antenales son cortos?",
+        opciones: [
+            {texto: "Sí, escapos cortos", desc: "Sobrepasan poco el margen posterior de la cabeza", resultado: "angulatum"},
+            {texto: "No, escapos largos", desc: "Sobrepasan claramente el margen posterior", resultado: "piliferum"}
+        ]
+    }
+};
 
         const ESPECIES = {
-            'neotropicum': {nombre: 'Linepithema neotropicum', caracteristicas: 'Pubescencia metapleural, pronoto con par de setas', distribucion: 'Región Andina, 260-2600m'},
-            'gallardoi': {nombre: 'Linepithema gallardoi', caracteristicas: 'Pubescencia metapleural, escapos cortos', distribucion: 'Alta montaña, >1000m'},
-            'humile': {nombre: 'Linepithema humile', caracteristicas: 'Pubescencia metapleural, escapos largos', distribucion: 'Armenia, Quindío'},
-            'iniquum': {nombre: 'Linepithema iniquum', caracteristicas: 'Sin pubescencia, cabeza con >5 setas', distribucion: 'Arborícola, 940-2000m'},
-            'dispertitum': {nombre: 'Linepithema dispertitum', caracteristicas: 'Sin pubescencia, cabeza con <5 setas', distribucion: 'Alta montaña, >2500m'},
-            'hirsutum': {nombre: 'Linepithema hirsutum', caracteristicas: 'Sin pubescencia, pronoto muy piloso', distribucion: 'Nariño, 640m'},
-            'tsachila': {nombre: 'Linepithema tsachila', caracteristicas: 'Sin pubescencia, cabeza cóncava', distribucion: 'Pacífico, 286-1800m'},
-            'angulatum': {nombre: 'Linepithema angulatum', caracteristicas: 'Sin pubescencia, escapos cortos', distribucion: 'Andes, 10-2430m'},
-            'piliferum': {nombre: 'Linepithema piliferum', caracteristicas: 'Sin pubescencia, escapos largos', distribucion: 'Cordilleras, 1500-2800m'}
-        };
+    'neotropicum': {nombre: 'Linepithema neotropicum', caracteristicas: 'Pronoto con par de setas erectas, palpos maxilares largos', distribucion: 'Región Andina, 260-2600m'},
+    'gallardoi': {nombre: 'Linepithema gallardoi', caracteristicas: 'Escapos cortos, mesonoto angular, pronoto con setas', distribucion: 'Alta montaña, >1000m'},
+    'humile': {nombre: 'Linepithema humile', caracteristicas: 'Escapos largos, mesonoto recto, sin setas en pronoto', distribucion: 'Armenia, Quindío'},
+    'iniquum': {nombre: 'Linepithema iniquum', caracteristicas: 'Cabeza con >5 setas erectas, mesosoma esbelto, superficie brillante', distribucion: 'Arborícola, 940-2000m'},
+    'dispertitum': {nombre: 'Linepithema dispertitum', caracteristicas: 'Cabeza con <5 setas, mesosoma robusto, superficie opaca', distribucion: 'Alta montaña, >2500m'},
+    'hirsutum': {nombre: 'Linepithema hirsutum', caracteristicas: 'Pronoto con >10 setas erectas, cuerpo muy piloso', distribucion: 'Nariño, 640m'},
+    'tsachila': {nombre: 'Linepithema tsachila', caracteristicas: 'Margen posterior de cabeza cóncavo, pronoto con 2-8 setas', distribucion: 'Pacífico, 286-1800m'},
+    'angulatum': {nombre: 'Linepithema angulatum', caracteristicas: 'Escapos cortos, propodeo alto y angulado', distribucion: 'Andes, 10-2430m'},
+    'piliferum': {nombre: 'Linepithema piliferum', caracteristicas: 'Escapos largos, propodeo redondeado', distribucion: 'Cordilleras, 1500-2800m'}
+};
 
-        const GLOSARIO = [
-            {term: "Glándula metapleural", def: "Órgano cerca del propodeo, clave taxonómica"},
-            {term: "Setas erectas", def: "Pelos erguidos"},
-            {term: "Escapo", def: "Primer segmento de la antena"},
-            {term: "Clípeo", def: "Placa frontal sobre mandíbulas"},
-            {term: "Propodeo", def: "Parte posterior del tórax"},
-            {term: "Pubescencia", def: "Pelos finos y cortos"},
-            {term: "Pilosidad", def: "Conjunto de pelos en el cuerpo"},
-            {term: "Pronoto", def: "Primera parte del tórax"}
-        ];
+       const GLOSARIO = [
+    {term: "Abdomen", def: "Parte posterior del cuerpo que contiene los órganos digestivos y reproductivos. En hormigas se divide en propodeo, pecíolo y gáster."},
+    {term: "Antenas", def: "Órganos sensoriales móviles ubicados en la cabeza, formados por segmentos (escapo, pedicelo y flagelo). Son fundamentales para la comunicación y percepción del entorno."},
+    {term: "Cabeza", def: "Parte anterior del cuerpo que contiene los ojos compuestos, las antenas y las mandíbulas. Su forma y estructuras asociadas son clave para la identificación."},
+    {term: "Clípeo", def: "Placa esclerotizada ubicada en la parte frontal de la cabeza, sobre las mandíbulas. Puede presentar surcos o carenas que ayudan en la identificación."},
+    {term: "Escapo", def: "Primer segmento de la antena, generalmente el más largo. Su longitud relativa a la cabeza es un carácter diagnóstico importante para separar especies."},
+    {term: "Gáster", def: "Abdomen propiamente dicho (después del pecíolo). Contiene los órganos digestivos y reproductivos. Su forma y pilosidad son variables entre especies."},
+    {term: "Glándula metapleural", def: "Órgano secretor ubicado en la región lateral del mesosoma, cerca del propodeo. Su pubescencia (presencia/ausencia de pelos) es clave para la identificación."},
+    {term: "Mandíbulas", def: "Estructuras bucales endurecidas utilizadas para cortar, transportar y defender. Su forma (triangular, alargada, con dientes) es variable entre especies."},
+    {term: "Mesosoma", def: "Tórax, región del cuerpo donde se insertan los tres pares de patas. Comprende el pronoto, mesonoto y propodeo. Es la región central del cuerpo."},
+    {term: "Ojos", def: "Órganos visuales compuestos ubicados en la cabeza. Pueden ser grandes o pequeños según la especie. Su posición y tamaño son caracteres diagnósticos."},
+    {term: "Patas", def: "Tres pares de apéndices articulados insertados en el mesosoma. Cada pata se compone de coxa, trocánter, fémur, tibia y tarso. Su longitud relativa es importante."},
+    {term: "Pecíolo", def: "Segmento o nódulo que conecta el mesosoma con el gáster. En Linepithema es característico y puede tener forma de escama o nódulo. Es clave en la identificación."},
+    {term: "Pilosidad", def: "Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante. La distribución y tipo de pelos (erectos, inclinados, adpresos) son caracteres diagnósticos."},
+    {term: "Pronoto", def: "Primera parte del mesosoma (tórax). La presencia o ausencia de setas erectas en el pronoto es un carácter clave en la identificación de especies."},
+    {term: "Propodeo", def: "Parte posterior del mesosoma (primer segmento del abdomen fusionado al tórax). Su forma (redondeada o angulada) es importante para la identificación."},
+    {term: "Pubescencia", def: "Pelos finos y cortos, generalmente inclinados, que recubren la cutícula. Se observa especialmente en la glándula metapleural y otras regiones del cuerpo."},
+    {term: "Setas erectas", def: "Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies. Su presencia, cantidad y distribución son diagnósticas."},
+    {term: "Surco metanotal", def: "Depresión o surco en el mesosoma que separa el mesonoto del propodeo. Puede ser impreso o no según la especie. Es visible en vista dorsal."},
+    {term: "Tórax", def: "Región media del cuerpo donde se insertan las patas. En hormigas se compone de pronoto, mesonoto, metanoto y propodeo. Es sinónimo de mesosoma."}
+];
 
         // ===== IDs DE SKETCHFAB =====
         const SKETCHFAB_IDS = {

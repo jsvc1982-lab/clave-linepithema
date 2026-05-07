@@ -440,8 +440,7 @@ def eliminar_usuario(usuario_id):
             ReflexionMetacognitiva.query.filter_by(sesion_id=sesion.id).delete()
             ResultadoEncuesta.query.filter_by(sesion_id=sesion.id).delete()
             ResultadoIdentificacion.query.filter_by(sesion_id=sesion.id).delete()
-        
-        # Eliminar las sesiones
+                # Eliminar las sesiones
         SesionExperimental.query.filter_by(usuario_id=usuario_id).delete()
         
         # Eliminar el usuario
@@ -552,7 +551,81 @@ def guardar_encuesta():
     except Exception as e:
         print(f"❌ Error guardando encuesta: {e}")
         return jsonify({'error': str(e)}), 500
-          
+@app.route('/api/usuario/<int:usuario_id>/encuestas/completadas', methods=['GET'])
+def encuestas_completadas(usuario_id):
+    try:
+        # Obtener la última sesión del usuario
+        sesion = SesionExperimental.query.filter_by(usuario_id=usuario_id).order_by(SesionExperimental.id.desc()).first()
+        
+        if not sesion:
+            return jsonify({
+                'sus_completada': False,
+                'carga_completada': False,
+                'ambas_completadas': False,
+                'sesion_id': None
+            })
+        
+        # Verificar encuestas de esa sesión
+        encuestas = ResultadoEncuesta.query.filter_by(sesion_id=sesion.id).all()
+        sus_completada = any(e.tipo == 'SUS' for e in encuestas)
+        carga_completada = any(e.tipo == 'COGNITIVE_LOAD' for e in encuestas)
+        
+        return jsonify({
+            'sus_completada': sus_completada,
+            'carga_completada': carga_completada,
+            'ambas_completadas': sus_completada and carga_completada,
+            'sesion_id': sesion.id
+        })
+    except Exception as e:
+        print(f"Error en encuestas_completadas: {e}")
+        return jsonify({'error': str(e)}), 500      
+@app.route('/api/admin/reflexiones', methods=['GET'])
+@admin_required
+def get_reflexiones():
+    """Devuelve todas las reflexiones metacognitivas para análisis"""
+    try:
+        reflexiones = []
+        for ref in ReflexionMetacognitiva.query.all():
+            # Obtener información de la sesión y usuario
+            sesion = SesionExperimental.query.get(ref.sesion_id)
+            if not sesion:
+                continue
+            
+            usuario = Usuario.query.get(sesion.usuario_id)
+            if not usuario:
+                continue
+            
+            # Parsear la respuesta (formato: "Clave: valor | Clave2: valor2")
+            respuesta = ref.respuesta or ""
+            
+            # Extraer valores numéricos según el momento
+            datos = {
+                'id': ref.id,
+                'usuario': usuario.nombre_usuario,
+                'grupo': sesion.grupo,
+                'momento': ref.momento,
+                'pregunta': ref.pregunta,
+                'respuesta_raw': respuesta,
+                'timestamp': ref.timestamp.isoformat() if ref.timestamp else None
+            }
+            
+            # Extraer valores específicos según el tipo de reflexión
+            if 'conocimiento' in respuesta.lower() or 'Confianza' in respuesta or 'seguro' in respuesta:
+                import re
+                numeros = re.findall(r'(\d+)%', respuesta)
+                if len(numeros) >= 1:
+                    datos['valor1'] = int(numeros[0])
+                if len(numeros) >= 2:
+                    datos['valor2'] = int(numeros[1])
+                if len(numeros) >= 3:
+                    datos['valor3'] = int(numeros[2])
+            
+            reflexiones.append(datos)
+        
+        return jsonify(reflexiones)
+    except Exception as e:
+        print(f"❌ Error en get_reflexiones: {e}")
+        return jsonify({'error': str(e)}), 500    
 # ===== INICIALIZACIÓN =====
 if __name__ == '__main__':
     with app.app_context():

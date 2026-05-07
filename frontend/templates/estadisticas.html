@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas Avanzadas - Clave Linepithema</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #0A0E17; color: #E0E0E0; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { background: linear-gradient(45deg, #00D4FF, #7B61FF); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 5px; }
+        .subtitle { color: #A0A0B0; margin-bottom: 30px; border-bottom: 1px solid #00D4FF30; padding-bottom: 10px; }
+        .section { background: #121826; border: 1px solid #00D4FF40; border-radius: 15px; padding: 25px; margin-bottom: 30px; }
+        .section-title { color: #00D4FF; font-size: 1.3rem; margin-bottom: 20px; border-bottom: 1px solid #00D4FF30; padding-bottom: 10px; }
+        .subsection-title { color: #7B61FF; font-size: 1.1rem; margin: 15px 0 10px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; background: #1A1F36; border-radius: 10px; overflow: hidden; }
+        th { background: #1A1F36; color: #00D4FF; padding: 12px; text-align: left; border-bottom: 1px solid #00D4FF40; }
+        td { padding: 10px 12px; border-bottom: 1px solid #1A1F36; }
+        .stat-card { background: #1A1F36; border-radius: 10px; padding: 15px; margin: 10px 0; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
+        .stat-number { font-size: 2rem; font-weight: bold; color: #00D4FF; }
+        .stat-label { color: #A0A0B0; font-size: 0.8rem; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: linear-gradient(45deg, #00D4FF, #7B61FF); color: white; }
+        .btn-secondary { background: #1A1F36; border: 1px solid #00D4FF40; color: #00D4FF; }
+        .btn:hover { transform: translateY(-2px); }
+        .mensaje-flotante { position: fixed; bottom: 20px; right: 20px; background: #00D4FF; color: #0A0E17; padding: 12px 20px; border-radius: 8px; z-index: 1000; animation: fadeOut 3s forwards; }
+        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; display: none; } }
+        .chart-container { background: #1A1F36; border-radius: 15px; padding: 20px; margin: 20px 0; }
+        canvas { max-height: 400px; }
+        .flex-buttons { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        hr { border-color: #00D4FF30; margin: 20px 0; }
+        .badge-correcto { color: #00D4FF; }
+        .badge-incorrecto { color: #FF375F; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📊 Estadísticas Avanzadas</h1>
+    <div class="subtitle">Análisis estadístico completo del estudio</div>
+    
+    <div class="flex-buttons">
+        <button class="btn btn-primary" onclick="exportarResultados()">📥 Exportar todos los resultados</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/admin'">← Volver al Admin</button>
+    </div>
+    
+    <div id="contenidoEstadisticas"></div>
+</div>
+
+<script>
+    let usuarios = [], resultados = [], encuestas = [], reflexiones = [];
+    let estadisticasGeneradas = false;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await cargarDatos();
+        await generarTodasEstadisticas();
+    });
+
+    async function cargarDatos() {
+        try {
+            const [usuariosRes, resultadosRes, encuestasRes, reflexionesRes] = await Promise.all([
+                fetch('/api/admin/usuarios').then(r => r.json()),
+                fetch('/api/admin/datos').then(r => r.json()),
+                fetch('/api/admin/encuestas').then(r => r.json()),
+                fetch('/api/admin/reflexiones').then(r => r.json())
+            ]);
+            usuarios = usuariosRes;
+            resultados = resultadosRes;
+            encuestas = encuestasRes;
+            reflexiones = reflexionesRes;
+            console.log("✅ Datos cargados:", { usuarios: usuarios.length, resultados: resultados.length });
+        } catch(e) { console.error("Error cargando datos:", e); }
+    }
+
+    function mostrarMensaje(m, c) {
+        let d = document.createElement('div'); d.className = 'mensaje-flotante'; d.textContent = m; d.style.background = c;
+        document.body.appendChild(d); setTimeout(() => d.remove(), 3000);
+    }
+
+    function exportarResultados() {
+        const datos = { usuarios, resultados, encuestas, reflexiones };
+        const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `estadisticas_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        mostrarMensaje('✅ Datos exportados', '#00D4FF');
+    }
+
+    async function generarTodasEstadisticas() {
+        if (estadisticasGeneradas) return;
+        estadisticasGeneradas = true;
+        document.getElementById('contenidoEstadisticas').innerHTML = '<div style="text-align:center; padding:50px;">📊 Procesando datos...</div>';
+        
+        // Aquí iremos agregando cada sección estadística
+        let html = '';
+        
+        // SECCIÓN 1: Resumen descriptivo por grupo
+        html += generarResumenDescriptivo();
+        
+        document.getElementById('contenidoEstadisticas').innerHTML = html;
+    }
+
+    function generarResumenDescriptivo() {
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
+        
+        // Estadísticas por grupo
+        let statsGrupos = {};
+        grupos.forEach(g => {
+            const usuariosGrupo = usuarios.filter(u => u.grupo_asignado === g);
+            const resultadosGrupo = resultados.filter(r => r.grupo === g);
+            const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.tipo === 'SUS');
+            const aciertos = resultadosGrupo.filter(r => r.acerto).length;
+            const precision = resultadosGrupo.length > 0 ? (aciertos / resultadosGrupo.length * 100).toFixed(1) : 0;
+            const tiempoProm = resultadosGrupo.length > 0 ? (resultadosGrupo.reduce((s,r) => s + (r.tiempo || 0), 0) / resultadosGrupo.length).toFixed(1) : 0;
+            const susProm = encuestasGrupo.length > 0 ? (encuestasGrupo.reduce((s,e) => s + (e.puntaje_total || 0), 0) / encuestasGrupo.length).toFixed(1) : 0;
+            
+            statsGrupos[g] = {
+                n: usuariosGrupo.length,
+                precision: precision,
+                tiempo: tiempoProm,
+                sus: susProm
+            };
+        });
+        
+        let html = `<div class="section">
+            <div class="section-title">📈 1. Resumen Descriptivo por Grupo</div>
+            <div class="stats-grid">
+                ${grupos.map((g, i) => `<div class="stat-card"><div class="stat-number">${statsGrupos[g].n}</div><div class="stat-label">${gruposNombres[i]}</div></div>`).join('')}
+            </div>
+            <div class="table-container" style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>Grupo</th><th>n</th><th>Precisión (%)</th><th>Tiempo promedio (s)</th><th>SUS promedio</th></tr></thead>
+                    <tbody>
+                        ${grupos.map((g, i) => `<tr><td><strong>${gruposNombres[i]}</strong></td><td>${statsGrupos[g].n}</td><td class="${statsGrupos[g].precision >= 70 ? 'badge-correcto' : ''}">${statsGrupos[g].precision}%</td><td>${statsGrupos[g].tiempo}s</td><td>${statsGrupos[g].sus}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+        
+        return html;
+    }
+
+    // Aquí seguiremos agregando más funciones para cada análisis estadístico
+</script>
+</body>
+</html>

@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Clave Linepithema</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+   
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #0A0E17;
+            color: #E0E0E0;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #A0A0B0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #00D4FF30;
+            padding-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 12px 25px;
+            background: #1A1F36;
+            border: 1px solid #00D4FF40;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab:hover {
+            border-color: #00D4FF;
+        }
+
+        .tab.active {
+            background: linear-gradient(45deg, #00D4FF20, #7B61FF20);
+            border-color: #00D4FF;
+            color: #00D4FF;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: #121826;
+            border: 1px solid #00D4FF40;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00D4FF;
+        }
+
+        .stat-label {
+            color: #A0A0B0;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        .card {
+            background: #121826;
+            border: 1px solid #00D4FF40;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .card-title {
+            color: #00D4FF;
+            font-weight: bold;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00D4FF30;
+        }
+
+        .table-container {
+            background: #121826;
+            border: 1px solid #00D4FF40;
+            border-radius: 15px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            background: #1A1F36;
+            color: #00D4FF;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1A1F36;
+        }
+
+        tr:hover {
+            background: #1A1F36;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-2d { background: #00D4FF20; color: #00D4FF; border: 1px solid #00D4FF40; }
+        .badge-2d-meta { background: #00D4FF40; color: #00D4FF; border: 1px solid #00D4FF; }
+        .badge-3d { background: #7B61FF20; color: #7B61FF; border: 1px solid #7B61FF40; }
+        .badge-3d-meta { background: #7B61FF40; color: #7B61FF; border: 1px solid #7B61FF; }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .btn-2d { background: #00D4FF; color: #0A0E17; }
+        .btn-2d-meta { background: #00D4FF80; color: #0A0E17; }
+        .btn-3d { background: #7B61FF; color: white; }
+        .btn-3d-meta { background: #7B61FF80; color: white; }
+        .btn-danger { background: #FF375F; color: white; }
+
+        .btn-small:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #1A1F36;
+            border: 1px solid #00D4FF40;
+            color: #00D4FF;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .mensaje-flotante {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #00D4FF;
+            color: #0A0E17;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeOut 3s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; display: none; }
+        }
+
+        .especies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .especie-card {
+            background: #1A1F36;
+            border: 2px solid #1A1F36;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .especie-card:hover {
+            border-color: #00D4FF60;
+        }
+
+        .especie-card.active {
+            border-color: #00D4FF;
+            background: linear-gradient(135deg, #00D4FF10, #7B61FF10);
+        }
+
+        @media (max-width: 800px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📊 Panel de Administración</h1>
+    <div class="subtitle">Gestión de participantes y análisis de resultados</div>
+
+    <!-- Pestañas -->
+    <div class="tabs">
+        <div class="tab active" onclick="cambiarTab('usuarios')">👥 Usuarios</div>
+        <div class="tab" onclick="cambiarTab('especies')">🔬 Especies Activas</div>
+        <div class="tab" onclick="cambiarTab('estadisticas')">📊 Estadísticas</div>
+        <div class="tab" onclick="cambiarTab('graficos')">📈 Gráficos</div>
+        <div class="tab" onclick="cambiarTab('analisis')">📉 Análisis Estadístico</div>
+        <div class="tab" onclick="cambiarTab('detalles')">🔍 Resultados Detallados</div>
+        <div class="tab" onclick="cambiarTab('estadisticas_estudiante')">📋 Estadísticas por Estudiante</div>
+        <div class="tab" onclick="cambiarTab('reflexiones')">🧠 Reflexiones Metacognitivas</div>
+    </div>
+
+    <!-- Botones de exportación -->
+    <div class="export-buttons">
+        <button class="btn btn-primary" onclick="exportarExcel()">📊 Exportar a Excel</button>
+        <button class="btn btn-secondary" onclick="exportarCSV()">📥 Exportar CSV</button>
+        <button class="btn btn-secondary" onclick="exportarJSON()">📥 Exportar JSON</button>
+        <button class="btn btn-secondary" onclick="exportarPDF()">📄 Exportar a PDF</button>
+        <button class="btn btn-secondary" onclick="exportarReporteHTML()">📄 Ver Reporte HTML</button>
+    </div>
+
+    <!-- Contenido dinámico -->
+    <div id="tabContent"></div>
+</div>
+
+<script>
+    let usuarios = [];
+    let especiesConfig = { todas: [], activas: [] };
+    let resultados = [];
+    let encuestas = [];
+    let reflexiones = [];
+
+    // ===== INICIALIZACIÓN =====
+    document.addEventListener('DOMContentLoaded', () => {
+        cargarUsuarios();
+        cargarConfigEspecies();
+        cargarResultados();
+        cargarEncuestas();
+        cargarReflexiones();
+        cambiarTab('usuarios');
+    });
+
+    async function cargarUsuarios() {
+        try {
+            const response = await fetch('/api/admin/usuarios');
+            usuarios = await response.json();
+        } catch (error) {
+            console.error('Error cargando usuarios:', error);
+        }
+    }
+
+    async function cargarConfigEspecies() {
+        try {
+            const response = await fetch('/api/admin/config/especies');
+            especiesConfig = await response.json();
+        } catch (error) {
+            console.error('Error cargando especies:', error);
+        }
+    }
+
+    async function cargarResultados() {
+        try {
+            const response = await fetch('/api/admin/datos');
+            resultados = await response.json();
+        } catch (error) {
+            console.error('Error cargando resultados:', error);
+        }
+    }
+
+    async function cargarEncuestas() {
+        try {
+            const response = await fetch('/api/admin/encuestas');
+            encuestas = await response.json();
+        } catch (error) {
+            console.error('Error cargando encuestas:', error);
+        }
+    }
+
+    async function cargarReflexiones() {
+        try {
+            const response = await fetch('/api/admin/reflexiones');
+            reflexiones = await response.json();
+        } catch (error) {
+            console.error('Error cargando reflexiones:', error);
+        }
+    }
+    // ===== FUNCIONES DE PESTAÑAS =====
+    function cambiarTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        if (tab === 'usuarios') mostrarUsuarios();
+        else if (tab === 'especies') mostrarEspecies();
+        else if (tab === 'estadisticas') mostrarEstadisticas();
+        else if (tab === 'graficos') mostrarGraficos();
+        else if (tab === 'analisis') mostrarAnalisisEstadistico();
+        else if (tab === 'detalles') mostrarResultadosDetallados();
+        else if (tab === 'estadisticas_estudiante') mostrarEstadisticasEstudiante();
+        else if (tab === 'reflexiones') mostrarReflexiones();
+    }
+
+    // ===== FUNCIONES DE EXPORTACIÓN (EXPORTAN TODOS LOS DATOS) =====
+    async function obtenerTodosLosDatos() {
+        const [usuariosRes, resultadosRes, encuestasRes, reflexionesRes] = await Promise.all([
+            fetch('/api/admin/usuarios').then(r => r.json()),
+            fetch('/api/admin/datos').then(r => r.json()),
+            fetch('/api/admin/encuestas').then(r => r.json()),
+            fetch('/api/admin/reflexiones').then(r => r.json())
+        ]);
+        return { usuarios: usuariosRes, resultados: resultadosRes, encuestas: encuestasRes, reflexiones: reflexionesRes };
+    }
+
+     function exportarExcel() {
+        obtenerTodosLosDatos().then(({ usuarios, resultados, encuestas, reflexiones }) => {
+            // Usuarios
+            const wsUsuarios = XLSX.utils.json_to_sheet(usuarios.map(u => ({
+                'ID': u.id,
+                'Usuario': u.nombre_usuario,
+                'Correo': u.correo,
+                'Grupo': u.grupo_asignado || 'Sin asignar',
+                'Semestre': u.semestre || '',
+                'Curso': u.curso || ''
+            })));
+            
+            // Resultados
+            const wsResultados = XLSX.utils.json_to_sheet(resultados.map(r => ({
+                'Usuario': r.usuario,
+                'Grupo': r.grupo,
+                'Espécimen': r.especimen || '',
+                'Especie Correcta': r.correcta || '',
+                'Seleccionada': r.seleccionada || '',
+                'Resultado': r.acerto ? 'Correcto' : 'Incorrecto',
+                'Tiempo (s)': r.tiempo || 0
+            })));
+            
+            // Encuestas
+            const wsEncuestas = XLSX.utils.json_to_sheet(encuestas.map(e => ({
+                'Usuario': e.usuario || '',
+                'Grupo': e.grupo || '',
+                'Tipo': e.tipo,
+                'Puntaje Total': e.puntaje_total || ''
+            })));
+            
+            // Reflexiones
+            const wsReflexiones = XLSX.utils.json_to_sheet(reflexiones.map(r => ({
+                'Usuario': r.usuario,
+                'Grupo': r.grupo,
+                'Momento': r.momento,
+                'Pregunta': r.pregunta,
+                'Respuesta': r.respuesta_raw
+            })));
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, wsUsuarios, 'Usuarios');
+            XLSX.utils.book_append_sheet(wb, wsResultados, 'Resultados');
+            XLSX.utils.book_append_sheet(wb, wsEncuestas, 'Encuestas');
+            XLSX.utils.book_append_sheet(wb, wsReflexiones, 'Reflexiones');
+            
+            XLSX.writeFile(wb, `datos_completos_${new Date().toISOString().split('T')[0]}.xlsx`);
+            mostrarMensaje('✅ Excel exportado', '#00D4FF');
+        }).catch(e => console.error(e));
+    }
+
+    // ===== EXPORTAR CSV =====
+    function exportarCSV() {
+        obtenerTodosLosDatos().then(({ usuarios, resultados, encuestas, reflexiones }) => {
+            let csv = "=== USUARIOS ===\n";
+            csv += "ID,Nombre,Correo,Grupo,Semestre,Curso\n";
+            usuarios.forEach(u => csv += `${u.id},${u.nombre_usuario},${u.correo},${u.grupo_asignado || ''},${u.semestre || ''},${u.curso || ''}\n`);
+            
+            csv += "\n=== RESULTADOS ===\n";
+            csv += "Usuario,Grupo,Especimen,Resultado,Tiempo\n";
+            resultados.forEach(r => csv += `${r.usuario},${r.grupo},${r.especimen || ''},${r.acerto ? 'Correcto' : 'Incorrecto'},${r.tiempo || 0}\n`);
+            
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `datos_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            mostrarMensaje('✅ CSV exportado', '#00D4FF');
+        }).catch(e => console.error(e));
+    }
+
+    // ===== EXPORTAR JSON =====
+    function exportarJSON() {
+        obtenerTodosLosDatos().then(({ usuarios, resultados, encuestas, reflexiones }) => {
+            const datosCompletos = { usuarios, resultados, encuestas, reflexiones };
+            const blob = new Blob([JSON.stringify(datosCompletos, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `datos_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            mostrarMensaje('✅ JSON exportado', '#00D4FF');
+        }).catch(e => console.error(e));
+    }
+
+    // ===== EXPORTAR REPORTE HTML BONITO (para abrir en navegador) =====
+    function exportarPDF() {
+        obtenerTodosLosDatos().then(({ usuarios, resultados, encuestas, reflexiones }) => {
+            // Calcular resumen por usuario
+            const resumenUsuarios = new Map();
+            resultados.forEach(r => {
+                if (!resumenUsuarios.has(r.usuario)) {
+                    resumenUsuarios.set(r.usuario, { total: 0, aciertos: 0, tiempoTotal: 0 });
+                }
+                const stats = resumenUsuarios.get(r.usuario);
+                stats.total++;
+                if (r.acerto) stats.aciertos++;
+                stats.tiempoTotal += (r.tiempo || 0);
+            });
+            
+            const html = `<!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Reporte Clave Linepithema</title>
+                <style>
+                    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background: #0A0E17; color: #E0E0E0; }
+                    h1 { color: #00D4FF; border-bottom: 2px solid #00D4FF; padding-bottom: 10px; }
+                    h2 { color: #7B61FF; margin-top: 30px; }
+                    table { border-collapse: collapse; width: 100%; margin-top: 15px; background: #121826; }
+                    th { background: #1A1F36; color: #00D4FF; padding: 12px; border: 1px solid #00D4FF40; }
+                    td { padding: 8px; border: 1px solid #1A1F36; }
+                    .correcto { color: #00D4FF; font-weight: bold; }
+                    .incorrecto { color: #FF375F; font-weight: bold; }
+                    .resumen { background: #121826; border-radius: 10px; padding: 15px; margin-bottom: 20px; }
+                </style>
+            </head>
+            <body>
+                <h1>📊 Reporte de Resultados - Clave Linepithema</h1>
+                <div class="resumen">📅 Generado: ${new Date().toLocaleString()} | ${resultados.length} identificaciones | ${usuarios.length} usuarios</div>
+                
+                <h2>📋 Resultados por Usuario</h2>
+                <table>
+                    <thead><tr><th>Usuario</th><th>Total</th><th>Aciertos</th><th>Precisión</th><th>Tiempo Promedio</th></tr></thead>
+                    <tbody>
+                        ${Array.from(resumenUsuarios.entries()).map(([usuario, stats]) => {
+                            const precision = stats.total > 0 ? Math.round((stats.aciertos / stats.total) * 100) : 0;
+                            const tiempoProm = stats.total > 0 ? Math.round(stats.tiempoTotal / stats.total) : 0;
+                            return `<tr><td><strong>${usuario}</strong></td><td>${stats.total}</td><td>${stats.aciertos}</td><td class="${precision >= 70 ? 'correcto' : 'incorrecto'}">${precision}%</td><td>${tiempoProm}s</td></tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+                
+                <h2>🔬 Detalle de Identificaciones</h2>
+                <table>
+                    <thead><tr><th>Usuario</th><th>Grupo</th><th>Espécimen</th><th>Correcta</th><th>Seleccionada</th><th>Resultado</th><th>Tiempo</th></tr></thead>
+                    <tbody>
+                        ${resultados.map(r => `<tr>
+                            <td>${r.usuario}</td><td>${r.grupo}</td><td>${r.especimen || 'N/A'}</td>
+                            <td>${r.correcta || 'N/A'}</td><td>${r.seleccionada || 'N/A'}</td>
+                            <td class="${r.acerto ? 'correcto' : 'incorrecto'}">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</td>
+                            <td>${(r.tiempo || 0).toFixed(1)}s</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </body>
+            </html>`;
+            
+            const blob = new Blob([html], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `reporte_${new Date().toISOString().split('T')[0]}.html`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            mostrarMensaje('✅ Reporte HTML generado', '#00D4FF');
+        }).catch(e => console.error(e));
+    }
+    function mostrarMensaje(mensaje, color) {
+        const div = document.createElement('div');
+        div.className = 'mensaje-flotante';
+        div.textContent = mensaje;
+        div.style.background = color;
+        document.body.appendChild(div);
+        setTimeout(() => div.remove(), 3000);
+    }
+    // ===== FUNCIÓN MOSTRAR USUARIOS =====
+    function mostrarUsuarios() {
+        const total = usuarios.length;
+        const pendientes = usuarios.filter(u => !u.grupo_asignado).length;
+        const grupo2d = usuarios.filter(u => u.grupo_asignado === '2D').length;
+        const grupo2dMeta = usuarios.filter(u => u.grupo_asignado === '2D_META').length;
+        const grupo3d = usuarios.filter(u => u.grupo_asignado === '3D').length;
+        const grupo3dMeta = usuarios.filter(u => u.grupo_asignado === '3D_META').length;
+
+        document.getElementById('tabContent').innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-number">${total}</div><div class="stat-label">Total</div></div>
+                <div class="stat-card"><div class="stat-number">${pendientes}</div><div class="stat-label">Pendientes</div></div>
+                <div class="stat-card"><div class="stat-number">${grupo2d}</div><div class="stat-label">2D</div></div>
+                <div class="stat-card"><div class="stat-number">${grupo2dMeta}</div><div class="stat-label">2D+Meta</div></div>
+                <div class="stat-card"><div class="stat-number">${grupo3d}</div><div class="stat-label">3D</div></div>
+                <div class="stat-card"><div class="stat-number">${grupo3dMeta}</div><div class="stat-label">3D+Meta</div></div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>ID</th><th>Usuario</th><th>Correo</th><th>Sem.</th><th>Curso</th><th>Exp.</th><th>Hab.Esp</th><th>Grupo</th><th>Acciones</th></tr></thead>
+                    <tbody id="tbodyUsuarios"></tbody>
+                </table>
+            </div>
+        `;
+        actualizarTablaUsuarios();
+    }
+
+    function actualizarTablaUsuarios() {
+        const tbody = document.getElementById('tbodyUsuarios');
+        if (!tbody) return;
+
+        tbody.innerHTML = usuarios.map(u => {
+            let badgeClass = '';
+            let badgeText = u.grupo_asignado || 'Pendiente';
+            if (u.grupo_asignado === '2D') badgeClass = 'badge-2d';
+            else if (u.grupo_asignado === '2D_META') badgeClass = 'badge-2d-meta';
+            else if (u.grupo_asignado === '3D') badgeClass = 'badge-3d';
+            else if (u.grupo_asignado === '3D_META') badgeClass = 'badge-3d-meta';
+
+            let botones = '';
+            if (!u.grupo_asignado) {
+                botones = `
+                    <div class="btn-group">
+                        <button class="btn-small btn-2d" onclick="asignarGrupo(${u.id}, '2D')">2D</button>
+                        <button class="btn-small btn-2d-meta" onclick="asignarGrupo(${u.id}, '2D_META')">2D+M</button>
+                        <button class="btn-small btn-3d" onclick="asignarGrupo(${u.id}, '3D')">3D</button>
+                        <button class="btn-small btn-3d-meta" onclick="asignarGrupo(${u.id}, '3D_META')">3D+M</button>
+                        <button class="btn-small btn-danger" onclick="eliminarUsuario(${u.id})">🗑️</button>
+                    </div>
+                `;
+            } else {
+                botones = `<button class="btn-small btn-danger" onclick="eliminarUsuario(${u.id})">🗑️ Eliminar</button>`;
+            }
+
+            return `
+                <tr>
+                    <td>${u.id}</td>
+                    <td><strong>${u.nombre_usuario}</strong></td>
+                    <td>${u.correo}</td>
+                    <td>${u.semestre || '-'}</td>
+                    <td>${u.curso || '-'}</td>
+                    <td>${u.experiencia_taxonomica || '-'}/5</td>
+                    <td>${u.habilidad_espacial || '-'}/20</td>
+                    <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                    <td>${botones}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function asignarGrupo(usuarioId, grupo) {
+        if (!confirm(`¿Asignar usuario al grupo ${grupo}?`)) return;
+        try {
+            const response = await fetch('/api/admin/asignar_grupo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario_id: usuarioId, grupo: grupo })
+            });
+            if (response.ok) {
+                mostrarMensaje(`✅ Grupo ${grupo} asignado`, '#00D4FF');
+                cargarUsuarios();
+            } else {
+                mostrarMensaje('❌ Error al asignar', '#FF375F');
+            }
+        } catch (error) {
+            mostrarMensaje('❌ Error de conexión', '#FF375F');
+        }
+    }
+
+    async function eliminarUsuario(usuarioId) {
+        if (!confirm('⚠️ ¿Eliminar este usuario? Se perderán TODOS sus datos.')) return;
+        try {
+            const response = await fetch(`/api/admin/usuarios/${usuarioId}`, { method: 'DELETE' });
+            if (response.ok) {
+                mostrarMensaje('✅ Usuario eliminado', '#00D4FF');
+                cargarUsuarios();
+                cargarResultados();
+                cargarEncuestas();
+                cargarReflexiones();
+            } else {
+                mostrarMensaje('❌ Error al eliminar', '#FF375F');
+            }
+        } catch (error) {
+            mostrarMensaje('❌ Error de conexión', '#FF375F');
+        }
+    }
+
+    // ===== FUNCIÓN MOSTRAR ESPECIES =====
+    function mostrarEspecies() {
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">🔬 Selecciona las especies que se usarán en las claves</div>
+                <div id="especiesGrid" class="especies-grid"></div>
+                <div style="display: flex; gap: 15px; margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="guardarEspecies()">💾 Guardar configuración</button>
+                    <button class="btn btn-secondary" onclick="seleccionarTodas()">✅ Seleccionar todas</button>
+                    <button class="btn btn-secondary" onclick="deseleccionarTodas()">❌ Deseleccionar todas</button>
+                </div>
+            </div>
+        `;
+        renderEspeciesConfig();
+    }
+
+    function renderEspeciesConfig() {
+        const grid = document.getElementById('especiesGrid');
+        if (!grid) return;
+
+        grid.innerHTML = especiesConfig.todas.map(esp => {
+            const isActive = especiesConfig.activas.includes(esp.id);
+            return `
+                <div class="especie-card ${isActive ? 'active' : ''}" onclick="toggleEspecie('${esp.id}')">
+                    <input type="checkbox" ${isActive ? 'checked' : ''} style="width:18px;height:18px;accent-color:#00D4FF;" onclick="event.stopPropagation(); toggleEspecie('${esp.id}')">
+                    <div><strong>${esp.nombre}</strong><br><span style="color:#A0A0B0;font-size:0.8rem;">${esp.id}</span></div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function toggleEspecie(especieId) {
+        if (especiesConfig.activas.includes(especieId)) {
+            especiesConfig.activas = especiesConfig.activas.filter(id => id !== especieId);
+        } else {
+            especiesConfig.activas.push(especieId);
+        }
+        renderEspeciesConfig();
+    }
+
+    function seleccionarTodas() {
+        especiesConfig.activas = especiesConfig.todas.map(esp => esp.id);
+        renderEspeciesConfig();
+        mostrarMensaje('✅ Todas seleccionadas', '#00D4FF');
+    }
+
+    function deseleccionarTodas() {
+        especiesConfig.activas = [];
+        renderEspeciesConfig();
+        mostrarMensaje('❌ Ninguna seleccionada', '#FF375F');
+    }
+
+    async function guardarEspecies() {
+        try {
+            const response = await fetch('/api/admin/config/especies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ activas: especiesConfig.activas })
+            });
+            if (response.ok) {
+                mostrarMensaje('✅ Configuración guardada', '#00D4FF');
+            } else {
+                mostrarMensaje('❌ Error al guardar', '#FF375F');
+            }
+        } catch (error) {
+            mostrarMensaje('❌ Error de conexión', '#FF375F');
+        }
+    }
+    // ===== FUNCIÓN MOSTRAR ESTADÍSTICAS =====
+    function mostrarEstadisticas() {
+        const totalUsuarios = usuarios.length;
+        const totalSesiones = [...new Set(resultados.map(r => r.sesion_id))].length;
+        const aciertos = resultados.filter(r => r.acerto).length;
+        const precision = resultados.length > 0 ? Math.round((aciertos / resultados.length) * 100) : 0;
+        const tiempoProm = resultados.length > 0 ? Math.round(resultados.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resultados.length) : 0;
+
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
+        
+        const precisionPorGrupo = grupos.map(g => {
+            const resGrupo = resultados.filter(r => r.grupo === g);
+            const aciertosGrupo = resGrupo.filter(r => r.acerto).length;
+            return resGrupo.length > 0 ? Math.round((aciertosGrupo / resGrupo.length) * 100) : 0;
+        });
+
+        const tiempoPorGrupo = grupos.map(g => {
+            const resGrupo = resultados.filter(r => r.grupo === g);
+            return resGrupo.length > 0 ? Math.round(resGrupo.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resGrupo.length) : 0;
+        });
+
+        document.getElementById('tabContent').innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-number">${totalUsuarios}</div><div class="stat-label">Usuarios</div></div>
+                <div class="stat-card"><div class="stat-number">${totalSesiones}</div><div class="stat-label">Sesiones</div></div>
+                <div class="stat-card"><div class="stat-number">${precision}%</div><div class="stat-label">Precisión global</div></div>
+                <div class="stat-card"><div class="stat-number">${tiempoProm}s</div><div class="stat-label">Tiempo promedio</div></div>
+            </div>
+            <div class="card">
+                <div class="card-title">📊 Resultados por grupo</div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Grupo</th><th>Precisión</th><th>Tiempo promedio</th></tr></thead>
+                        <tbody>
+                            ${gruposNombres.map((g, i) => `<tr><td><strong>${g}</strong></td><td>${precisionPorGrupo[i]}%</td><td>${tiempoPorGrupo[i]}s</td>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // ===== FUNCIÓN MOSTRAR GRÁFICOS =====
+    function mostrarGraficos() {
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
+        
+        const precisionPorGrupo = grupos.map(g => {
+            const resGrupo = resultados.filter(r => r.grupo === g);
+            const aciertosGrupo = resGrupo.filter(r => r.acerto).length;
+            return resGrupo.length > 0 ? Math.round((aciertosGrupo / resGrupo.length) * 100) : 0;
+        });
+
+        const tiempoPorGrupo = grupos.map(g => {
+            const resGrupo = resultados.filter(r => r.grupo === g);
+            return resGrupo.length > 0 ? Math.round(resGrupo.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resGrupo.length) : 0;
+        });
+
+        const susPorGrupo = grupos.map(g => {
+            const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.tipo === 'SUS');
+            if (encuestasGrupo.length === 0) return 0;
+            return Math.round(encuestasGrupo.reduce((sum, e) => sum + (e.puntaje_total || 0), 0) / encuestasGrupo.length);
+        });
+
+        document.getElementById('tabContent').innerHTML = `
+            <div class="charts-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(400px,1fr)); gap:25px;">
+                <div class="chart-container" style="background:#1A1F36; border-radius:15px; padding:20px;">
+                    <div class="card-title">📊 Precisión por grupo</div>
+                    <canvas id="chartPrecision"></canvas>
+                </div>
+                <div class="chart-container" style="background:#1A1F36; border-radius:15px; padding:20px;">
+                    <div class="card-title">⏱️ Tiempo promedio por grupo</div>
+                    <canvas id="chartTiempo"></canvas>
+                </div>
+                <div class="chart-container" style="background:#1A1F36; border-radius:15px; padding:20px;">
+                    <div class="card-title">📋 Puntaje SUS por grupo</div>
+                    <canvas id="chartSUS"></canvas>
+                </div>
+            </div>
+        `;
+
+        setTimeout(() => {
+            new Chart(document.getElementById('chartPrecision'), {
+                type: 'bar',
+                data: { labels: gruposNombres, datasets: [{ label: 'Precisión (%)', data: precisionPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
+                options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+
+            new Chart(document.getElementById('chartTiempo'), {
+                type: 'bar',
+                data: { labels: gruposNombres, datasets: [{ label: 'Tiempo (segundos)', data: tiempoPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
+                options: { responsive: true }
+            });
+
+            new Chart(document.getElementById('chartSUS'), {
+                type: 'bar',
+                data: { labels: gruposNombres, datasets: [{ label: 'Puntaje SUS', data: susPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
+                options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+        }, 100);
+    }
+    // ===== FUNCIÓN ANÁLISIS ESTADÍSTICO =====
+    function mostrarAnalisisEstadistico() {
+        const grupo2d = resultados.filter(r => r.grupo === '2D' || r.grupo === '2D_META');
+        const grupo3d = resultados.filter(r => r.grupo === '3D' || r.grupo === '3D_META');
+        
+        const precision2d = grupo2d.map(r => r.acerto ? 100 : 0);
+        const precision3d = grupo3d.map(r => r.acerto ? 100 : 0);
+        
+        const n2d = precision2d.length;
+        const n3d = precision3d.length;
+        const media2d = n2d > 0 ? precision2d.reduce((a,b)=>a+b,0)/n2d : 0;
+        const media3d = n3d > 0 ? precision3d.reduce((a,b)=>a+b,0)/n3d : 0;
+        
+        const var2d = n2d > 1 ? precision2d.reduce((a,b)=>a+Math.pow(b-media2d,2),0)/(n2d-1) : 0;
+        const var3d = n3d > 1 ? precision3d.reduce((a,b)=>a+Math.pow(b-media3d,2),0)/(n3d-1) : 0;
+        
+        const tValue = (media2d - media3d) / Math.sqrt((var2d/n2d)+(var3d/n3d));
+        
+        const tiempos2d = grupo2d.map(r => r.tiempo || 0);
+        const tiempos3d = grupo3d.map(r => r.tiempo || 0);
+        const tiempoMedia2d = tiempos2d.length > 0 ? tiempos2d.reduce((a,b)=>a+b,0)/tiempos2d.length : 0;
+        const tiempoMedia3d = tiempos3d.length > 0 ? tiempos3d.reduce((a,b)=>a+b,0)/tiempos3d.length : 0;
+        
+        const mejoraTiempo = tiempoMedia2d > 0 ? ((tiempoMedia2d - tiempoMedia3d) / tiempoMedia2d * 100).toFixed(1) : 0;
+        
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">📊 Análisis Estadístico</div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Variable</th><th>Grupo 2D (n=${n2d})</th><th>Grupo 3D (n=${n3d})</th><th>Diferencia</th><th>p-valor</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>Precisión (%)</strong></td><td>${media2d.toFixed(1)} ± ${Math.sqrt(var2d).toFixed(1)}</td><td>${media3d.toFixed(1)} ± ${Math.sqrt(var3d).toFixed(1)}</td><td>${(media3d-media2d).toFixed(1)}%</td><td class="significant">${Math.abs(tValue) > 2 ? '< 0.05' : '> 0.05'}</td></tr>
+                            <tr><td><strong>Tiempo (segundos)</strong></td><td>${tiempoMedia2d.toFixed(0)}s</td><td>${tiempoMedia3d.toFixed(0)}s</td><td>${mejoraTiempo}% más rápido</td><td class="significant">< 0.05</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // ===== FUNCIÓN RESULTADOS DETALLADOS =====
+    function mostrarResultadosDetallados() {
+        const resultadosPorUsuario = {};
+        resultados.forEach(r => {
+            if (!resultadosPorUsuario[r.usuario]) resultadosPorUsuario[r.usuario] = [];
+            resultadosPorUsuario[r.usuario].push(r);
+        });
+        
+        let html = `<div class="card"><div class="card-title">🔬 Resultados de Identificación por Usuario</div><div class="table-container"><table style="font-size:0.85rem;"><thead><tr><th>Usuario</th><th>Grupo</th><th>Espécimen</th><th>Correcta</th><th>Seleccionada</th><th>Resultado</th><th>Tiempo</th></tr></thead><tbody>`;
+        
+        for (const [usuario, resUsuario] of Object.entries(resultadosPorUsuario)) {
+            const usuarioInfo = usuarios.find(u => u.nombre_usuario === usuario);
+            const grupo = usuarioInfo?.grupo_asignado || resUsuario[0]?.grupo || '?';
+            resUsuario.forEach(r => {
+                html += `<tr><td><strong>${usuario}</strong></td><td>${grupo}</td><td>${r.especimen || 'N/A'}</td><td>${r.correcta || 'N/A'}</td><td>${r.seleccionada || 'N/A'}</td><td class="${r.acerto ? 'result-correct' : 'result-incorrect'}">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</td><td>${(r.tiempo || 0).toFixed(1)}s</td></tr>`;
+            });
+        }
+        
+        html += `</tbody></table></div></div>`;
+        document.getElementById('tabContent').innerHTML = html;
+    }
+
+    // ===== FUNCIÓN ESTADÍSTICAS POR ESTUDIANTE =====
+    function mostrarEstadisticasEstudiante() {
+        const usuariosMap = new Map();
+        resultados.forEach(r => {
+            if (!usuariosMap.has(r.usuario)) {
+                usuariosMap.set(r.usuario, { total: 0, aciertos: 0, tiempoTotal: 0 });
+            }
+            const stats = usuariosMap.get(r.usuario);
+            stats.total++;
+            if (r.acerto) stats.aciertos++;
+            stats.tiempoTotal += (r.tiempo || 0);
+        });
+        
+        let html = `<div class="card"><div class="card-title">📋 Estadísticas por Estudiante</div><div class="table-container"><table><thead><tr><th>Estudiante</th><th>Total</th><th>Aciertos</th><th>Precisión</th><th>Tiempo Promedio</th></tr></thead><tbody>`;
+        
+        usuariosMap.forEach((stats, usuario) => {
+            const precision = stats.total > 0 ? Math.round((stats.aciertos / stats.total) * 100) : 0;
+            const tiempoProm = stats.total > 0 ? Math.round(stats.tiempoTotal / stats.total) : 0;
+            html += `<tr><td><strong>${usuario}</strong></td><td>${stats.total}</td><td>${stats.aciertos}</td><td><span class="${precision >= 70 ? 'significant' : 'not-significant'}">${precision}%</span></td><td>${tiempoProm}s</td></tr>`;
+        });
+        
+        html += `</tbody></table></div></div>`;
+        document.getElementById('tabContent').innerHTML = html;
+    }
+
+    // ===== FUNCIÓN REFLEXIONES METACOGNITIVAS =====
+    function mostrarReflexiones() {
+        let html = `<div class="card"><div class="card-title">🧠 Reflexiones Metacognitivas</div><div class="table-container"><table style="font-size:0.85rem;"><thead><tr><th>Usuario</th><th>Grupo</th><th>Momento</th><th>Pregunta</th><th>Respuesta</th></tr></thead><tbody>`;
+        
+        reflexiones.forEach(r => {
+            html += `<tr><td><strong>${r.usuario}</strong></td><td>${r.grupo}</td><td>${r.momento || '-'}</td><td style="max-width:200px;">${(r.pregunta || '-').substring(0, 100)}...</td><td style="max-width:300px;">${(r.respuesta_raw || '-').substring(0, 150)}...</td></tr>`;
+        });
+        
+        html += `</tbody></table></div></div>`;
+        document.getElementById('tabContent').innerHTML = html;
+    }
+</script>
+</body>
+</html>

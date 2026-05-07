@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clave 2D con Metacognición - Linepithema</title>
+    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.0.8/dist/medium-zoom.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -522,6 +523,7 @@
             font-weight: bold;
             cursor: pointer;
         }
+
     </style>
 </head>
 <body>
@@ -637,88 +639,98 @@
 
     <script>
         // ===== CONFIGURACIÓN DE LA CLAVE =====
-        const CLAVE = {
-            1: {
-                pregunta: "¿La porción anterior a la glándula metapleural tiene pelos (pubescencia)?",
-                opciones: [
-                    {texto: "Sí, pelos moderados a abundantes", desc: "Especies con pubescencia evidente", siguiente: 2},
-                    {texto: "No, sin pelos o muy pocos", desc: "Especies con glándula lisa", siguiente: 4}
-                ]
-            },
-            2: {
-                pregunta: "¿El pronoto tiene un par de setas erectas?",
-                opciones: [
-                    {texto: "Sí, se observan claramente", desc: "Una especie con este par característico", resultado: "neotropicum"},
-                    {texto: "No, no se observan", desc: "Especies que carecen de este par", siguiente: 3}
-                ]
-            },
-            3: {
-                pregunta: "¿Los escapos antenales son cortos (menores que la longitud de la cabeza)?",
-                opciones: [
-                    {texto: "Sí, escapos cortos", desc: "Especie con escapos que apenas sobrepasan", resultado: "gallardoi"},
-                    {texto: "No, escapos largos", desc: "Especie con escapos que sobrepasan claramente", resultado: "humile"}
-                ]
-            },
-            4: {
-                pregunta: "¿El clípeo tiene un surco pre-sutural bien marcado?",
-                opciones: [
-                    {texto: "Sí, el surco es evidente", desc: "Especies con clípeo claramente surcado", siguiente: 6},
-                    {texto: "No, surco ausente o muy débil", desc: "Especies con clípeo liso", siguiente: 5}
-                ]
-            },
-            5: {
-                pregunta: "¿El dorso de la cabeza tiene más de 5 setas erectas?",
-                opciones: [
-                    {texto: "Sí, muchas setas", desc: "Especie con abundante pilosidad cefálica", resultado: "iniquum"},
-                    {texto: "No, pocas o ninguna", desc: "Especie con cabeza casi sin setas", resultado: "dispertitum"}
-                ]
-            },
-            6: {
-                pregunta: "¿El pronoto tiene más de 10 setas erectas?",
-                opciones: [
-                    {texto: "Sí, muy piloso", desc: "Especie extremadamente pilosa", resultado: "hirsutum"},
-                    {texto: "No, menos de 10", desc: "Especies con pilosidad moderada", siguiente: 7}
-                ]
-            },
-            7: {
-                pregunta: "¿El margen posterior de la cabeza es profundamente cóncavo?",
-                opciones: [
-                    {texto: "Sí, muy cóncavo", desc: "Especie con cabeza marcadamente escotada", resultado: "tsachila"},
-                    {texto: "No, recto o ligeramente cóncavo", desc: "Especies con cabeza recta", siguiente: 8}
-                ]
-            },
-            8: {
-                pregunta: "¿Los escapos antenales son cortos (sobrepasan poco el margen posterior)?",
-                opciones: [
-                    {texto: "Sí, escapos cortos", desc: "Especie con escapos que apenas alcanzan", resultado: "angulatum"},
-                    {texto: "No, escapos largos", desc: "Especie con escapos largos", resultado: "piliferum"}
-                ]
-            }
-        };
+         const CLAVE = {
+    1: {
+        pregunta: "¿La porción anterior a la glándula metapleural tiene pelos adpresos en cantidad moderada a abundante?",
+        opciones: [
+            {texto: "Sí, pelos moderados a abundantes", desc: "Observar en posición dorso-oblicua", siguiente: 2},
+            {texto: "No, sin pelos o muy pocos", desc: "Porción anterior lisa o casi lisa", siguiente: 4}
+        ]
+    },
+    2: {
+        pregunta: "¿El pronoto tiene un par de setas erectas?",
+        opciones: [
+            {texto: "Sí, se observan claramente", desc: "Palpos maxilares largos, surco metanotal débil", resultado: "neotropicum"},
+            {texto: "No, no se observan", desc: "Palpos maxilares cortos, propodeo inclinado", siguiente: 3}
+        ]
+    },
+    3: {
+        pregunta: "¿Los escapos antenales son cortos?",
+        opciones: [
+            {texto: "Sí, escapos cortos", desc: "Menores que la longitud de la cabeza, mesonoto angular", resultado: "gallardoi"},
+            {texto: "No, escapos largos", desc: "Mayores o iguales a la cabeza, mesonoto recto", resultado: "humile"}
+        ]
+    },
+    4: {
+        pregunta: "¿El surco pre-sutural del clípeo está presente y bien marcado?",
+        opciones: [
+            {texto: "Sí, surco evidente", desc: "Clípeo con surco pre-sutural marcado", siguiente: 6},
+            {texto: "No, surco ausente o débil", desc: "Clípeo liso o surco apenas visible", siguiente: 5}
+        ]
+    },
+    5: {
+        pregunta: "¿El dorso de la cabeza tiene más de 5 setas erectas?",
+        opciones: [
+            {texto: "Sí, muchas setas", desc: "Cabeza con más de 5 setas, mesosoma esbelto", resultado: "iniquum"},
+            {texto: "No, pocas o ninguna", desc: "Cabeza con menos de 5 setas, mesosoma robusto", resultado: "dispertitum"}
+        ]
+    },
+    6: {
+        pregunta: "¿El pronoto tiene más de 10 setas erectas?",
+        opciones: [
+            {texto: "Sí, muy piloso", desc: "Cuerpo cubierto de setas erectas", resultado: "hirsutum"},
+            {texto: "No, menos de 10", desc: "Cuerpo sin muchas setas erectas", siguiente: 7}
+        ]
+    },
+    7: {
+        pregunta: "¿El margen posterior de la cabeza es profundamente cóncavo?",
+        opciones: [
+            {texto: "Sí, muy cóncavo", desc: "Borde occipital con escotadura profunda", resultado: "tsachila"},
+            {texto: "No, recto o ligeramente cóncavo", desc: "Borde occipital recto o apenas cóncavo", siguiente: 8}
+        ]
+    },
+    8: {
+        pregunta: "¿Los escapos antenales son cortos?",
+        opciones: [
+            {texto: "Sí, escapos cortos", desc: "Sobrepasan poco el margen posterior de la cabeza", resultado: "angulatum"},
+            {texto: "No, escapos largos", desc: "Sobrepasan claramente el margen posterior", resultado: "piliferum"}
+        ]
+    }
+};
 
         const ESPECIES = {
-            'neotropicum': {nombre: 'Linepithema neotropicum', caracteristicas: 'Pubescencia metapleural, pronoto con par de setas', distribucion: 'Región Andina, 260-2600m'},
-            'gallardoi': {nombre: 'Linepithema gallardoi', caracteristicas: 'Pubescencia metapleural, escapos cortos', distribucion: 'Alta montaña, >1000m'},
-            'humile': {nombre: 'Linepithema humile', caracteristicas: 'Pubescencia metapleural, escapos largos', distribucion: 'Armenia, Quindío'},
-            'iniquum': {nombre: 'Linepithema iniquum', caracteristicas: 'Sin pubescencia, cabeza con >5 setas', distribucion: 'Arborícola, 940-2000m'},
-            'dispertitum': {nombre: 'Linepithema dispertitum', caracteristicas: 'Sin pubescencia, cabeza con <5 setas', distribucion: 'Alta montaña, >2500m'},
-            'hirsutum': {nombre: 'Linepithema hirsutum', caracteristicas: 'Sin pubescencia, pronoto muy piloso', distribucion: 'Nariño, 640m'},
-            'tsachila': {nombre: 'Linepithema tsachila', caracteristicas: 'Sin pubescencia, cabeza cóncava', distribucion: 'Pacífico, 286-1800m'},
-            'angulatum': {nombre: 'Linepithema angulatum', caracteristicas: 'Sin pubescencia, escapos cortos', distribucion: 'Andes, 10-2430m'},
-            'piliferum': {nombre: 'Linepithema piliferum', caracteristicas: 'Sin pubescencia, escapos largos', distribucion: 'Cordilleras, 1500-2800m'}
-        };
+    'neotropicum': {nombre: 'Linepithema neotropicum', caracteristicas: 'Pronoto con par de setas erectas, palpos maxilares largos', distribucion: 'Región Andina, 260-2600m'},
+    'gallardoi': {nombre: 'Linepithema gallardoi', caracteristicas: 'Escapos cortos, mesonoto angular, pronoto con setas', distribucion: 'Alta montaña, >1000m'},
+    'humile': {nombre: 'Linepithema humile', caracteristicas: 'Escapos largos, mesonoto recto, sin setas en pronoto', distribucion: 'Armenia, Quindío'},
+    'iniquum': {nombre: 'Linepithema iniquum', caracteristicas: 'Cabeza con >5 setas erectas, mesosoma esbelto, superficie brillante', distribucion: 'Arborícola, 940-2000m'},
+    'dispertitum': {nombre: 'Linepithema dispertitum', caracteristicas: 'Cabeza con <5 setas, mesosoma robusto, superficie opaca', distribucion: 'Alta montaña, >2500m'},
+    'hirsutum': {nombre: 'Linepithema hirsutum', caracteristicas: 'Pronoto con >10 setas erectas, cuerpo muy piloso', distribucion: 'Nariño, 640m'},
+    'tsachila': {nombre: 'Linepithema tsachila', caracteristicas: 'Margen posterior de cabeza cóncavo, pronoto con 2-8 setas', distribucion: 'Pacífico, 286-1800m'},
+    'angulatum': {nombre: 'Linepithema angulatum', caracteristicas: 'Escapos cortos, propodeo alto y angulado', distribucion: 'Andes, 10-2430m'},
+    'piliferum': {nombre: 'Linepithema piliferum', caracteristicas: 'Escapos largos, propodeo redondeado', distribucion: 'Cordilleras, 1500-2800m'}
+};
 
-        const GLOSARIO = [
-            {term: "Glándula metapleural", def: "Órgano cerca del propodeo, su pubescencia es clave taxonómica"},
-            {term: "Setas erectas", def: "Pelos erguidos que sobresalen del perfil del cuerpo"},
-            {term: "Escapo", def: "Primer segmento de la antena, su longitud relativa es diagnóstica"},
-            {term: "Clípeo", def: "Placa frontal sobre las mandíbulas, puede tener surcos"},
-            {term: "Propodeo", def: "Parte posterior del tórax, su forma (redondeada/angulada) es importante"},
-            {term: "Pubescencia", def: "Pelos finos y cortos, generalmente inclinados"},
-            {term: "Pilosidad", def: "Conjunto de pelos en el cuerpo, puede ser escasa o abundante"},
-            {term: "Pronoto", def: "Primera parte del tórax, la presencia de setas es clave"}
-        ];
-
+       const GLOSARIO = [
+    {term: "Abdomen", def: "Parte posterior del cuerpo que contiene los órganos digestivos y reproductivos. En hormigas se divide en propodeo, pecíolo y gáster."},
+    {term: "Antenas", def: "Órganos sensoriales móviles ubicados en la cabeza, formados por segmentos (escapo, pedicelo y flagelo). Son fundamentales para la comunicación y percepción del entorno."},
+    {term: "Cabeza", def: "Parte anterior del cuerpo que contiene los ojos compuestos, las antenas y las mandíbulas. Su forma y estructuras asociadas son clave para la identificación."},
+    {term: "Clípeo", def: "Placa esclerotizada ubicada en la parte frontal de la cabeza, sobre las mandíbulas. Puede presentar surcos o carenas que ayudan en la identificación."},
+    {term: "Escapo", def: "Primer segmento de la antena, generalmente el más largo. Su longitud relativa a la cabeza es un carácter diagnóstico importante para separar especies."},
+    {term: "Gáster", def: "Abdomen propiamente dicho (después del pecíolo). Contiene los órganos digestivos y reproductivos. Su forma y pilosidad son variables entre especies."},
+    {term: "Glándula metapleural", def: "Órgano secretor ubicado en la región lateral del mesosoma, cerca del propodeo. Su pubescencia (presencia/ausencia de pelos) es clave para la identificación."},
+    {term: "Mandíbulas", def: "Estructuras bucales endurecidas utilizadas para cortar, transportar y defender. Su forma (triangular, alargada, con dientes) es variable entre especies."},
+    {term: "Mesosoma", def: "Tórax, región del cuerpo donde se insertan los tres pares de patas. Comprende el pronoto, mesonoto y propodeo. Es la región central del cuerpo."},
+    {term: "Ojos", def: "Órganos visuales compuestos ubicados en la cabeza. Pueden ser grandes o pequeños según la especie. Su posición y tamaño son caracteres diagnósticos."},
+    {term: "Patas", def: "Tres pares de apéndices articulados insertados en el mesosoma. Cada pata se compone de coxa, trocánter, fémur, tibia y tarso. Su longitud relativa es importante."},
+    {term: "Pecíolo", def: "Segmento o nódulo que conecta el mesosoma con el gáster. En Linepithema es característico y puede tener forma de escama o nódulo. Es clave en la identificación."},
+    {term: "Pilosidad", def: "Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante. La distribución y tipo de pelos (erectos, inclinados, adpresos) son caracteres diagnósticos."},
+    {term: "Pronoto", def: "Primera parte del mesosoma (tórax). La presencia o ausencia de setas erectas en el pronoto es un carácter clave en la identificación de especies."},
+    {term: "Propodeo", def: "Parte posterior del mesosoma (primer segmento del abdomen fusionado al tórax). Su forma (redondeada o angulada) es importante para la identificación."},
+    {term: "Pubescencia", def: "Pelos finos y cortos, generalmente inclinados, que recubren la cutícula. Se observa especialmente en la glándula metapleural y otras regiones del cuerpo."},
+    {term: "Setas erectas", def: "Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies. Su presencia, cantidad y distribución son diagnósticas."},
+    {term: "Surco metanotal", def: "Depresión o surco en el mesosoma que separa el mesonoto del propodeo. Puede ser impreso o no según la especie. Es visible en vista dorsal."},
+    {term: "Tórax", def: "Región media del cuerpo donde se insertan las patas. En hormigas se compone de pronoto, mesonoto, metanoto y propodeo. Es sinónimo de mesosoma."}
+];
         // ===== VARIABLES GLOBALES =====
         let usuario = null;
         let usuarioId = null;
@@ -862,8 +874,37 @@
                     <span id="valor3" style="color: #00D4FF;">10</span> min
                 </div>
             </div>
-            
-            <button onclick="guardarReflexionPrevia()" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Comenzar identificación</button>
+            <!-- ✅ NUEVA PREGUNTA: RAZONAMIENTO ESPACIAL -->
+<div style="margin: 20px 0;">
+    <label style="color: #00D4FF;">4. ¿Qué habilidad tienes para imaginar objetos en 3D (rotación mental)?</label>
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+        <span>0%</span>
+        <input type="range" id="reflexion4" min="0" max="100" value="50" style="flex: 1;">
+        <span>100%</span>
+    </div>
+    <div style="text-align: center; margin-top: 5px;">
+        <span id="valor4" style="color: #00D4FF;">50</span>%
+    </div>
+</div>
+<!-- Selección de estrategia -->
+<div style="margin: 20px 0;">
+    <label style="color: #00D4FF;">5. Elige la estrategia que usarás para identificar las especies:</label>
+    <div style="background: #1A1F36; padding: 15px; border-radius: 10px; margin-top: 10px;">
+        <div style="margin-bottom: 10px;">
+            <input type="radio" name="estrategia" id="estrat1" value="sistematica" checked>
+            <label for="estrat1" style="color:#E0E0E0;">📋 <strong>Exploración sistemática</strong> - Observar cada carácter en orden: glándula metapleural → pilosidad → escapos</label>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <input type="radio" name="estrategia" id="estrat2" value="comparativa">
+            <label for="estrat2" style="color:#E0E0E0;">🔍 <strong>Comparación activa</strong> - Comparar el espécimen con las imágenes de referencia o con mi memoria</label>
+        </div>
+        <div>
+            <input type="radio" name="estrategia" id="estrat3" value="hipotetica">
+            <label for="estrat3" style="color:#E0E0E0;">💡 <strong>Hipotético-deductiva</strong> - Generar hipótesis sobre la especie desde el inicio y verificarlas con los caracteres</label>
+        </div>
+    </div>
+</div>
+<button onclick="guardarReflexionPrevia()" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Comenzar identificación</button>
         </div>
     `;
     document.body.appendChild(modal);
@@ -878,14 +919,23 @@
     document.getElementById('reflexion3').addEventListener('input', function(e) {
         document.getElementById('valor3').textContent = e.target.value;
     });
+    document.getElementById('reflexion4').addEventListener('input', function(e) {
+    document.getElementById('valor4').textContent = e.target.value;
+    });
 }
 
         async function guardarReflexionPrevia() {
     const nivelConocimiento = document.getElementById('reflexion1').value;
     const nivelConfianza = document.getElementById('reflexion2').value;
     const tiempoEstimado = document.getElementById('reflexion3').value;
+    const razonamientoEspacial = document.getElementById('reflexion4').value;
+    const estrategia = document.querySelector('input[name="estrategia"]:checked').value;
+let estrategiaTexto = '';
+if (estrategia === 'sistematica') estrategiaTexto = 'Exploración sistemática';
+else if (estrategia === 'comparativa') estrategiaTexto = 'Comparación activa';
+else estrategiaTexto = 'Hipotético-deductiva';
     
-    const respuesta = `Nivel de conocimiento: ${nivelConocimiento}% | Confianza: ${nivelConfianza}% | Tiempo estimado: ${tiempoEstimado} min`;
+    const respuesta = `Nivel de conocimiento: ${nivelConocimiento}% | Confianza: ${nivelConfianza}% | Tiempo estimado: ${tiempoEstimado} min | Razonamiento espacial: ${razonamientoEspacial}% | Estrategia: ${estrategiaTexto}%`;
     
     if (sesionId) {
         await fetch('/api/experimento/guardar_reflexion', {
@@ -903,14 +953,14 @@
     iniciarIdentificacion();
 }
 
-        function mostrarReflexionDurante(preguntaNum) {
+       function mostrarReflexionDurante(preguntaNum) {
     return new Promise((resolve) => {
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.innerHTML = `
             <div class="modal-content" style="max-width: 600px;">
                 <h3>💭 Reflexión durante la identificación</h3>
-                <p>Pregunta ${preguntaNum}: Responde la siguiente pregunta:</p>
+                <p>Pregunta ${preguntaNum}</p>
                 
                 <div style="margin: 20px 0;">
                     <label style="color: #00D4FF;">¿Qué tan seguro/a estás de tu respuesta hasta ahora?</label>
@@ -925,14 +975,33 @@
                 </div>
                 
                 <div style="margin: 20px 0;">
-                    <label style="color: #00D4FF;">¿Qué nivel de dificultad tiene esta pregunta?</label>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
-                        <span>0</span>
-                        <input type="range" id="reflexionDuranteDificultad" min="0" max="100" value="50" style="flex: 1;">
-                        <span>100</span>
+                    <label style="color: #00D4FF;">¿La estrategia que elegiste está funcionando?</label>
+                    <div style="display: flex; gap: 15px; margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="cambioEstrategia" value="si" checked> ✅ Sí, seguir igual
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="cambioEstrategia" value="no"> 🔄 No, quiero cambiar de estrategia
+                        </label>
                     </div>
-                    <div style="text-align: center; margin-top: 5px;">
-                        <span id="dificultadValor" style="color: #00D4FF;">50</span>%
+                </div>
+                
+                <!-- NUEVA SECCIÓN: Selección de nueva estrategia (oculta al inicio) -->
+                <div id="seleccionNuevaEstrategia" style="display: none; margin: 20px 0; padding: 15px; background: #1A1F36; border-radius: 10px;">
+                    <label style="color: #00D4FF;">Selecciona la nueva estrategia:</label>
+                    <div style="margin-top: 10px;">
+                        <div style="margin-bottom: 10px;">
+                            <input type="radio" name="nuevaEstrategia" id="nuevaEstrat1" value="sistematica" checked>
+                            <label for="nuevaEstrat1" style="color:#E0E0E0;">📋 <strong>Exploración sistemática</strong></label>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <input type="radio" name="nuevaEstrategia" id="nuevaEstrat2" value="comparativa">
+                            <label for="nuevaEstrat2" style="color:#E0E0E0;">🔍 <strong>Comparación activa</strong></label>
+                        </div>
+                        <div>
+                            <input type="radio" name="nuevaEstrategia" id="nuevaEstrat3" value="hipotetica">
+                            <label for="nuevaEstrat3" style="color:#E0E0E0;">💡 <strong>Hipotético-deductiva</strong></label>
+                        </div>
                     </div>
                 </div>
                 
@@ -941,12 +1010,21 @@
         `;
         document.body.appendChild(modal);
         
-        // Actualizar valores
+        // Mostrar/ocultar selección de nueva estrategia
+        const radios = document.querySelectorAll('input[name="cambioEstrategia"]');
+        radios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const divNueva = document.getElementById('seleccionNuevaEstrategia');
+                if (this.value === 'no') {
+                    divNueva.style.display = 'block';
+                } else {
+                    divNueva.style.display = 'none';
+                }
+            });
+        });
+        
         document.getElementById('reflexionDuranteSeguridad').addEventListener('input', function(e) {
             document.getElementById('seguridadValor').textContent = e.target.value;
-        });
-        document.getElementById('reflexionDuranteDificultad').addEventListener('input', function(e) {
-            document.getElementById('dificultadValor').textContent = e.target.value;
         });
         
         window.resolverReflexion = resolve;
@@ -955,9 +1033,20 @@
 
         async function guardarReflexionDurante(preguntaNum) {
     const seguridad = document.getElementById('reflexionDuranteSeguridad').value;
-    const dificultad = document.getElementById('reflexionDuranteDificultad').value;
+    const cambiarEstrategia = document.querySelector('input[name="cambioEstrategia"]:checked').value;
     
-    const respuesta = `Seguridad: ${seguridad}% | Dificultad: ${dificultad}%`;
+    let respuesta = `Seguridad: ${seguridad}% | ¿Cambiar estrategia? ${cambiarEstrategia === 'si' ? 'No' : 'Sí'}`;
+    
+    // Si quiere cambiar, guardar la nueva estrategia
+    if (cambiarEstrategia === 'no') {
+        const nuevaEstrategia = document.querySelector('input[name="nuevaEstrategia"]:checked').value;
+        let nuevaEstrategiaTexto = '';
+        if (nuevaEstrategia === 'sistematica') nuevaEstrategiaTexto = 'Exploración sistemática';
+        else if (nuevaEstrategia === 'comparativa') nuevaEstrategiaTexto = 'Comparación activa';
+        else nuevaEstrategiaTexto = 'Hipotético-deductiva';
+        respuesta += ` | Nueva estrategia: ${nuevaEstrategiaTexto}`;
+        estrategiaActual = nuevaEstrategiaTexto;
+    }
     
     if (sesionId) {
         await fetch('/api/experimento/guardar_reflexion', {
@@ -966,12 +1055,21 @@
             body: JSON.stringify({ 
                 sesion_id: sesionId, 
                 momento: 'durante', 
-                pregunta: `Pregunta ${preguntaNum} (escala numérica)`, 
+                pregunta: `Pregunta ${preguntaNum} (monitoreo de estrategia)`, 
                 respuesta: respuesta 
             })
         });
     }
     document.querySelector('.modal').remove();
+    
+    // Si el usuario quiere cambiar de estrategia, reiniciar
+    if (cambiarEstrategia === 'no') {
+        if (confirm('¿Cambiar de estrategia? Se reiniciará la identificación.')) {
+            reiniciarIdentificacion();
+            return;
+        }
+    }
+    
     window.resolverReflexion();
 }
 
@@ -1139,16 +1237,31 @@
     document.getElementById('specimenCounter').textContent = `ESPÉCIMEN ${index+1}/${especimenes.length}`;
     document.getElementById('progressBar').style.width = `${((index+1)/especimenes.length)*100}%`;
     
-    if (especimenes[index]) {
-        // Para 2D usa imagen, para 3D usa Sketchfab
-        if (typeof loadSketchfabModel === 'function') {
-            loadSketchfabModel(especimenes[index].especie);
-        } else {
-            const especie = especimenes[index].especie;
-            document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${especie}/${vistaActual}.jpg`;
-        }
+if (especimenes[index]) {
+    if (typeof loadSketchfabModel === 'function') {
+        loadSketchfabModel(especimenes[index].especie);
+    } else {
+        const especie = especimenes[index].especie;
+        const img = document.getElementById('specimenImage');
+        img.src = `/static/imagenes/linepithema/${especie}/${vistaActual}.jpg`;
+        img.style.cursor = 'zoom-in';
+        img.style.transition = 'transform 0.2s ease';
+        
+        // Zoom con scroll (rueda del mouse)
+        let currentScale = 1;
+        img.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                currentScale = Math.min(currentScale + 0.1, 3);
+            } else {
+                currentScale = Math.max(currentScale - 0.1, 1);
+            }
+            img.style.transform = `scale(${currentScale})`;
+            img.style.transformOrigin = 'center center';
+        });
     }
-    mostrarPregunta(1);
+}
+            mostrarPregunta(1);
 }
 
         async function mostrarPregunta(numero) {
@@ -1693,7 +1806,28 @@ window.addEventListener('beforeunload', function() {
         guardarProgresoLocal();
     }
 });
-
+function reiniciarIdentificacion() {
+    // Reiniciar variables
+    indiceActual = 0;
+    pasoActual = 1;
+    respuestas = [];
+    especiesCompletadas = [false, false];
+    respuestaUsuario = '';
+    respuestaSeleccionada = null;
+    
+    // Limpiar localStorage para esta sesión
+    if (usuarioId) {
+        localStorage.removeItem(`progreso_${usuarioId}`);
+    }
+    
+    // Mostrar feedback
+    mostrarFeedback('🔄 Reiniciando identificación con nueva estrategia...', '#00D4FF');
+    
+    // Recargar el primer espécimen
+    setTimeout(() => {
+        cargarEspecimen(0);
+    }, 1500);
+}
     </script>
 </body>
 </html>
