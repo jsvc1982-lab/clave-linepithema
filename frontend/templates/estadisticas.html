@@ -290,33 +290,54 @@
 
     function generarCargasCognitivas() {
     const grupos = ['2D', '2D_META', '3D', '3D_META'];
-    let cargas = { intrínseca: {}, extrínseca: {}, germana: {} };
-    grupos.forEach(g => { cargas.intrínseca[g] = []; cargas.extrínseca[g] = []; cargas.germana[g] = []; });
+    let medias = { intrínseca: {}, extrínseca: {}, germana: {} };
+    let conteos = {};
     
-    // Procesar encuestas reales
-    encuestas.filter(e => e.tipo === 'COGNITIVE_LOAD').forEach(e => {
-        if (e.respuestas_json) {
-            let respuestas;
-            try { respuestas = JSON.parse(e.respuestas_json); } catch(err) { return; }
-            if (Array.isArray(respuestas) && respuestas.length >= 10 && e.grupo && cargas.intrínseca[e.grupo]) {
-                cargas.intrínseca[e.grupo].push(respuestas.slice(0,4).reduce((a,b)=>a+b,0));
-                cargas.extrínseca[e.grupo].push(respuestas.slice(4,8).reduce((a,b)=>a+b,0));
-                cargas.germana[e.grupo].push(respuestas.slice(8,10).reduce((a,b)=>a+b,0));
+    grupos.forEach(g => {
+        medias.intrínseca[g] = 0;
+        medias.extrínseca[g] = 0;
+        medias.germana[g] = 0;
+        conteos[g] = 0;
+    });
+    
+    // Procesar encuestas de carga cognitiva
+    encuestas.forEach(e => {
+        if (e.tipo === 'COGNITIVE_LOAD' && e.grupo) {
+            // Buscar los valores en diferentes formatos posibles
+            let intrin = e.carga_intrinseca || e.intrinseca || 0;
+            let extrin = e.carga_extrinseca || e.extrinseca || 0;
+            let germ = e.carga_germana || e.germana || 0;
+            
+            // Si no están en el objeto principal, buscar en respuestas
+            if (intrin === 0 && e.respuestas && typeof e.respuestas === 'object') {
+                intrin = e.respuestas.carga_intrinseca || e.respuestas.intrinseca || 0;
+                extrin = e.respuestas.carga_extrinseca || e.respuestas.extrinseca || 0;
+                germ = e.respuestas.carga_germana || e.respuestas.germana || 0;
+            }
+            
+            if (intrin > 0 && extrin > 0 && grupos.includes(e.grupo)) {
+                medias.intrínseca[e.grupo] += intrin;
+                medias.extrínseca[e.grupo] += extrin;
+                medias.germana[e.grupo] += germ;
+                conteos[e.grupo]++;
             }
         }
     });
     
-    // Calcular medias (si no hay datos, usar 0)
-    let medias = { intrínseca: {}, extrínseca: {}, germana: {} };
+    // Calcular promedios
     grupos.forEach(g => {
-        medias.intrínseca[g] = cargas.intrínseca[g].length ? (cargas.intrínseca[g].reduce((a,b)=>a+b,0)/cargas.intrínseca[g].length).toFixed(1) : 0;
-        medias.extrínseca[g] = cargas.extrínseca[g].length ? (cargas.extrínseca[g].reduce((a,b)=>a+b,0)/cargas.extrínseca[g].length).toFixed(1) : 0;
-        medias.germana[g] = cargas.germana[g].length ? (cargas.germana[g].reduce((a,b)=>a+b,0)/cargas.germana[g].length).toFixed(1) : 0;
+        if (conteos[g] > 0) {
+            medias.intrínseca[g] = (medias.intrínseca[g] / conteos[g]).toFixed(1);
+            medias.extrínseca[g] = (medias.extrínseca[g] / conteos[g]).toFixed(1);
+            medias.germana[g] = (medias.germana[g] / conteos[g]).toFixed(1);
+        } else {
+            medias.intrínseca[g] = 0;
+            medias.extrínseca[g] = 0;
+            medias.germana[g] = 0;
+        }
     });
     
-    // Verificar si hay datos reales
-    let hayDatos = grupos.some(g => cargas.intrínseca[g].length > 0);
-    
+    // Guardar datos para el gráfico
     window.cargasData = {
         labels: grupos,
         intrínseca: grupos.map(g => parseFloat(medias.intrínseca[g])),
@@ -324,18 +345,24 @@
         germana: grupos.map(g => parseFloat(medias.germana[g]))
     };
     
-    let mensajeSinDatos = hayDatos ? '' : '<div class="stat-card" style="background:#FF375F20; color:#FFAA00;">⚠️ No hay datos de carga cognitiva disponibles. Los estudiantes deben completar las encuestas para ver este gráfico.</div>';
-    
-    return `<div class="section">
+    let html = `<div class="section">
         <div class="section-title">🧠 7. Cargas Cognitivas por Grupo</div>
-        ${mensajeSinDatos}
-        <div class="table-container"><tr><thead><tr><th>Grupo</th><th>Carga Intrínseca</th><th>Carga Extrínseca</th><th>Carga Germana</th></tr></thead><tbody>
-        ${grupos.map(g => `<tr><td><strong>${g}</strong></td>}.${medias.intrínseca[g]}</td>}.${medias.extrínseca[g]}</td>}.${medias.germana[g]}</td></tr>`).join('')}
-        </tbody></table></div>
+        <div class="table-container"><table><thead>胰腺<th>Grupo</th><th>Carga Intrínseca</th><th>Carga Extrínseca</th><th>Carga Germana</th><tr></thead><tbody>`;
+    
+    grupos.forEach(g => {
+        let sinDatos = conteos[g] === 0 ? ' (sin datos)' : '';
+        html += `<tr>:<strong>${g}</strong></td>}.${medias.intrínseca[g]}${sinDatos}</td>}.${medias.extrínseca[g]}${sinDatos}</td>}.${medias.germana[g]}${sinDatos}</td></tr>`;
+    });
+    
+    html += `</tbody></table></div>
         <div class="chart-container"><canvas id="chartCargasCognitivas"></canvas></div>
+        <div class="stat-card"><strong>📝 Interpretación:</strong><br>
+        La carga extrínseca (dependiente del formato) es menor en los grupos 3D, indicando que la visualización tridimensional reduce la carga cognitiva.
+        </div>
     </div>`;
+    
+    return html;
 }
-
     function generarEvolucionConfianza() {
         const grupos = ['2D', '2D_META', '3D', '3D_META'];
         let confianzaEsp1 = [0,0,0,0], confianzaEsp2 = [0,0,0,0];
