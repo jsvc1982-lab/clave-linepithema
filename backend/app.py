@@ -95,6 +95,10 @@ def get_pool_especimenes():
 def index():
     return send_from_directory(app.template_folder, 'login.html')
 
+@app.route('/estadisticas')
+def estadisticas():
+    return send_from_directory(app.template_folder, 'estadisticas.html')
+
 @app.route('/login')
 def serve_login():
     return send_from_directory(app.template_folder, 'login.html')
