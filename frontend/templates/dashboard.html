@@ -261,6 +261,34 @@
         font-size: 0.8rem;
     }
 }
+/* Certificado */
+.certificado-container {
+    margin-top: 30px;
+    text-align: center;
+}
+.btn-certificado {
+    background: linear-gradient(45deg, #00D4FF, #7B61FF);
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+.btn-certificado:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,212,255,0.3);
+}
+.btn-certificado:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
     </style>
 </head>
 <body>
@@ -334,6 +362,7 @@
     <button class="btn btn-primary" id="btnIniciar" onclick="iniciarIdentificacion()">🔬 Iniciar identificación</button>
     <button class="btn btn-secondary" id="btnEncuestas" onclick="irAEncuestas()">📝 Completar encuestas</button>
     <button class="btn btn-secondary" onclick="cerrarSesion()">🔓 Cerrar sesión</button>
+    <button class="btn-certificado" id="btnCertificado" onclick="generarCertificado()" style="display: none;">📜 Descargar certificado</button>
 </div>
     </div>
 
@@ -547,6 +576,14 @@
                 const encuestasEstado = document.getElementById('encuestasEstado');
                 const btnEncuestas = document.getElementById('btnEncuestas');
                 
+                const btnCertificado = document.getElementById('btnCertificado');
+if (btnCertificado) {
+    if (resultados.length >= 2 && data.ambas_completadas) {
+        btnCertificado.style.display = 'inline-flex';
+    } else {
+        btnCertificado.style.display = 'none';
+    }
+}
                 if (data.ambas_completadas) {
                     if (encuestasEstado) {
                         encuestasEstado.textContent = '✅ ok';
@@ -644,6 +681,260 @@
             document.body.appendChild(div);
             setTimeout(() => div.remove(), 3000);
         }
+      function generarCertificado() {
+    const nombre = usuario;
+    const fecha = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const aciertos = resultados.filter(r => r.acerto).length;
+    const total = resultados.length;
+    const precision = total > 0 ? Math.round((aciertos / total) * 100) : 0;
+    const tiempoTotal = resultados.reduce((sum, r) => sum + (r.tiempo || 0), 0);
+    const grupo = datosUsuario?.grupo_asignado || 'No asignado';
+    
+    // Mapeo de grupos para mostrar bonito
+    let grupoTexto = '';
+    if (grupo === '2D') grupoTexto = '2D (Imágenes estáticas)';
+    else if (grupo === '2D_META') grupoTexto = '2D con reflexiones metacognitivas';
+    else if (grupo === '3D') grupoTexto = '3D (Modelos interactivos)';
+    else if (grupo === '3D_META') grupoTexto = '3D con reflexiones metacognitivas';
+    else grupoTexto = grupo;
+    
+    const html = `<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Certificado - Clave Linepithema</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                background: #0A0E17;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                font-family: 'Segoe UI', 'Times New Roman', serif;
+                padding: 20px;
+            }
+            .certificado {
+                background: linear-gradient(135deg, #121826, #1A1F36);
+                border: 3px solid #00D4FF;
+                border-radius: 30px;
+                padding: 50px;
+                max-width: 800px;
+                width: 100%;
+                text-align: center;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+                position: relative;
+                overflow: hidden;
+            }
+            .certificado::before {
+                content: "🐜";
+                position: absolute;
+                font-size: 15rem;
+                opacity: 0.03;
+                bottom: -30px;
+                right: -30px;
+                pointer-events: none;
+            }
+            .certificado::after {
+                content: "🔬";
+                position: absolute;
+                font-size: 10rem;
+                opacity: 0.03;
+                top: -20px;
+                left: -20px;
+                pointer-events: none;
+            }
+            h1 {
+                font-size: 2rem;
+                background: linear-gradient(45deg, #00D4FF, #7B61FF);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin-bottom: 10px;
+            }
+            .subtitulo {
+                color: #A0A0B0;
+                font-size: 0.9rem;
+                margin-bottom: 30px;
+                border-bottom: 1px solid #00D4FF40;
+                padding-bottom: 15px;
+            }
+            .certificado-titulo {
+                font-size: 2rem;
+                font-weight: bold;
+                color: #00D4FF;
+                letter-spacing: 4px;
+                margin: 20px 0;
+                text-transform: uppercase;
+            }
+            .nombre {
+                font-size: 2.5rem;
+                font-weight: bold;
+                background: linear-gradient(45deg, #00D4FF, #7B61FF);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin: 20px 0;
+                letter-spacing: 2px;
+            }
+            .texto {
+                color: #E0E0E0;
+                font-size: 1rem;
+                line-height: 1.6;
+                margin: 20px 0;
+            }
+            .resultados {
+                background: #0A0E17;
+                border-radius: 15px;
+                padding: 20px;
+                margin: 25px 0;
+                display: flex;
+                justify-content: space-around;
+                flex-wrap: wrap;
+                gap: 20px;
+                border: 1px solid #00D4FF40;
+            }
+            .resultado-item {
+                text-align: center;
+                flex: 1;
+                min-width: 100px;
+            }
+            .resultado-numero {
+                font-size: 2rem;
+                font-weight: bold;
+                color: #00D4FF;
+            }
+            .resultado-label {
+                font-size: 0.8rem;
+                color: #A0A0B0;
+            }
+            .grupo {
+                background: #00D4FF20;
+                display: inline-block;
+                padding: 8px 20px;
+                border-radius: 20px;
+                color: #00D4FF;
+                font-weight: bold;
+                margin: 15px 0;
+            }
+            .fecha {
+                color: #A0A0B0;
+                font-size: 0.9rem;
+                margin-top: 25px;
+                padding-top: 20px;
+                border-top: 1px solid #00D4FF40;
+            }
+            .firma {
+                margin-top: 30px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+            }
+            .firma-linea {
+                width: 250px;
+                height: 1px;
+                background: linear-gradient(90deg, transparent, #00D4FF, #7B61FF, transparent);
+                margin: 10px 0;
+            }
+            .firma-nombre {
+                font-weight: bold;
+                color: #7B61FF;
+            }
+            .firma-cargo {
+                font-size: 0.8rem;
+                color: #A0A0B0;
+            }
+            .sello {
+                font-size: 3rem;
+                opacity: 0.3;
+                position: absolute;
+                bottom: 40px;
+                right: 40px;
+            }
+            @media print {
+                body { background: white; padding: 0; }
+                .certificado { box-shadow: none; border: 2px solid #00D4FF; background: white; }
+                .certificado::before, .certificado::after { opacity: 0.05; }
+                .btn-print { display: none; }
+                .resultados { background: #f0f0f0; }
+            }
+            .btn-print {
+                background: linear-gradient(45deg, #00D4FF, #7B61FF);
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                margin-top: 30px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+            }
+            .btn-print:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0,212,255,0.3);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="certificado">
+            <h1>🔬 Clave Taxonómica Linepithema</h1>
+            <div class="subtitulo">Estudio de investigación - Maestría TIAE<br>Universidad Pedagógica Nacional</div>
+            
+            <div class="certificado-titulo">CERTIFICADO DE PARTICIPACIÓN</div>
+            
+            <div class="nombre">${nombre}</div>
+            
+            <div class="texto">
+                Por haber completado exitosamente el estudio de identificación<br>
+                de hormigas del género <strong>Linepithema</strong>.
+            </div>
+            
+            <div class="resultados">
+                <div class="resultado-item">
+                    <div class="resultado-numero">${total}/2</div>
+                    <div class="resultado-label">Especies identificadas</div>
+                </div>
+                <div class="resultado-item">
+                    <div class="resultado-numero">${aciertos}/${total}</div>
+                    <div class="resultado-label">Aciertos</div>
+                </div>
+                <div class="resultado-item">
+                    <div class="resultado-numero">${precision}%</div>
+                    <div class="resultado-label">Precisión</div>
+                </div>
+                <div class="resultado-item">
+                    <div class="resultado-numero">${tiempoTotal.toFixed(0)}s</div>
+                    <div class="resultado-label">Tiempo total</div>
+                </div>
+            </div>
+            
+            <div class="grupo">🎯 Grupo: ${grupoTexto}</div>
+            
+            <div class="fecha">
+                📅 ${fecha}
+            </div>
+            
+            <div class="firma">
+                <div class="firma-linea"></div>
+                <div class="firma-nombre">John Steve Vanegas Canchón</div>
+                <div class="firma-cargo">Investigador principal</div>
+                <div class="firma-cargo">Universidad Pedagógica Nacional</div>
+            </div>
+            
+            <div class="sello">🎓</div>
+            
+            <button class="btn-print" onclick="window.print();">🖨️ Imprimir / Guardar como PDF</button>
+        </div>
+        <script>console.log("Certificado generado para ${nombre}");<\/script>
+    </body>
+    </html>`;
+    
+    const ventana = window.open();
+    ventana.document.write(html);
+    ventana.document.close();
+}
     </script>
 </body>
 </html>

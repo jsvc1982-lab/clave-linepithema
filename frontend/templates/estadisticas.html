@@ -31,9 +31,9 @@
         .chart-container { background: #1A1F36; border-radius: 15px; padding: 20px; margin: 20px 0; }
         canvas { max-height: 400px; }
         .flex-buttons { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
-        hr { border-color: #00D4FF30; margin: 20px 0; }
-        .badge-correcto { color: #00D4FF; }
-        .badge-incorrecto { color: #FF375F; }
+        .badge-correcto { color: #00D4FF; font-weight: bold; }
+        .badge-incorrecto { color: #FF375F; font-weight: bold; }
+        .table-container { overflow-x: auto; }
     </style>
 </head>
 <body>
@@ -42,7 +42,7 @@
     <div class="subtitle">Análisis estadístico completo del estudio</div>
     
     <div class="flex-buttons">
-        <button class="btn btn-primary" onclick="exportarResultados()">📥 Exportar todos los resultados</button>
+        <button class="btn btn-primary" onclick="exportarResultados()">📥 Exportar todos los resultados (JSON)</button>
         <button class="btn btn-secondary" onclick="window.location.href='/admin'">← Volver al Admin</button>
     </div>
     
@@ -52,6 +52,7 @@
 <script>
     let usuarios = [], resultados = [], encuestas = [], reflexiones = [];
     let estadisticasGeneradas = false;
+    let cargasDataGlobal = null;
 
     document.addEventListener('DOMContentLoaded', async () => {
         await cargarDatos();
@@ -90,25 +91,77 @@
         mostrarMensaje('✅ Datos exportados', '#00D4FF');
     }
 
+    // ==================== FUNCIONES ESTADÍSTICAS ====================
+
+    function calcularTTest(datos1, datos2) {
+        if (datos1.length === 0 || datos2.length === 0) return { t: 0, p: 1, significativo: false };
+        const media1 = datos1.reduce((a,b) => a+b, 0) / datos1.length;
+        const media2 = datos2.reduce((a,b) => a+b, 0) / datos2.length;
+        const var1 = datos1.reduce((a,b) => a + Math.pow(b-media1, 2), 0) / (datos1.length - 1);
+        const var2 = datos2.reduce((a,b) => a + Math.pow(b-media2, 2), 0) / (datos2.length - 1);
+        const t = (media1 - media2) / Math.sqrt((var1/datos1.length) + (var2/datos2.length));
+        const gl = datos1.length + datos2.length - 2;
+        let p = 1 - jStat.studentt.cdf(Math.abs(t), gl);
+        p = p * 2;
+        return { t: t.toFixed(2), gl, p: p < 0.001 ? '< 0.001' : p.toFixed(4), significativo: p < 0.05 };
+    }
+
+    function calcularCohenD(datos1, datos2) {
+        if (datos1.length === 0 || datos2.length === 0) return 0;
+        const media1 = datos1.reduce((a,b) => a+b, 0) / datos1.length;
+        const media2 = datos2.reduce((a,b) => a+b, 0) / datos2.length;
+        const var1 = datos1.reduce((a,b) => a + Math.pow(b-media1, 2), 0) / datos1.length;
+        const var2 = datos2.reduce((a,b) => a + Math.pow(b-media2, 2), 0) / datos2.length;
+        const pooledSD = Math.sqrt((var1 + var2) / 2);
+        return pooledSD === 0 ? 0 : Math.abs(media1 - media2) / pooledSD;
+    }
+
+    function interpretarCohenD(d) {
+        if (d < 0.2) return 'Muy pequeño';
+        if (d < 0.5) return 'Pequeño';
+        if (d < 0.8) return 'Mediano';
+        return 'Grande';
+    }
+
+    function calcularCorrelacion(x, y) {
+        if (x.length !== y.length || x.length < 2) return { r: 0, p: 1 };
+        const n = x.length;
+        const sumX = x.reduce((a,b) => a+b, 0);
+        const sumY = y.reduce((a,b) => a+b, 0);
+        const sumXY = x.reduce((a,b,i) => a + b * y[i], 0);
+        const sumX2 = x.reduce((a,b) => a + b*b, 0);
+        const sumY2 = y.reduce((a,b) => a + b*b, 0);
+        const r = (n * sumXY - sumX * sumY) / Math.sqrt((n * sumX2 - sumX*sumX) * (n * sumY2 - sumY*sumY));
+        let p = 1;
+        if (n > 2) {
+            const t = r * Math.sqrt((n-2) / (1 - r*r));
+            p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), n-2));
+        }
+        return { r: r.toFixed(3), p: p < 0.001 ? '< 0.001' : p.toFixed(4), significativo: p < 0.05 };
+    }
+
     async function generarTodasEstadisticas() {
         if (estadisticasGeneradas) return;
         estadisticasGeneradas = true;
         document.getElementById('contenidoEstadisticas').innerHTML = '<div style="text-align:center; padding:50px;">📊 Procesando datos...</div>';
         
-        // Aquí iremos agregando cada sección estadística
         let html = '';
-        
-        // SECCIÓN 1: Resumen descriptivo por grupo
         html += generarResumenDescriptivo();
+        html += generarComparacion4Grupos();
+        html += generarComparacionPares();
+        html += generarTamanosEfecto();
+        html += generarCorrelaciones();
+        html += generarTablaParticipantes();
+        html += generarCargasCognitivas();
+        html += generarEvolucionConfianza();
         
         document.getElementById('contenidoEstadisticas').innerHTML = html;
+        await generarGraficos();
     }
 
     function generarResumenDescriptivo() {
         const grupos = ['2D', '2D_META', '3D', '3D_META'];
         const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
-        
-        // Estadísticas por grupo
         let statsGrupos = {};
         grupos.forEach(g => {
             const usuariosGrupo = usuarios.filter(u => u.grupo_asignado === g);
@@ -118,34 +171,258 @@
             const precision = resultadosGrupo.length > 0 ? (aciertos / resultadosGrupo.length * 100).toFixed(1) : 0;
             const tiempoProm = resultadosGrupo.length > 0 ? (resultadosGrupo.reduce((s,r) => s + (r.tiempo || 0), 0) / resultadosGrupo.length).toFixed(1) : 0;
             const susProm = encuestasGrupo.length > 0 ? (encuestasGrupo.reduce((s,e) => s + (e.puntaje_total || 0), 0) / encuestasGrupo.length).toFixed(1) : 0;
-            
-            statsGrupos[g] = {
-                n: usuariosGrupo.length,
-                precision: precision,
-                tiempo: tiempoProm,
-                sus: susProm
-            };
+            statsGrupos[g] = { n: usuariosGrupo.length, precision, tiempo: tiempoProm, sus: susProm };
         });
         
-        let html = `<div class="section">
+        return `<div class="section">
             <div class="section-title">📈 1. Resumen Descriptivo por Grupo</div>
-            <div class="stats-grid">
-                ${grupos.map((g, i) => `<div class="stat-card"><div class="stat-number">${statsGrupos[g].n}</div><div class="stat-label">${gruposNombres[i]}</div></div>`).join('')}
-            </div>
-            <div class="table-container" style="overflow-x:auto;">
-                <table>
-                    <thead><tr><th>Grupo</th><th>n</th><th>Precisión (%)</th><th>Tiempo promedio (s)</th><th>SUS promedio</th></tr></thead>
-                    <tbody>
-                        ${grupos.map((g, i) => `<tr><td><strong>${gruposNombres[i]}</strong></td><td>${statsGrupos[g].n}</td><td class="${statsGrupos[g].precision >= 70 ? 'badge-correcto' : ''}">${statsGrupos[g].precision}%</td><td>${statsGrupos[g].tiempo}s</td><td>${statsGrupos[g].sus}</td></tr>`).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>`;
+            <div class="stats-grid">${grupos.map((g, i) => `<div class="stat-card"><div class="stat-number">${statsGrupos[g].n}</div><div class="stat-label">${gruposNombres[i]}</div></div>`).join('')}</div>
+            <div class="table-container"><table><thead>胰腺<th>Grupo</th><th>n</th><th>Precisión (%)</th><th>Tiempo promedio (s)</th><th>SUS promedio</th></tr></thead><tbody>
+            ${grupos.map((g, i) => `<tr><td><strong>${gruposNombres[i]}</strong></td><td>${statsGrupos[g].n}</td><td class="${statsGrupos[g].precision >= 70 ? 'badge-correcto' : ''}">${statsGrupos[g].precision}%</td><td>${statsGrupos[g].tiempo}s</td><td>${statsGrupos[g].sus}</td></tr>`).join('')}
+            </tbody></table></div></div>`;
+    }
+
+    function generarComparacion4Grupos() {
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        let precisionPorGrupo = {}, susPorGrupo = {};
+        grupos.forEach(g => {
+            precisionPorGrupo[g] = resultados.filter(r => r.grupo === g).map(r => r.acerto ? 100 : 0);
+            susPorGrupo[g] = encuestas.filter(e => e.grupo === g && e.tipo === 'SUS').map(e => e.puntaje_total || 0);
+        });
         
+        function calcularANOVA(datosPorGrupo) {
+            let todos = []; let gruposIdx = [];
+            grupos.forEach((g, idx) => { datosPorGrupo[g].forEach(v => { todos.push(v); gruposIdx.push(idx); }); });
+            let medias = grupos.map(g => { let d = datosPorGrupo[g]; return d.length ? d.reduce((a,b)=>a+b,0)/d.length : 0; });
+            let mediaGlobal = todos.length ? todos.reduce((a,b)=>a+b,0)/todos.length : 0;
+            let ssb = 0; grupos.forEach((g, idx) => { let n = datosPorGrupo[g].length; ssb += n * Math.pow(medias[idx] - mediaGlobal, 2); });
+            let ssw = 0; grupos.forEach((g, idx) => { datosPorGrupo[g].forEach(v => { ssw += Math.pow(v - medias[idx], 2); }); });
+            let glB = grupos.length - 1, glW = todos.length - grupos.length;
+            let msb = ssb / glB, msw = ssw / glW;
+            let f = msb / msw;
+            let p = 1 - jStat.centralF.cdf(f, glB, glW);
+            return { f: f.toFixed(2), p: p < 0.001 ? '< 0.001' : p.toFixed(4), sig: p < 0.05 };
+        }
+        
+        let precisionANOVA = calcularANOVA(precisionPorGrupo);
+        let susANOVA = calcularANOVA(susPorGrupo);
+        
+        return `<div class="section">
+            <div class="section-title">📊 2. Comparación de 4 Grupos (ANOVA)</div>
+            <div class="table-container"><table><thead><tr><th>Variable</th><th>F</th><th>p-valor</th><th>Significativo</th></tr></thead><tbody>
+            <tr><td><strong>Precisión (%)</strong></td><td>${precisionANOVA.f}</td><td class="${precisionANOVA.sig ? 'badge-correcto' : ''}">${precisionANOVA.p}</td><td>${precisionANOVA.sig ? '✅ Sí' : '❌ No'}</td></tr>
+            <tr><td><strong>Usabilidad (SUS)</strong></td><td>${susANOVA.f}</td><td class="${susANOVA.sig ? 'badge-correcto' : ''}">${susANOVA.p}</td><td>${susANOVA.sig ? '✅ Sí' : '❌ No'}</td></tr>
+            </tbody></table></div></div>`;
+    }
+
+    function generarComparacionPares() {
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        const pares = [['2D', '2D_META'], ['2D', '3D'], ['2D', '3D_META'], ['2D_META', '3D'], ['2D_META', '3D_META'], ['3D', '3D_META']];
+        let datosPrecision = {};
+        grupos.forEach(g => { datosPrecision[g] = resultados.filter(r => r.grupo === g).map(r => r.acerto ? 100 : 0); });
+        
+        let html = `<div class="section"><div class="section-title">🔬 3. Comparación por Pares (t-test)</div>
+        <div class="table-container"><table><thead><tr><th>Comparación</th><th>t</th><th>gl</th><th>p-valor</th><th>Significativo</th></tr></thead><tbody>`;
+        pares.forEach(par => {
+            let test = calcularTTest(datosPrecision[par[0]], datosPrecision[par[1]]);
+            html += `<tr><td><strong>${par[0]} vs ${par[1]}</strong></td><td>${test.t}</td><td>${test.gl}</td><td class="${test.significativo ? 'badge-correcto' : ''}">${test.p}</td><td>${test.significativo ? '✅ Sí' : '❌ No'}</td></tr>`;
+        });
+        html += `</tbody></table></div></div>`;
         return html;
     }
 
-    // Aquí seguiremos agregando más funciones para cada análisis estadístico
+    function generarTamanosEfecto() {
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        const pares = [['2D', '3D'], ['2D', '2D_META'], ['3D', '3D_META'], ['2D', '3D_META']];
+        let datosPrecision = {};
+        grupos.forEach(g => { datosPrecision[g] = resultados.filter(r => r.grupo === g).map(r => r.acerto ? 100 : 0); });
+        
+        let html = `<div class="section"><div class="section-title">📏 4. Tamaños del Efecto (d de Cohen)</div>
+        <div class="table-container"><table><thead><tr><th>Comparación</th><th>d de Cohen</th><th>Interpretación</th></tr></thead><tbody>`;
+        pares.forEach(par => {
+            let d = calcularCohenD(datosPrecision[par[0]], datosPrecision[par[1]]);
+            html += `<tr><td><strong>${par[0]} vs ${par[1]}</strong></td><td>${d.toFixed(2)}</td><td>${interpretarCohenD(d)}</td></tr>`;
+        });
+        html += `</tbody></table></div></div>`;
+        return html;
+    }
+
+    function generarCorrelaciones() {
+        let confianzaVsAcierto = [];
+        reflexiones.filter(r => r.momento === 'durante').forEach(r => {
+            let match = r.respuesta_raw.match(/Seguridad: (\d+)%/);
+            if (match && r.usuario) {
+                let usuarioResultados = resultados.filter(res => res.usuario === r.usuario);
+                let aciertos = usuarioResultados.filter(res => res.acerto).length;
+                let total = usuarioResultados.length;
+                let precision = total > 0 ? (aciertos / total) * 100 : 0;
+                confianzaVsAcierto.push({ confianza: parseInt(match[1]), precision });
+            }
+        });
+        let confianzaArr = confianzaVsAcierto.map(c => c.confianza);
+        let precisionArr = confianzaVsAcierto.map(c => c.precision);
+        let corr = calcularCorrelacion(confianzaArr, precisionArr);
+        
+        return `<div class="section">
+            <div class="section-title">📈 5. Correlaciones</div>
+            <div class="table-container"><table><thead><tr><th>Variables</th><th>r de Pearson</th><th>p-valor</th><th>Interpretación</th></tr></thead><tbody>
+            <tr><td><strong>Confianza durante vs Precisión</strong></td><td>${corr.r}</td><td class="${corr.significativo ? 'badge-correcto' : ''}">${corr.p}</td><td>${corr.significativo ? 'Correlación significativa' : 'No significativa'}</td></tr>
+            </tbody></table></div></div>`;
+    }
+
+    function generarTablaParticipantes() {
+        let html = `<div class="section"><div class="section-title">👥 6. Datos por Participante</div>
+        <div class="table-container"><table><thead><tr><th>Usuario</th><th>Grupo</th><th>Identificaciones</th><th>Aciertos</th><th>Precisión (%)</th><th>Tiempo Total (s)</th></tr></thead><tbody>`;
+        let usuariosUnicos = [...new Set(resultados.map(r => r.usuario))];
+        usuariosUnicos.forEach(usuario => {
+            let usuarioInfo = usuarios.find(u => u.nombre_usuario === usuario);
+            let grupo = usuarioInfo?.grupo_asignado || '?';
+            let resUsuario = resultados.filter(r => r.usuario === usuario);
+            let total = resUsuario.length;
+            let aciertos = resUsuario.filter(r => r.acerto).length;
+            let precision = total > 0 ? (aciertos / total * 100).toFixed(1) : 0;
+            let tiempoTotal = resUsuario.reduce((s,r) => s + (r.tiempo || 0), 0).toFixed(1);
+            html += `<tr><td><strong>${usuario}</strong></td><td>${grupo}</td><td>${total}</td><td>${aciertos}</td><td>${precision}%</td><td>${tiempoTotal}s</td></tr>`;
+        });
+        html += `</tbody></table></div></div>`;
+        return html;
+    }
+
+    function generarCargasCognitivas() {
+    const grupos = ['2D', '2D_META', '3D', '3D_META'];
+    let cargas = { intrínseca: {}, extrínseca: {}, germana: {} };
+    grupos.forEach(g => { cargas.intrínseca[g] = []; cargas.extrínseca[g] = []; cargas.germana[g] = []; });
+    
+    // Procesar encuestas reales
+    encuestas.filter(e => e.tipo === 'COGNITIVE_LOAD').forEach(e => {
+        if (e.respuestas_json) {
+            let respuestas;
+            try { respuestas = JSON.parse(e.respuestas_json); } catch(err) { return; }
+            if (Array.isArray(respuestas) && respuestas.length >= 10 && e.grupo && cargas.intrínseca[e.grupo]) {
+                cargas.intrínseca[e.grupo].push(respuestas.slice(0,4).reduce((a,b)=>a+b,0));
+                cargas.extrínseca[e.grupo].push(respuestas.slice(4,8).reduce((a,b)=>a+b,0));
+                cargas.germana[e.grupo].push(respuestas.slice(8,10).reduce((a,b)=>a+b,0));
+            }
+        }
+    });
+    
+    // Calcular medias (si no hay datos, usar 0)
+    let medias = { intrínseca: {}, extrínseca: {}, germana: {} };
+    grupos.forEach(g => {
+        medias.intrínseca[g] = cargas.intrínseca[g].length ? (cargas.intrínseca[g].reduce((a,b)=>a+b,0)/cargas.intrínseca[g].length).toFixed(1) : 0;
+        medias.extrínseca[g] = cargas.extrínseca[g].length ? (cargas.extrínseca[g].reduce((a,b)=>a+b,0)/cargas.extrínseca[g].length).toFixed(1) : 0;
+        medias.germana[g] = cargas.germana[g].length ? (cargas.germana[g].reduce((a,b)=>a+b,0)/cargas.germana[g].length).toFixed(1) : 0;
+    });
+    
+    // Verificar si hay datos reales
+    let hayDatos = grupos.some(g => cargas.intrínseca[g].length > 0);
+    
+    window.cargasData = {
+        labels: grupos,
+        intrínseca: grupos.map(g => parseFloat(medias.intrínseca[g])),
+        extrínseca: grupos.map(g => parseFloat(medias.extrínseca[g])),
+        germana: grupos.map(g => parseFloat(medias.germana[g]))
+    };
+    
+    let mensajeSinDatos = hayDatos ? '' : '<div class="stat-card" style="background:#FF375F20; color:#FFAA00;">⚠️ No hay datos de carga cognitiva disponibles. Los estudiantes deben completar las encuestas para ver este gráfico.</div>';
+    
+    return `<div class="section">
+        <div class="section-title">🧠 7. Cargas Cognitivas por Grupo</div>
+        ${mensajeSinDatos}
+        <div class="table-container"><tr><thead><tr><th>Grupo</th><th>Carga Intrínseca</th><th>Carga Extrínseca</th><th>Carga Germana</th></tr></thead><tbody>
+        ${grupos.map(g => `<tr><td><strong>${g}</strong></td>}.${medias.intrínseca[g]}</td>}.${medias.extrínseca[g]}</td>}.${medias.germana[g]}</td></tr>`).join('')}
+        </tbody></table></div>
+        <div class="chart-container"><canvas id="chartCargasCognitivas"></canvas></div>
+    </div>`;
+}
+
+    function generarEvolucionConfianza() {
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        let confianzaEsp1 = [0,0,0,0], confianzaEsp2 = [0,0,0,0];
+        let conteos1 = [0,0,0,0], conteos2 = [0,0,0,0];
+        
+        reflexiones.filter(r => r.momento === 'post').forEach(r => {
+            let match = r.respuesta_raw.match(/Acierto autopercibido: (\d+)%/);
+            if (match && r.usuario && r.pregunta) {
+                let confianza = parseInt(match[1]);
+                let usuarioInfo = usuarios.find(u => u.nombre_usuario === r.usuario);
+                let grupo = usuarioInfo?.grupo_asignado;
+                let idx = grupos.indexOf(grupo);
+                if (idx !== -1) {
+                    if (r.pregunta.includes('1')) { confianzaEsp1[idx] += confianza; conteos1[idx]++; }
+                    else if (r.pregunta.includes('2')) { confianzaEsp2[idx] += confianza; conteos2[idx]++; }
+                }
+            }
+        });
+        
+        let mediasEsp1 = grupos.map((_, i) => conteos1[i] ? (confianzaEsp1[i] / conteos1[i]).toFixed(1) : 0);
+        let mediasEsp2 = grupos.map((_, i) => conteos2[i] ? (confianzaEsp2[i] / conteos2[i]).toFixed(1) : 0);
+        
+        return `<div class="section">
+            <div class="section-title">📈 8. Evolución de la Confianza (Espécimen 1 vs 2)</div>
+            <div class="chart-container"><canvas id="chartEvolucionConfianza"></canvas></div>
+            <div class="table-container"><table><thead><tr><th>Grupo</th><th>Confianza Esp1</th><th>Confianza Esp2</th><th>Cambio</th></tr></thead><tbody>
+            ${grupos.map((g, i) => {
+                let cambio = (mediasEsp2[i] - mediasEsp1[i]).toFixed(1);
+                return `<tr><td><strong>${g}</strong></td><td>${mediasEsp1[i]}%</td><td>${mediasEsp2[i]}%</td><td class="${cambio >= 0 ? 'badge-correcto' : 'badge-incorrecto'}">${cambio >= 0 ? '+' : ''}${cambio}%</td></tr>`;
+            }).join('')}
+            </tbody></table></div>
+        </div>`;
+    }
+
+    async function generarGraficos() {
+        // Gráfico de Cargas Cognitivas
+        if (document.getElementById('chartCargasCognitivas') && window.cargasData) {
+            new Chart(document.getElementById('chartCargasCognitivas'), {
+                type: 'bar',
+                data: {
+                    labels: window.cargasData.labels,
+                    datasets: [
+                        { label: 'Carga Intrínseca', data: window.cargasData.intrínseca, backgroundColor: '#00D4FF', borderRadius: 8 },
+                        { label: 'Carga Extrínseca', data: window.cargasData.extrínseca, backgroundColor: '#FFAA00', borderRadius: 8 },
+                        { label: 'Carga Germana', data: window.cargasData.germana, backgroundColor: '#7B61FF', borderRadius: 8 }
+                    ]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true, max: 40, title: { display: true, text: 'Puntaje', color: '#E0E0E0' } } }, plugins: { legend: { labels: { color: '#E0E0E0' } } } }
+            });
+        }
+        
+        // Gráfico de Evolución de Confianza
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        let confianzaEsp1 = [0,0,0,0], confianzaEsp2 = [0,0,0,0];
+        let conteos1 = [0,0,0,0], conteos2 = [0,0,0,0];
+        
+        reflexiones.filter(r => r.momento === 'post').forEach(r => {
+            let match = r.respuesta_raw.match(/Acierto autopercibido: (\d+)%/);
+            if (match && r.usuario && r.pregunta) {
+                let confianza = parseInt(match[1]);
+                let usuarioInfo = usuarios.find(u => u.nombre_usuario === r.usuario);
+                let grupo = usuarioInfo?.grupo_asignado;
+                let idx = grupos.indexOf(grupo);
+                if (idx !== -1) {
+                    if (r.pregunta.includes('1')) { confianzaEsp1[idx] += confianza; conteos1[idx]++; }
+                    else if (r.pregunta.includes('2')) { confianzaEsp2[idx] += confianza; conteos2[idx]++; }
+                }
+            }
+        });
+        
+        let mediasEsp1 = grupos.map((_, i) => conteos1[i] ? (confianzaEsp1[i] / conteos1[i]) : 0);
+        let mediasEsp2 = grupos.map((_, i) => conteos2[i] ? (confianzaEsp2[i] / conteos2[i]) : 0);
+        
+        if (document.getElementById('chartEvolucionConfianza')) {
+            new Chart(document.getElementById('chartEvolucionConfianza'), {
+                type: 'line',
+                data: {
+                    labels: grupos,
+                    datasets: [
+                        { label: 'Espécimen 1', data: mediasEsp1, borderColor: '#00D4FF', backgroundColor: 'transparent', tension: 0.3, pointBackgroundColor: '#00D4FF' },
+                        { label: 'Espécimen 2', data: mediasEsp2, borderColor: '#7B61FF', backgroundColor: 'transparent', tension: 0.3, pointBackgroundColor: '#7B61FF' }
+                    ]
+                },
+                options: { responsive: true, scales: { y: { title: { display: true, text: 'Confianza (%)', color: '#E0E0E0' }, beginAtZero: true, max: 100 } }, plugins: { legend: { labels: { color: '#E0E0E0' } } } }
+            });
+        }
+    }
 </script>
 </body>
 </html>
