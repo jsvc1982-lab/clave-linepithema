@@ -246,7 +246,7 @@
     }
 
     // ========== NUEVA FUNCIÓN: TABLA DE PARTICIPANTES ==========
-    function generarTablaParticipantes() {
+     function generarTablaParticipantes() {
         let html = '<div class="section">';
         html += '<div class="section-title">👥 6. Datos por Participante</div>';
         html += '<div style="overflow-x: auto;">';
@@ -254,15 +254,19 @@
         html += '<thead><tr style="background:#00D4FF; color:#0A0E17;"><th style="padding:10px;">Usuario</th><th style="padding:10px;">Grupo</th><th style="padding:10px;">Identificaciones</th><th style="padding:10px;">Aciertos</th><th style="padding:10px;">Precisión %</th><th style="padding:10px;">Tiempo (s)</th></tr></thead><tbody>';
         
         usuarios.forEach(u => {
-            let resultadosUser = resultados.filter(r => r.usuario === u.usuario);
+            // Usar nombre_usuario en lugar de usuario
+            let nombreUsuario = u.nombre_usuario || u.usuario;
+            let grupo = u.grupo_asignado || u.grupo || '-';
+            
+            let resultadosUser = resultados.filter(r => r.usuario === nombreUsuario);
             let total = resultadosUser.length;
-            let aciertos = resultadosUser.filter(r => r.acerto).length;
+            let aciertos = resultadosUser.filter(r => r.acerto === true).length;
             let precision = total > 0 ? (aciertos / total * 100).toFixed(1) : 0;
             let tiempoTotal = resultadosUser.reduce((sum, r) => sum + (r.tiempo || 0), 0);
             
             html += `<tr style="border-bottom:1px solid #1A1F36;">`;
-            html += `<td style="padding:10px;">${u.usuario}</td>`;
-            html += `<td style="padding:10px;">${u.grupo_asignado || u.grupo || '-'}</td>`;
+            html += `<td style="padding:10px;">${nombreUsuario}</td>`;
+            html += `<td style="padding:10px;">${grupo}</td>`;
             html += `<td style="padding:10px;">${total}</td>`;
             html += `<td style="padding:10px;">${aciertos}</td>`;
             html += `<td style="padding:10px;" class="${precision >= 70 ? 'badge-correcto' : ''}">${precision}%</td>`;
@@ -270,10 +274,9 @@
             html += `</tr>`;
         });
         
-        html += '</tbody></table></div></div>';
+        html += '</tbody>表</div></div>';
         return html;
     }
-
     async function dibujarTodosLosGraficos() {
         // Gráfico 1: Precisión
         if (document.getElementById('chartPrecision') && window.precisionData) {
