@@ -6,6 +6,7 @@
     <title>Estadísticas Avanzadas - Clave Linepithema</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background-color: #0A0E17; color: #E0E0E0; font-family: 'Segoe UI', sans-serif; padding: 20px; }
@@ -14,24 +15,27 @@
         .subtitle { color: #A0A0B0; margin-bottom: 30px; border-bottom: 1px solid #00D4FF30; padding-bottom: 10px; }
         .section { background: #121826; border: 1px solid #00D4FF40; border-radius: 15px; padding: 25px; margin-bottom: 30px; }
         .section-title { color: #00D4FF; font-size: 1.3rem; margin-bottom: 20px; border-bottom: 1px solid #00D4FF30; padding-bottom: 10px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
-        .stat-card { background: #1A1F36; border-radius: 10px; padding: 15px; text-align: center; }
-        .stat-number { font-size: 2rem; font-weight: bold; color: #00D4FF; }
-        .stat-label { color: #A0A0B0; margin-top: 5px; }
+        .subsection-title { color: #7B61FF; font-size: 1.1rem; margin: 15px 0 10px 0; }
         table { width: 100%; border-collapse: collapse; margin: 15px 0; background: #1A1F36; border-radius: 10px; overflow: hidden; }
         th { background: #1A1F36; color: #00D4FF; padding: 12px; text-align: left; border-bottom: 1px solid #00D4FF40; }
         td { padding: 10px 12px; border-bottom: 1px solid #1A1F36; }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .stat-card { background: #1A1F36; border-radius: 10px; padding: 15px; margin: 10px 0; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
+        .stat-number { font-size: 2rem; font-weight: bold; color: #00D4FF; }
+        .stat-label { color: #A0A0B0; margin-top: 5px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
         .btn-primary { background: linear-gradient(45deg, #00D4FF, #7B61FF); color: white; }
         .btn-secondary { background: #1A1F36; border: 1px solid #00D4FF40; color: #00D4FF; }
         .btn:hover { transform: translateY(-2px); }
         .flex-buttons { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
         .badge-correcto { color: #00D4FF; font-weight: bold; }
+        .badge-incorrecto { color: #FF375F; font-weight: bold; }
         .chart-container { background: #1A1F36; border-radius: 15px; padding: 20px; margin: 20px 0; }
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; margin-bottom: 30px; }
         canvas { max-height: 350px; width: 100%; }
         .mensaje-flotante { position: fixed; bottom: 20px; right: 20px; background: #00D4FF; color: #0A0E17; padding: 12px 20px; border-radius: 8px; z-index: 1000; animation: fadeOut 3s forwards; }
         @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; display: none; } }
+        .filtro-botones { margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
@@ -40,15 +44,17 @@
     <div class="subtitle">Análisis estadístico completo del estudio</div>
     
     <div class="flex-buttons">
-        <button class="btn btn-primary" onclick="exportarResultados()">📥 Exportar todos los resultados (JSON)</button>
+        <button class="btn btn-primary" onclick="exportarJSON()">📥 Exportar JSON</button>
+        <button class="btn btn-primary" onclick="exportarExcel()">📊 Exportar Excel (XLSX)</button>
         <button class="btn btn-secondary" onclick="window.location.href='/admin'">← Volver al Admin</button>
     </div>
     
     <div id="contenidoEstadisticas"></div>
 </div>
-
+<!-- FIN PARTE 1 -->
 <script>
     let usuarios = [], resultados = [], encuestas = [], reflexiones = [];
+    let grupoFiltroActual = 'todos';
     
     document.addEventListener('DOMContentLoaded', async () => {
         await cargarDatos();
@@ -67,12 +73,20 @@
             resultados = resultadosRes;
             encuestas = encuestasRes;
             reflexiones = reflexionesRes;
-            console.log("Usuarios:", usuarios);
-            console.log("Resultados:", resultados);
+            console.log("✅ Datos cargados:", { usuarios: usuarios.length, resultados: resultados.length });
         } catch(e) { console.error("Error cargando datos:", e); }
     }
 
-    function exportarResultados() {
+    function mostrarMensaje(m, c) {
+        let d = document.createElement('div'); 
+        d.className = 'mensaje-flotante'; 
+        d.textContent = m; 
+        d.style.background = c;
+        document.body.appendChild(d); 
+        setTimeout(() => d.remove(), 3000);
+    }
+<!-- FIN PARTE 2 -->
+    function exportarJSON() {
         const datos = { usuarios, resultados, encuestas, reflexiones };
         const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
@@ -80,14 +94,55 @@
         a.download = `estadisticas_${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         URL.revokeObjectURL(a.href);
-        mostrarMensaje('✅ Datos exportados', '#00D4FF');
+        mostrarMensaje('✅ JSON exportado', '#00D4FF');
     }
 
-    function mostrarMensaje(m, c) {
-        let d = document.createElement('div'); d.className = 'mensaje-flotante'; d.textContent = m; d.style.background = c;
-        document.body.appendChild(d); setTimeout(() => d.remove(), 3000);
+    function exportarExcel() {
+        let excelData = [];
+        
+        usuarios.forEach(u => {
+            let nombreUsuario = u.nombre_usuario || u.usuario;
+            let grupo = u.grupo_asignado || '-';
+            let resultadosUser = resultados.filter(r => r.usuario === nombreUsuario);
+            let total = resultadosUser.length;
+            let aciertos = resultadosUser.filter(r => r.acerto === true).length;
+            let precision = total > 0 ? (aciertos / total * 100).toFixed(1) : 0;
+            let tiempoTotal = resultadosUser.reduce((sum, r) => sum + (r.tiempo || 0), 0);
+            
+            excelData.push({
+                'Usuario': nombreUsuario,
+                'Grupo': grupo,
+                'Identificaciones': total,
+                'Aciertos': aciertos,
+                'Precisión (%)': precision,
+                'Tiempo (s)': tiempoTotal.toFixed(1)
+            });
+        });
+        
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        grupos.forEach(g => {
+            let usuariosGrupo = usuarios.filter(u => u.grupo_asignado === g);
+            let resultadosGrupo = resultados.filter(r => r.grupo === g);
+            let aciertos = resultadosGrupo.filter(r => r.acerto === true).length;
+            let precision = resultadosGrupo.length > 0 ? (aciertos / resultadosGrupo.length * 100).toFixed(1) : 0;
+            
+            excelData.push({
+                'Usuario': `--- RESUMEN GRUPO ${g} ---`,
+                'Grupo': g,
+                'Identificaciones': resultadosGrupo.length,
+                'Aciertos': aciertos,
+                'Precisión (%)': precision,
+                'Tiempo (s)': ''
+            });
+        });
+        
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Estadisticas');
+        XLSX.writeFile(wb, `estadisticas_${new Date().toISOString().split('T')[0]}.xlsx`);
+        mostrarMensaje('✅ Excel exportado', '#00D4FF');
     }
-
+<!-- FIN PARTE 3 -->
     async function generarTodasEstadisticas() {
         document.getElementById('contenidoEstadisticas').innerHTML = '<div style="text-align:center; padding:50px;">📊 Procesando datos...</div>';
         
@@ -97,7 +152,9 @@
         html += generarCargasCognitivas();
         html += generarCorrelacionConfianza();
         html += generarEvolucionPrecision();
-        html += generarTablaParticipantes();
+        html += generarComparacionEstadistica();
+        html += generarTablaPorEspecimen();
+        html += generarTablaParticipantes(grupoFiltroActual);
         
         document.getElementById('contenidoEstadisticas').innerHTML = html;
         await dibujarTodosLosGraficos();
@@ -112,24 +169,14 @@
             const usuariosGrupo = usuarios.filter(u => u.grupo_asignado === g);
             const resultadosGrupo = resultados.filter(r => r.grupo === g);
             const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.tipo === 'SUS');
-            
             const aciertos = resultadosGrupo.filter(r => r.acerto === true).length;
             const precision = resultadosGrupo.length > 0 ? (aciertos / resultadosGrupo.length * 100).toFixed(1) : 0;
             const tiempoProm = resultadosGrupo.length > 0 ? (resultadosGrupo.reduce((s,r) => s + (r.tiempo || 0), 0) / resultadosGrupo.length).toFixed(1) : 0;
             const susProm = encuestasGrupo.length > 0 ? (encuestasGrupo.reduce((s,e) => s + (e.puntaje_total || 0), 0) / encuestasGrupo.length).toFixed(1) : 0;
-            
-            stats[g] = { 
-                n: usuariosGrupo.length, 
-                precision: precision, 
-                tiempo: tiempoProm, 
-                sus: susProm 
-            };
+            stats[g] = { n: usuariosGrupo.length, precision, tiempo: tiempoProm, sus: susProm };
         });
         
-        let html = `<div class="section">
-            <div class="section-title">📈 1. Resumen Descriptivo por Grupo</div>
-            <div class="stats-grid">`;
-        
+        let html = `<div class="section"><div class="section-title">📈 1. Resumen Descriptivo por Grupo</div><div class="stats-grid">`;
         grupos.forEach((g, i) => {
             html += `<div class="stat-card">
                         <div class="stat-number">${stats[g].n}</div>
@@ -139,11 +186,10 @@
                         <div>⏱️ ${stats[g].tiempo}s | 📝 SUS: ${stats[g].sus}</div>
                     </div>`;
         });
-        
         html += `</div></div>`;
         return html;
     }
-
+<!-- FIN PARTE 4 -->
     function generarGraficosPrincipales() {
         const grupos = ['2D', '2D_META', '3D', '3D_META'];
         const precisionData = grupos.map(g => {
@@ -211,19 +257,16 @@
             germana: grupos.map(g => parseFloat(medias.germana[g]))
         };
         
-        let html = `<div class="section">
-            <div class="section-title">🧠 3. Cargas Cognitivas por Grupo</div>
+        let html = `<div class="section"><div class="section-title">🧠 3. Cargas Cognitivas por Grupo</div>
             <div class="chart-container"><canvas id="chartCargas"></canvas></div>
-            <div class="table-container"><table><thead><tr><th>Grupo</th><th>Carga Intrínseca</th><th>Carga Extrínseca</th><th>Carga Germana</th></tr></thead><tbody>`;
-        
+            <div class="table-container">\n<table>\n<thead>\n<tr>\n<th>Grupo</th><th>Carga Intrínseca</th><th>Carga Extrínseca</th><th>Carga Germana</th>\n</tr>\n</thead>\n<tbody>`;
         grupos.forEach(g => {
-            html += `<tr><td><strong>${g}</strong></td><td>${medias.intrinseca[g]}</td><td>${medias.extrinseca[g]}</td><td>${medias.germana[g]}</td></tr>`;
+            html += `<tr>\n<td><strong>${g}</strong></td>\n<td>${medias.intrinseca[g]}</td>\n<td>${medias.extrinseca[g]}</td>\n<td>${medias.germana[g]}</td>\n</tr>`;
         });
-        
-        html += `</tbody></table></div></div>`;
+        html += `</tbody>\n</table>\n</div></div>`;
         return html;
     }
-
+<!-- FIN PARTE 5 -->
     function generarCorrelacionConfianza() {
         let puntos = [];
         reflexiones.filter(r => r.momento === 'durante').forEach(r => {
@@ -267,38 +310,202 @@
             <div class="chart-container"><canvas id="chartEvolucion"></canvas></div>
         </div>`;
     }
-
-    function generarTablaParticipantes() {
-        let html = '<div class="section">';
-        html += '<div class="section-title">👥 6. Datos por Participante</div>';
-        html += '<div style="overflow-x: auto;">';
-        html += '<table style="width:100%; border-collapse:collapse;">';
-        html += '<thead><tr style="background:#00D4FF; color:#0A0E17;"><th style="padding:10px;">Usuario</th><th style="padding:10px;">Grupo</th><th style="padding:10px;">Identificaciones</th><th style="padding:10px;">Aciertos</th><th style="padding:10px;">Precisión %</th><th style="padding:10px;">Tiempo (s)</th></tr></thead><tbody>';
+<!-- FIN PARTE 6 -->
+    function generarComparacionEstadistica() {
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        let datosPorGrupo = {};
+        grupos.forEach(g => { datosPorGrupo[g] = []; });
         
         usuarios.forEach(u => {
             let nombreUsuario = u.nombre_usuario || u.usuario;
-            let grupo = u.grupo_asignado || u.grupo || '-';
+            let grupo = u.grupo_asignado;
+            if (grupo && grupos.includes(grupo)) {
+                let resultadosUser = resultados.filter(r => r.usuario === nombreUsuario);
+                let aciertos = resultadosUser.filter(r => r.acerto === true).length;
+                let total = resultadosUser.length;
+                let precision = total > 0 ? (aciertos / total * 100) : 0;
+                if (total > 0) {
+                    datosPorGrupo[grupo].push(precision);
+                }
+            }
+        });
+        
+        let anovaResult = calcularANOVA(datosPorGrupo);
+        
+        let ttestResults = [];
+        for (let i = 0; i < grupos.length; i++) {
+            for (let j = i+1; j < grupos.length; j++) {
+                if (datosPorGrupo[grupos[i]].length > 0 && datosPorGrupo[grupos[j]].length > 0) {
+                    let ttest = calcularTTest(datosPorGrupo[grupos[i]], datosPorGrupo[grupos[j]]);
+                    ttestResults.push({
+                        grupo1: grupos[i],
+                        grupo2: grupos[j],
+                        p: ttest.p,
+                        significativo: ttest.p < 0.05 ? '✅ Sí' : '❌ No'
+                    });
+                }
+            }
+        }
+        
+        let html = `<div class="section">
+            <div class="section-title">📈 7. Comparación Estadística</div>
+            <div class="stat-card">
+                <strong>📊 ANOVA:</strong> p = ${anovaResult.p} (${anovaResult.p < 0.05 ? 'Diferencias significativas entre grupos' : 'No hay diferencias significativas'})
+            </div>`;
+        
+        if (ttestResults.length > 0) {
+            html += `<div class="table-container">\n<table>\n<thead>\n<tr>\n<th>Grupo 1</th>\n<th>Grupo 2</th>\n<th>p-value (t-test)</th>\n<th>Dif. significativa (p < 0.05)</th>\n</tr>\n</thead>\n<tbody>`;
+            ttestResults.forEach(t => {
+                html += `<tr><td>${t.grupo1}</td><td>${t.grupo2}</td><td>${t.p}</td><td>${t.significativo}</td></tr>`;
+            });
+            html += `</tbody>\n</table>\n</div>`;
+        }
+        
+        html += `</div>`;
+        return html;
+    }
+
+    function calcularANOVA(data) {
+        let grupos = Object.keys(data);
+        let todasLasMuestras = [];
+        let medias = {};
+        let nTotal = 0;
+        
+        grupos.forEach(g => {
+            medias[g] = data[g].reduce((a,b) => a + b, 0) / data[g].length;
+            todasLasMuestras.push(...data[g]);
+            nTotal += data[g].length;
+        });
+        
+        let mediaGlobal = todasLasMuestras.reduce((a,b) => a + b, 0) / nTotal;
+        
+        let ssEntre = 0;
+        grupos.forEach(g => {
+            ssEntre += data[g].length * Math.pow(medias[g] - mediaGlobal, 2);
+        });
+        
+        let ssDentro = 0;
+        grupos.forEach(g => {
+            data[g].forEach(val => {
+                ssDentro += Math.pow(val - medias[g], 2);
+            });
+        });
+        
+        let dfEntre = grupos.length - 1;
+        let dfDentro = nTotal - grupos.length;
+        let msEntre = ssEntre / dfEntre;
+        let msDentro = ssDentro / dfDentro;
+        let f = msEntre / msDentro;
+        
+        let p = 1 - jStat.centralF.cdf(f, dfEntre, dfDentro);
+        
+        return { f: f.toFixed(3), p: p < 0.001 ? '< 0.001' : p.toFixed(4) };
+    }
+
+    function calcularTTest(grupo1, grupo2) {
+        let mean1 = grupo1.reduce((a,b) => a + b, 0) / grupo1.length;
+        let mean2 = grupo2.reduce((a,b) => a + b, 0) / grupo2.length;
+        
+        let var1 = grupo1.reduce((a,b) => a + Math.pow(b - mean1, 2), 0) / (grupo1.length - 1);
+        let var2 = grupo2.reduce((a,b) => a + Math.pow(b - mean2, 2), 0) / (grupo2.length - 1);
+        
+        let pooledSE = Math.sqrt((var1 / grupo1.length) + (var2 / grupo2.length));
+        let t = (mean1 - mean2) / pooledSE;
+        
+        let df = grupo1.length + grupo2.length - 2;
+        let p = 2 * (1 - jStat.studentt.cdf(Math.abs(t), df));
+        
+        return { t: t.toFixed(3), p: p < 0.001 ? '< 0.001' : p.toFixed(4) };
+    }
+<!-- FIN PARTE 7 -->
+    function generarTablaPorEspecimen() {
+        let html = `<div class="section">
+            <div class="section-title">🧪 8. Resultados por Espécimen</div>
+            <div class="table-container">\n<table>\n<thead>\n<tr>\n<th>Usuario</th>\n<th>Grupo</th>\n<th>Especie</th>\n<th>Especie Correcta</th>\n<th>¿Acertó?</th>\n<th>Tiempo (s)</th>\n</tr>\n</thead>\n<tbody>`;
+        
+        let resultadosOrdenados = [...resultados];
+        resultadosOrdenados.sort((a,b) => {
+            if (a.usuario === b.usuario) return (a.orden || 0) - (b.orden || 0);
+            return a.usuario.localeCompare(b.usuario);
+        });
+        
+        resultadosOrdenados.forEach(r => {
+            let acierto = r.acerto === true ? '✅ Sí' : '❌ No';
+            let aciertoClass = r.acerto === true ? 'badge-correcto' : 'badge-incorrecto';
             
+            html += `<tr>
+                <td>${r.usuario}</td>
+                <td>${r.grupo || '-'}</td>
+                <td>${r.especie || '-'}</td>
+                <td>${r.especie_correcta || '-'}</td>
+                <td class="${aciertoClass}">${acierto}</td>
+                <td>${(r.tiempo || 0).toFixed(1)}s</td>
+            </tr>`;
+        });
+        
+        html += `</tbody>\n</table>\n</div></div>`;
+        return html;
+    }
+<!-- FIN PARTE 8 -->
+    function generarTablaParticipantes(grupoFiltro = 'todos') {
+        let html = '<div class="section">';
+        html += '<div class="section-title">👥 6. Datos por Participante</div>';
+        
+        html += `<div class="filtro-botones">
+            <button class="btn btn-secondary" onclick="cambiarFiltro('todos')">📋 Todos</button>
+            <button class="btn btn-secondary" onclick="cambiarFiltro('2D')">🖼️ 2D</button>
+            <button class="btn btn-secondary" onclick="cambiarFiltro('2D_META')">🧠 2D+META</button>
+            <button class="btn btn-secondary" onclick="cambiarFiltro('3D')">🔄 3D</button>
+            <button class="btn btn-secondary" onclick="cambiarFiltro('3D_META')">🧠 3D+META</button>
+        </div>`;
+        
+        html += '<div style="overflow-x: auto;">';
+        html += '<table><thead><tr style="background:#00D4FF; color:#0A0E17;"><th>Usuario</th><th>Grupo</th><th>Identificaciones</th><th>Aciertos</th><th>Precisión %</th><th>Tiempo (s)</th></tr></thead><tbody>';
+        
+        let usuariosFiltrados = usuarios;
+        if (grupoFiltro !== 'todos') {
+            usuariosFiltrados = usuarios.filter(u => u.grupo_asignado === grupoFiltro);
+        }
+        
+        usuariosFiltrados.forEach(u => {
+            let nombreUsuario = u.nombre_usuario || u.usuario;
+            let grupo = u.grupo_asignado || '-';
             let resultadosUser = resultados.filter(r => r.usuario === nombreUsuario);
             let total = resultadosUser.length;
             let aciertos = resultadosUser.filter(r => r.acerto === true).length;
             let precision = total > 0 ? (aciertos / total * 100).toFixed(1) : 0;
             let tiempoTotal = resultadosUser.reduce((sum, r) => sum + (r.tiempo || 0), 0);
             
-            html += `<tr style="border-bottom:1px solid #1A1F36;">`;
-            html += `<td style="padding:10px;">${nombreUsuario}</td>`;
-            html += `<td style="padding:10px;">${grupo}</td>`;
-            html += `<td style="padding:10px;">${total}</td>`;
-            html += `<td style="padding:10px;">${aciertos}</td>`;
-            html += `<td style="padding:10px;" class="${precision >= 70 ? 'badge-correcto' : ''}">${precision}%</td>`;
-            html += `<td style="padding:10px;">${tiempoTotal.toFixed(1)}s</td>`;
-            html += `</tr>`;
+            html += `<tr>
+                <td>${nombreUsuario}</td>
+                <td>${grupo}</td>
+                <td>${total}</td>
+                <td>${aciertos}</td>
+                <td class="${precision >= 70 ? 'badge-correcto' : ''}">${precision}%</td>
+                <td>${tiempoTotal.toFixed(1)}s</td>
+            </tr>`;
         });
         
         html += '</tbody></table></div></div>';
         return html;
     }
 
+    async function cambiarFiltro(grupo) {
+        grupoFiltroActual = grupo;
+        let html = '';
+        html += generarResumenDescriptivo();
+        html += generarGraficosPrincipales();
+        html += generarCargasCognitivas();
+        html += generarCorrelacionConfianza();
+        html += generarEvolucionPrecision();
+        html += generarComparacionEstadistica();
+        html += generarTablaPorEspecimen();
+        html += generarTablaParticipantes(grupo);
+        
+        document.getElementById('contenidoEstadisticas').innerHTML = html;
+        await dibujarTodosLosGraficos();
+    }
+<!-- FIN PARTE 9 -->
     async function dibujarTodosLosGraficos() {
         if (document.getElementById('chartPrecision') && window.precisionData) {
             new Chart(document.getElementById('chartPrecision'), {
@@ -369,3 +576,4 @@
 </script>
 </body>
 </html>
+<!-- FIN PARTE 10 - FINAL -->}
