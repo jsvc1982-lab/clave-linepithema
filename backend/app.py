@@ -55,6 +55,10 @@ import os
 ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
+# ==== DEPURACIÓN (borrar después) ====
+print(f"🔐 [DEBUG] ADMIN_USER leído: '{ADMIN_USER}'")
+print(f"🔐 [DEBUG] ADMIN_PASSWORD leída: '{ADMIN_PASSWORD}'")
+print(f"🔐 [DEBUG] Todas las variables: {list(os.environ.keys())}")
 # ===== DECORADOR PARA PROTEGER RUTAS ADMIN =====
 def admin_required(f):
     @wraps(f)
