@@ -49,9 +49,15 @@ POOL_ESPECIES = [
     {'id': 'tsachila', 'nombre': 'Linepithema tsachila', 'activa': False}
 ]
 # ===== CONFIGURACIÓN ADMIN =====
-ADMIN_PASSWORD = "admin123"
-ADMIN_USER = "admin"
+# ===== PROTECCIÓN PARA ADMIN =====
+import os
+from dotenv import load_dotenv
 
+# Cargar variables de entorno
+load_dotenv()
+
+ADMIN_USER = os.getenv('ADMIN_USER', 'admin')
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
 # ===== DECORADOR PARA PROTEGER RUTAS ADMIN =====
 def admin_required(f):
     @wraps(f)
