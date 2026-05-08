@@ -246,23 +246,33 @@
         </div>`;
     }
 
-    function generarTablaParticipantes() {
-        let html = `<div class="section"><div class="section-title">👥 6. Datos por Participante</div>
-        <div class="table-container"></table><thead><tr><th>Usuario</th><th>Grupo</th><th>Identificaciones</th><th>Aciertos</th><th>Precisión (%)</th><th>Tiempo (s)</th></tr></thead><tbody>`;
-        let usuariosUnicos = [...new Set(resultados.map(r => r.usuario))];
-        usuariosUnicos.forEach(usuario => {
-            let usuarioInfo = usuarios.find(u => u.nombre_usuario === usuario);
-            let grupo = usuarioInfo?.grupo_asignado || '?';
-            let resUsuario = resultados.filter(r => r.usuario === usuario);
-            let total = resUsuario.length;
-            let aciertos = resUsuario.filter(r => r.acerto).length;
-            let precision = total > 0 ? (aciertos / total * 100).toFixed(1) : 0;
-            let tiempoTotal = resUsuario.reduce((s,r) => s + (r.tiempo || 0), 0).toFixed(1);
-            html += `<tr>:<strong>${usuario}</strong> jon}.${grupo} jon}.${total} jon}.${aciertos} jon}.${precision}%</td>${tiempoTotal}s</tr>`;
-        });
-        html += `</tbody></table></div></div>`;
-        return html;
-    }
+   <h2>👥 6. Datos por Participante</h2>
+<div style="overflow-x: auto;">
+    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">
+        <thead style="background-color: #4CAF50; color: white;">
+            <tr>
+                <th>Usuario</th>
+                <th>Grupo</th>
+                <th>Identificaciones</th>
+                <th>Aciertos</th>
+                <th>Precisión (%)</th>
+                <th>Tiempo (s)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for participante in participantes %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td>{{ participante.usuario }}</td>
+                <td>{{ participante.grupo }}</td>
+                <td>{{ participante.identificaciones }}</td>
+                <td>{{ participante.aciertos }}</td>
+                <td>{{ participante.precision }}%</td>
+                <td>{{ participante.tiempo }}s</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
     async function dibujarTodosLosGraficos() {
         // Gráfico 1: Precisión
