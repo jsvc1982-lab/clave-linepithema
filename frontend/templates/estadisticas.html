@@ -14,20 +14,19 @@
         .subtitle { color: #A0A0B0; margin-bottom: 30px; border-bottom: 1px solid #00D4FF30; padding-bottom: 10px; }
         .section { background: #121826; border: 1px solid #00D4FF40; border-radius: 15px; padding: 25px; margin-bottom: 30px; }
         .section-title { color: #00D4FF; font-size: 1.3rem; margin-bottom: 20px; border-bottom: 1px solid #00D4FF30; padding-bottom: 10px; }
-        .subsection-title { color: #7B61FF; font-size: 1.1rem; margin: 15px 0 10px 0; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
+        .stat-card { background: #1A1F36; border-radius: 10px; padding: 15px; text-align: center; }
+        .stat-number { font-size: 2rem; font-weight: bold; color: #00D4FF; }
+        .stat-label { color: #A0A0B0; margin-top: 5px; }
         table { width: 100%; border-collapse: collapse; margin: 15px 0; background: #1A1F36; border-radius: 10px; overflow: hidden; }
         th { background: #1A1F36; color: #00D4FF; padding: 12px; text-align: left; border-bottom: 1px solid #00D4FF40; }
         td { padding: 10px 12px; border-bottom: 1px solid #1A1F36; }
-        .stat-card { background: #1A1F36; border-radius: 10px; padding: 15px; margin: 10px 0; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
-        .stat-number { font-size: 2rem; font-weight: bold; color: #00D4FF; }
         .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
         .btn-primary { background: linear-gradient(45deg, #00D4FF, #7B61FF); color: white; }
         .btn-secondary { background: #1A1F36; border: 1px solid #00D4FF40; color: #00D4FF; }
         .btn:hover { transform: translateY(-2px); }
         .flex-buttons { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
         .badge-correcto { color: #00D4FF; font-weight: bold; }
-        .badge-incorrecto { color: #FF375F; font-weight: bold; }
         .chart-container { background: #1A1F36; border-radius: 15px; padding: 20px; margin: 20px 0; }
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; margin-bottom: 30px; }
         canvas { max-height: 350px; width: 100%; }
@@ -68,7 +67,8 @@
             resultados = resultadosRes;
             encuestas = encuestasRes;
             reflexiones = reflexionesRes;
-            console.log("✅ Datos cargados:", { usuarios: usuarios.length, resultados: resultados.length });
+            console.log("Usuarios:", usuarios);
+            console.log("Resultados:", resultados);
         } catch(e) { console.error("Error cargando datos:", e); }
     }
 
@@ -97,7 +97,7 @@
         html += generarCargasCognitivas();
         html += generarCorrelacionConfianza();
         html += generarEvolucionPrecision();
-        html += generarTablaParticipantes();  // ← TABLA AGREGADA
+        html += generarTablaParticipantes();
         
         document.getElementById('contenidoEstadisticas').innerHTML = html;
         await dibujarTodosLosGraficos();
@@ -105,32 +105,50 @@
 
     function generarResumenDescriptivo() {
         const grupos = ['2D', '2D_META', '3D', '3D_META'];
-        const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
+        const gruposNombres = ['2D', '2D + Meta', '3D', '3D + Meta'];
+        
         let stats = {};
         grupos.forEach(g => {
             const usuariosGrupo = usuarios.filter(u => u.grupo_asignado === g);
             const resultadosGrupo = resultados.filter(r => r.grupo === g);
             const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.tipo === 'SUS');
-            const aciertos = resultadosGrupo.filter(r => r.acerto).length;
+            
+            const aciertos = resultadosGrupo.filter(r => r.acerto === true).length;
             const precision = resultadosGrupo.length > 0 ? (aciertos / resultadosGrupo.length * 100).toFixed(1) : 0;
             const tiempoProm = resultadosGrupo.length > 0 ? (resultadosGrupo.reduce((s,r) => s + (r.tiempo || 0), 0) / resultadosGrupo.length).toFixed(1) : 0;
             const susProm = encuestasGrupo.length > 0 ? (encuestasGrupo.reduce((s,e) => s + (e.puntaje_total || 0), 0) / encuestasGrupo.length).toFixed(1) : 0;
-            stats[g] = { n: usuariosGrupo.length, precision, tiempo: tiempoProm, sus: susProm };
+            
+            stats[g] = { 
+                n: usuariosGrupo.length, 
+                precision: precision, 
+                tiempo: tiempoProm, 
+                sus: susProm 
+            };
         });
         
-        return `<div class="section">
+        let html = `<div class="section">
             <div class="section-title">📈 1. Resumen Descriptivo por Grupo</div>
-            <div class="stats-grid">${grupos.map((g, i) => `<div class="stat-card"><div class="stat-number">${stats[g].n}</div><div class="stat-label">${gruposNombres[i]}</div></div>`).join('')}</div>
-            <div class="table-container"><table><thead><tr><th>Grupo</th><th>n</th><th>Precisión (%)</th><th>Tiempo (s)</th><th>SUS</th></tr></thead><tbody>
-            ${grupos.map((g, i) => `<tr>:<strong>${gruposNombres[i]}</strong> jon}.${stats[g].n}</td><td class="${stats[g].precision >= 70 ? 'badge-correcto' : ''}">${stats[g].precision}%</td>${stats[g].tiempo}s</td>${stats[g].sus}</tr>`).join('')}
-            </tbody></table></div></div>`;
+            <div class="stats-grid">`;
+        
+        grupos.forEach((g, i) => {
+            html += `<div class="stat-card">
+                        <div class="stat-number">${stats[g].n}</div>
+                        <div class="stat-label">${gruposNombres[i]} (n)</div>
+                        <div class="stat-number" style="font-size:1.2rem; margin-top:10px;">${stats[g].precision}%</div>
+                        <div class="stat-label">Precisión</div>
+                        <div>⏱️ ${stats[g].tiempo}s | 📝 SUS: ${stats[g].sus}</div>
+                    </div>`;
+        });
+        
+        html += `</div></div>`;
+        return html;
     }
 
     function generarGraficosPrincipales() {
         const grupos = ['2D', '2D_META', '3D', '3D_META'];
         const precisionData = grupos.map(g => {
             const r = resultados.filter(r => r.grupo === g);
-            const a = r.filter(r => r.acerto).length;
+            const a = r.filter(r => r.acerto === true).length;
             return r.length ? (a / r.length * 100).toFixed(1) : 0;
         });
         const tiempoData = grupos.map(g => {
@@ -145,7 +163,7 @@
         window.precisionData = precisionData;
         window.tiempoData = tiempoData;
         window.susData = susData;
-        window.grupos = grupos;
+        window.grupos = ['2D', '2D+META', '3D', '3D+META'];
         
         return `<div class="section">
             <div class="section-title">📊 2. Gráficos Principales</div>
@@ -160,18 +178,18 @@
 
     function generarCargasCognitivas() {
         const grupos = ['2D', '2D_META', '3D', '3D_META'];
-        let medias = { intrínseca: {}, extrínseca: {}, germana: {} };
+        let medias = { intrinseca: {}, extrinseca: {}, germana: {} };
         let conteos = {};
-        grupos.forEach(g => { medias.intrínseca[g] = 0; medias.extrínseca[g] = 0; medias.germana[g] = 0; conteos[g] = 0; });
+        grupos.forEach(g => { medias.intrinseca[g] = 0; medias.extrinseca[g] = 0; medias.germana[g] = 0; conteos[g] = 0; });
         
         encuestas.forEach(e => {
             if (e.tipo === 'COGNITIVE_LOAD' && e.grupo) {
                 let intrin = e.carga_intrinseca || 0;
                 let extrin = e.carga_extrinseca || 0;
                 let germ = e.carga_germana || 0;
-                if (intrin > 0 && extrin > 0) {
-                    medias.intrínseca[e.grupo] += intrin;
-                    medias.extrínseca[e.grupo] += extrin;
+                if (intrin > 0 || extrin > 0) {
+                    medias.intrinseca[e.grupo] += intrin;
+                    medias.extrinseca[e.grupo] += extrin;
                     medias.germana[e.grupo] += germ;
                     conteos[e.grupo]++;
                 }
@@ -180,34 +198,39 @@
         
         grupos.forEach(g => {
             if (conteos[g] > 0) {
-                medias.intrínseca[g] = (medias.intrínseca[g] / conteos[g]).toFixed(1);
-                medias.extrínseca[g] = (medias.extrínseca[g] / conteos[g]).toFixed(1);
+                medias.intrinseca[g] = (medias.intrinseca[g] / conteos[g]).toFixed(1);
+                medias.extrinseca[g] = (medias.extrinseca[g] / conteos[g]).toFixed(1);
                 medias.germana[g] = (medias.germana[g] / conteos[g]).toFixed(1);
-            } else { medias.intrínseca[g] = 0; medias.extrínseca[g] = 0; medias.germana[g] = 0; }
+            } else { medias.intrinseca[g] = 0; medias.extrinseca[g] = 0; medias.germana[g] = 0; }
         });
         
         window.cargasData = {
             labels: grupos,
-            intrínseca: grupos.map(g => parseFloat(medias.intrínseca[g])),
-            extrínseca: grupos.map(g => parseFloat(medias.extrínseca[g])),
+            intrinseca: grupos.map(g => parseFloat(medias.intrinseca[g])),
+            extrinseca: grupos.map(g => parseFloat(medias.extrinseca[g])),
             germana: grupos.map(g => parseFloat(medias.germana[g]))
         };
         
-        return `<div class="section">
+        let html = `<div class="section">
             <div class="section-title">🧠 3. Cargas Cognitivas por Grupo</div>
             <div class="chart-container"><canvas id="chartCargas"></canvas></div>
-            <div class="table-container">\n<table>\n<thead>\n<tr>\n<th>Grupo</th>\n<th>Carga Intrínseca</th>\n<th>Carga Extrínseca</th>\n<th>Carga Germana</th>\n</tr>\n</thead>\n<tbody>
-            ${grupos.map(g => `<tr>\n<td><strong>${g}</strong></td>\n<td>${medias.intrínseca[g]}</td>\n<td>${medias.extrínseca[g]}</td>\n<td>${medias.germana[g]}</td>\n</tr>`).join('')}
-            </tbody>\n</table>\n</div></div>`;
+            <div class="table-container"><table><thead><tr><th>Grupo</th><th>Carga Intrínseca</th><th>Carga Extrínseca</th><th>Carga Germana</th></tr></thead><tbody>`;
+        
+        grupos.forEach(g => {
+            html += `<tr><td><strong>${g}</strong></td><td>${medias.intrinseca[g]}</td><td>${medias.extrinseca[g]}</td><td>${medias.germana[g]}</td></tr>`;
+        });
+        
+        html += `</tbody></table></div></div>`;
+        return html;
     }
 
     function generarCorrelacionConfianza() {
         let puntos = [];
         reflexiones.filter(r => r.momento === 'durante').forEach(r => {
-            let match = r.respuesta_raw.match(/Seguridad: (\d+)%/);
+            let match = r.respuesta_raw ? r.respuesta_raw.match(/Seguridad: (\d+)%/) : null;
             if (match && r.usuario) {
                 let resultadosUser = resultados.filter(res => res.usuario === r.usuario);
-                let aciertos = resultadosUser.filter(res => res.acerto).length;
+                let aciertos = resultadosUser.filter(res => res.acerto === true).length;
                 let total = resultadosUser.length;
                 let precision = total > 0 ? (aciertos / total) * 100 : 0;
                 puntos.push({ confianza: parseInt(match[1]), precision });
@@ -245,8 +268,7 @@
         </div>`;
     }
 
-    // ========== NUEVA FUNCIÓN: TABLA DE PARTICIPANTES ==========
-     function generarTablaParticipantes() {
+    function generarTablaParticipantes() {
         let html = '<div class="section">';
         html += '<div class="section-title">👥 6. Datos por Participante</div>';
         html += '<div style="overflow-x: auto;">';
@@ -254,7 +276,6 @@
         html += '<thead><tr style="background:#00D4FF; color:#0A0E17;"><th style="padding:10px;">Usuario</th><th style="padding:10px;">Grupo</th><th style="padding:10px;">Identificaciones</th><th style="padding:10px;">Aciertos</th><th style="padding:10px;">Precisión %</th><th style="padding:10px;">Tiempo (s)</th></tr></thead><tbody>';
         
         usuarios.forEach(u => {
-            // Usar nombre_usuario en lugar de usuario
             let nombreUsuario = u.nombre_usuario || u.usuario;
             let grupo = u.grupo_asignado || u.grupo || '-';
             
@@ -274,33 +295,30 @@
             html += `</tr>`;
         });
         
-        html += '</tbody>表</div></div>';
+        html += '</tbody></table></div></div>';
         return html;
     }
+
     async function dibujarTodosLosGraficos() {
-        // Gráfico 1: Precisión
         if (document.getElementById('chartPrecision') && window.precisionData) {
             new Chart(document.getElementById('chartPrecision'), {
                 type: 'bar', data: { labels: window.grupos, datasets: [{ label: 'Precisión (%)', data: window.precisionData, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
                 options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
             });
         }
-        // Gráfico 2: Tiempo
         if (document.getElementById('chartTiempo') && window.tiempoData) {
             new Chart(document.getElementById('chartTiempo'), {
                 type: 'bar', data: { labels: window.grupos, datasets: [{ label: 'Tiempo (segundos)', data: window.tiempoData, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
                 options: { responsive: true }
             });
         }
-        // Gráfico 3: SUS
         if (document.getElementById('chartSUS') && window.susData) {
             new Chart(document.getElementById('chartSUS'), {
                 type: 'bar', data: { labels: window.grupos, datasets: [{ label: 'Puntaje SUS', data: window.susData, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
                 options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
             });
         }
-        // Gráfico 4: Doughnut (distribución de aciertos)
-        const totalAciertos = resultados.filter(r => r.acerto).length;
+        const totalAciertos = resultados.filter(r => r.acerto === true).length;
         const totalIncorrectos = resultados.length - totalAciertos;
         if (document.getElementById('chartDoughnut')) {
             new Chart(document.getElementById('chartDoughnut'), {
@@ -308,26 +326,23 @@
                 options: { responsive: true }
             });
         }
-        // Gráfico 5: Cargas cognitivas
         if (document.getElementById('chartCargas') && window.cargasData) {
             new Chart(document.getElementById('chartCargas'), {
                 type: 'bar', data: { labels: window.cargasData.labels, datasets: [
-                    { label: 'Carga Intrínseca', data: window.cargasData.intrínseca, backgroundColor: '#00D4FF' },
-                    { label: 'Carga Extrínseca', data: window.cargasData.extrínseca, backgroundColor: '#FFAA00' },
+                    { label: 'Carga Intrínseca', data: window.cargasData.intrinseca, backgroundColor: '#00D4FF' },
+                    { label: 'Carga Extrínseca', data: window.cargasData.extrinseca, backgroundColor: '#FFAA00' },
                     { label: 'Carga Germana', data: window.cargasData.germana, backgroundColor: '#7B61FF' }
                 ] }, options: { responsive: true, scales: { y: { beginAtZero: true } } }
             });
         }
-        // Gráfico 6: Correlación confianza vs precisión (scatter)
         if (document.getElementById('chartCorrelacion') && window.correlacionPuntos && window.correlacionPuntos.length > 0) {
             let r = calcularCorrelacion(window.correlacionPuntos.map(p=>p.confianza), window.correlacionPuntos.map(p=>p.precision));
             new Chart(document.getElementById('chartCorrelacion'), {
                 type: 'scatter', data: { datasets: [{ label: 'Estudiantes', data: window.correlacionPuntos.map(p => ({ x: p.confianza, y: p.precision })), backgroundColor: '#00D4FF' }] },
-                options: { responsive: true, scales: { x: { title: { display: true, text: 'Confianza (%)' }, min: 0, max: 100 }, y: { title: { display: true, text: 'Precisión (%)' }, min: 0, max: 100 } }, plugins: { tooltip: { callbacks: { label: (ctx) => `Confianza: ${ctx.raw.x}%, Precisión: ${ctx.raw.y}%` } } } }
+                options: { responsive: true, scales: { x: { title: { display: true, text: 'Confianza (%)' }, min: 0, max: 100 }, y: { title: { display: true, text: 'Precisión (%)' }, min: 0, max: 100 } } }
             });
             document.getElementById('chartCorrelacion').insertAdjacentHTML('afterend', `<div class="stat-card">📊 r de Pearson = ${r.r} (p = ${r.p})</div>`);
         }
-        // Gráfico 7: Evolución
         if (document.getElementById('chartEvolucion') && window.evolucionData) {
             new Chart(document.getElementById('chartEvolucion'), {
                 type: 'line', data: { labels: window.evolucionData.labels, datasets: [
