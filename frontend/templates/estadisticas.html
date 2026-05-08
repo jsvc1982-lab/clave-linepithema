@@ -97,7 +97,7 @@
         html += generarCargasCognitivas();
         html += generarCorrelacionConfianza();
         html += generarEvolucionPrecision();
-        html += generarTablaParticipantes();
+        html += generarTablaParticipantes();  // ← TABLA AGREGADA
         
         document.getElementById('contenidoEstadisticas').innerHTML = html;
         await dibujarTodosLosGraficos();
@@ -122,7 +122,7 @@
             <div class="section-title">📈 1. Resumen Descriptivo por Grupo</div>
             <div class="stats-grid">${grupos.map((g, i) => `<div class="stat-card"><div class="stat-number">${stats[g].n}</div><div class="stat-label">${gruposNombres[i]}</div></div>`).join('')}</div>
             <div class="table-container"><table><thead><tr><th>Grupo</th><th>n</th><th>Precisión (%)</th><th>Tiempo (s)</th><th>SUS</th></tr></thead><tbody>
-            ${grupos.map((g, i) => `<tr>:<strong>${gruposNombres[i]}</strong></td>}.${stats[g].n}</td><td class="${stats[g].precision >= 70 ? 'badge-correcto' : ''}">${stats[g].precision}%</td>${stats[g].tiempo}s</td>${stats[g].sus}</tr>`).join('')}
+            ${grupos.map((g, i) => `<tr>:<strong>${gruposNombres[i]}</strong> jon}.${stats[g].n}</td><td class="${stats[g].precision >= 70 ? 'badge-correcto' : ''}">${stats[g].precision}%</td>${stats[g].tiempo}s</td>${stats[g].sus}</tr>`).join('')}
             </tbody></table></div></div>`;
     }
 
@@ -196,10 +196,9 @@
         return `<div class="section">
             <div class="section-title">🧠 3. Cargas Cognitivas por Grupo</div>
             <div class="chart-container"><canvas id="chartCargas"></canvas></div>
-            <div class="table-container"><table><thead><tr><th>Grupo</th><th>Carga Intrínseca</th><th>Carga Extrínseca</th><th>Carga Germana</th></tr></thead><tbody>
-            ${grupos.map(g => `<tr>:<strong>${g}</strong> jon}.${medias.intrínseca[g]} jon}.${medias.extrínseca[g]} jon}.${medias.germana[g]} jon</tr>`).join('')}
-            </tbody></table></div>
-        </div>`;
+            <div class="table-container">\n<table>\n<thead>\n<tr>\n<th>Grupo</th>\n<th>Carga Intrínseca</th>\n<th>Carga Extrínseca</th>\n<th>Carga Germana</th>\n</tr>\n</thead>\n<tbody>
+            ${grupos.map(g => `<tr>\n<td><strong>${g}</strong></td>\n<td>${medias.intrínseca[g]}</td>\n<td>${medias.extrínseca[g]}</td>\n<td>${medias.germana[g]}</td>\n</tr>`).join('')}
+            </tbody>\n</table>\n</div></div>`;
     }
 
     function generarCorrelacionConfianza() {
@@ -246,33 +245,34 @@
         </div>`;
     }
 
-   <h2>👥 6. Datos por Participante</h2>
-<div style="overflow-x: auto;">
-    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">
-        <thead style="background-color: #4CAF50; color: white;">
-            <tr>
-                <th>Usuario</th>
-                <th>Grupo</th>
-                <th>Identificaciones</th>
-                <th>Aciertos</th>
-                <th>Precisión (%)</th>
-                <th>Tiempo (s)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for participante in participantes %}
-            <tr style="border-bottom: 1px solid #ddd;">
-                <td>{{ participante.usuario }}</td>
-                <td>{{ participante.grupo }}</td>
-                <td>{{ participante.identificaciones }}</td>
-                <td>{{ participante.aciertos }}</td>
-                <td>{{ participante.precision }}%</td>
-                <td>{{ participante.tiempo }}s</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+    // ========== NUEVA FUNCIÓN: TABLA DE PARTICIPANTES ==========
+    function generarTablaParticipantes() {
+        let html = '<div class="section">';
+        html += '<div class="section-title">👥 6. Datos por Participante</div>';
+        html += '<div style="overflow-x: auto;">';
+        html += '<table style="width:100%; border-collapse:collapse;">';
+        html += '<thead><tr style="background:#00D4FF; color:#0A0E17;"><th style="padding:10px;">Usuario</th><th style="padding:10px;">Grupo</th><th style="padding:10px;">Identificaciones</th><th style="padding:10px;">Aciertos</th><th style="padding:10px;">Precisión %</th><th style="padding:10px;">Tiempo (s)</th></tr></thead><tbody>';
+        
+        usuarios.forEach(u => {
+            let resultadosUser = resultados.filter(r => r.usuario === u.usuario);
+            let total = resultadosUser.length;
+            let aciertos = resultadosUser.filter(r => r.acerto).length;
+            let precision = total > 0 ? (aciertos / total * 100).toFixed(1) : 0;
+            let tiempoTotal = resultadosUser.reduce((sum, r) => sum + (r.tiempo || 0), 0);
+            
+            html += `<tr style="border-bottom:1px solid #1A1F36;">`;
+            html += `<td style="padding:10px;">${u.usuario}</td>`;
+            html += `<td style="padding:10px;">${u.grupo_asignado || u.grupo || '-'}</td>`;
+            html += `<td style="padding:10px;">${total}</td>`;
+            html += `<td style="padding:10px;">${aciertos}</td>`;
+            html += `<td style="padding:10px;" class="${precision >= 70 ? 'badge-correcto' : ''}">${precision}%</td>`;
+            html += `<td style="padding:10px;">${tiempoTotal.toFixed(1)}s</td>`;
+            html += `</tr>`;
+        });
+        
+        html += '</tbody></table></div></div>';
+        return html;
+    }
 
     async function dibujarTodosLosGraficos() {
         // Gráfico 1: Precisión
