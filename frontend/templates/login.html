@@ -5,12 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Clave Linepithema</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background-color: #0A0E17;
             color: #E0E0E0;
@@ -19,9 +14,7 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
         }
-
         .login-container {
             background: #121826;
             padding: 40px;
@@ -32,12 +25,10 @@
             box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
             animation: fadeIn 0.5s ease;
         }
-
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+            to   { opacity: 1; transform: translateY(0); }
         }
-
         h1 {
             text-align: center;
             margin-bottom: 10px;
@@ -47,18 +38,13 @@
             -webkit-text-fill-color: transparent;
             font-size: 1.8rem;
         }
-
         .subtitle {
             text-align: center;
             color: #A0A0B0;
             margin-bottom: 30px;
             font-size: 0.9rem;
         }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
+        .form-group { margin-bottom: 20px; }
         label {
             display: block;
             margin-bottom: 8px;
@@ -66,7 +52,6 @@
             font-weight: 600;
             font-size: 0.9rem;
         }
-
         input {
             width: 100%;
             padding: 12px 15px;
@@ -78,14 +63,12 @@
             transition: all 0.3s ease;
             box-sizing: border-box;
         }
-
         input:focus {
             outline: none;
             border-color: #00D4FF;
             background: #121826;
             box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
         }
-
         button {
             width: 100%;
             padding: 14px;
@@ -99,62 +82,40 @@
             margin-top: 10px;
             transition: all 0.3s ease;
         }
-
-        button:hover {
+        button:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(0, 212, 255, 0.3);
         }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         .register-link {
             text-align: center;
             margin-top: 25px;
             padding-top: 20px;
             border-top: 1px solid #00D4FF30;
         }
-
-        a {
-            color: #00D4FF;
-            text-decoration: none;
+        a { color: #00D4FF; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .error-message, .success-message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+            font-size: 0.9rem;
         }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
         .error-message {
             background: #FF375F20;
             color: #FF375F;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 15px;
-            text-align: center;
             border: 1px solid #FF375F40;
-            display: none;
-            font-size: 0.9rem;
         }
-
         .success-message {
             background: #00D4FF20;
             color: #00D4FF;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 15px;
-            text-align: center;
             border: 1px solid #00D4FF40;
-            display: none;
-            font-size: 0.9rem;
         }
-
         .loading {
             display: inline-block;
-            width: 16px;
-            height: 16px;
+            width: 16px; height: 16px;
             border: 2px solid white;
             border-top-color: transparent;
             border-radius: 50%;
@@ -162,9 +123,12 @@
             vertical-align: middle;
             margin-right: 8px;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .footer-info {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.75rem;
+            color: #606070;
         }
     </style>
 </head>
@@ -173,19 +137,18 @@
         <h1>🔬 Clave Taxonómica Linepithema</h1>
         <div class="subtitle">Iniciar sesión para comenzar</div>
 
-        <form id="loginForm">
-            <div class="form-group">
-                <label>👤 Nombre de usuario</label>
-                <input type="text" id="usuario" placeholder="Ej: estudiante_biologia" required autocomplete="username">
-            </div>
+        <div class="form-group">
+            <label>👤 Nombre de usuario</label>
+            <input type="text" id="usuario" placeholder="Ej: estudiante_biologia"
+                   autocomplete="username" required>
+        </div>
+        <div class="form-group">
+            <label>🔑 Contraseña</label>
+            <input type="password" id="contrasena" placeholder="Ingresa tu contraseña"
+                   autocomplete="current-password" required>
+        </div>
 
-            <div class="form-group">
-                <label>🔑 Contraseña</label>
-                <input type="password" id="contrasena" placeholder="Ingresa tu contraseña" required autocomplete="current-password">
-            </div>
-
-            <button type="submit" id="loginBtn">Ingresar</button>
-        </form>
+        <button id="loginBtn" onclick="login()">Ingresar</button>
 
         <div id="errorMessage" class="error-message"></div>
         <div id="successMessage" class="success-message"></div>
@@ -193,115 +156,101 @@
         <div class="register-link">
             ¿No tienes cuenta? <a href="/registro">Regístrate aquí</a>
         </div>
-
-        <div style="text-align: center; margin-top: 20px; font-size: 0.75rem; color: #606070;">
+        <div class="footer-info">
             Estudio de investigación - Maestría TIAE<br>
             Universidad Pedagógica Nacional
         </div>
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Permitir Enter en cualquier campo
+        ['usuario', 'contrasena'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', e => {
+                if (e.key === 'Enter') login();
+            });
+        });
 
+        // Verificar sesión activa al cargar — sin localStorage
+        async function verificarSesionActiva() {
+            try {
+                const res = await fetch('/api/verificar_sesion');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.activa) {
+                        redirigirSegunGrupo(data.grupo);
+                    }
+                }
+            } catch (e) { /* sin sesión, continuar normalmente */ }
+        }
+
+        async function login() {
             const usuario = document.getElementById('usuario').value.trim();
             const contrasena = document.getElementById('contrasena').value;
-            const loginBtn = document.getElementById('loginBtn');
-            const originalText = loginBtn.innerHTML;
+            const btn = document.getElementById('loginBtn');
 
-            // Validaciones básicas
-            if (!usuario) {
-                mostrarError('Por favor ingresa tu nombre de usuario');
-                return;
-            }
-            if (!contrasena) {
-                mostrarError('Por favor ingresa tu contraseña');
-                return;
-            }
+            if (!usuario) { mostrarError('Ingresa tu nombre de usuario'); return; }
+            if (!contrasena) { mostrarError('Ingresa tu contraseña'); return; }
 
-            // Mostrar loading
-            loginBtn.innerHTML = '<span class="loading"></span> Ingresando...';
-            loginBtn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Ingresando...';
+            btn.disabled = true;
+            ocultarMensajes();
 
             try {
-                const response = await fetch('/api/login', {
+                const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ usuario, contrasena })
                 });
+                const data = await res.json();
 
-                const data = await response.json();
-                console.log('Respuesta login:', data);
-
-                if (response.ok) {
+                if (res.ok) {
                     mostrarExito('✅ ' + data.mensaje);
-                    
-                    // Guardar usuario en localStorage
-                    localStorage.setItem('usuario', data.usuario);
-                    localStorage.setItem('usuario_id', data.id);
-                    localStorage.setItem('grupo', data.grupo || '');
-                    
-                    // Redirección según el grupo
-                    setTimeout(() => {
-                        if (data.grupo === '2D') {
-                            window.location.href = '/clave_2d?usuario=' + encodeURIComponent(data.usuario);
-                        } else if (data.grupo === '2D_META') {
-                            window.location.href = '/clave_2d_meta?usuario=' + encodeURIComponent(data.usuario);
-                        } else if (data.grupo === '3D') {
-                            window.location.href = '/clave_3d?usuario=' + encodeURIComponent(data.usuario);
-                        } else if (data.grupo === '3D_META') {
-                            window.location.href = '/clave_3d_meta?usuario=' + encodeURIComponent(data.usuario);
-                        } else {
-                            // Si no tiene grupo asignado, ir al dashboard
-                            window.location.href = '/dashboard?usuario=' + encodeURIComponent(data.usuario);
-                        }
-                    }, 1500);
+                    setTimeout(() => redirigirSegunGrupo(data.grupo), 1200);
                 } else {
                     mostrarError('❌ ' + (data.error || 'Credenciales inválidas'));
-                    loginBtn.innerHTML = originalText;
-                    loginBtn.disabled = false;
+                    btn.innerHTML = 'Ingresar';
+                    btn.disabled = false;
+                    document.getElementById('contrasena').value = '';
+                    document.getElementById('contrasena').focus();
                 }
-            } catch (error) {
-                console.error('Error de conexión:', error);
-                mostrarError('❌ Error de conexión con el servidor. Verifica que el servidor esté corriendo.');
-                loginBtn.innerHTML = originalText;
-                loginBtn.disabled = false;
-            }
-        });
-
-        function mostrarError(mensaje) {
-            const errorDiv = document.getElementById('errorMessage');
-            const successDiv = document.getElementById('successMessage');
-            errorDiv.textContent = mensaje;
-            errorDiv.style.display = 'block';
-            successDiv.style.display = 'none';
-            setTimeout(() => {
-                errorDiv.style.display = 'none';
-            }, 5000);
-        }
-
-        function mostrarExito(mensaje) {
-            const successDiv = document.getElementById('successMessage');
-            const errorDiv = document.getElementById('errorMessage');
-            successDiv.textContent = mensaje;
-            successDiv.style.display = 'block';
-            errorDiv.style.display = 'none';
-        }
-
-        // Si ya hay una sesión activa, redirigir
-        const usuarioStorage = localStorage.getItem('usuario');
-        if (usuarioStorage) {
-            const grupoStorage = localStorage.getItem('grupo');
-            if (grupoStorage === '2D') {
-                window.location.href = '/clave_2d?usuario=' + encodeURIComponent(usuarioStorage);
-            } else if (grupoStorage === '2D_META') {
-                window.location.href = '/clave_2d_meta?usuario=' + encodeURIComponent(usuarioStorage);
-            } else if (grupoStorage === '3D') {
-                window.location.href = '/clave_3d?usuario=' + encodeURIComponent(usuarioStorage);
-            } else if (grupoStorage === '3D_META') {
-                window.location.href = '/clave_3d_meta?usuario=' + encodeURIComponent(usuarioStorage);
+            } catch (e) {
+                mostrarError('❌ Error de conexión con el servidor');
+                btn.innerHTML = 'Ingresar';
+                btn.disabled = false;
             }
         }
+
+        function redirigirSegunGrupo(grupo) {
+            const rutas = {
+                '2D':     '/clave_2d',
+                '2D_META':'/clave_2d_meta',
+                '3D':     '/clave_3d',
+                '3D_META':'/clave_3d_meta'
+            };
+            window.location.href = rutas[grupo] || '/dashboard';
+        }
+
+        function mostrarError(msg) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('successMessage').style.display = 'none';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
+        function mostrarExito(msg) {
+            const el = document.getElementById('successMessage');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function ocultarMensajes() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        verificarSesionActiva();
     </script>
 </body>
 </html>

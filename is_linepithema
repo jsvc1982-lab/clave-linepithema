@@ -1,0 +1,39 @@
+[33m73a4ff8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Agregar enlace de recuperar contraseña en login
+[33ma82c64d[m Eliminar caracteres especiales (flechas, emojis)
+[33m0ec86b0[m Fix recuperacion contraseña completo
+[33m6fa62f3[m Fix: eliminar emojis que causaban syntax error en reset_password
+[33m9c6db88[m Fix recuperacion contraseña completo
+[33m3fb1ac9[m Fix: agregar render_template_string, secrets, datetime y smtplib
+[33md0a36b6[m Configurar envío de correos para asignación de grupos
+[33m907c61e[m Mejoras completas: Exportar Excel, filtros, ANOVA, tabla por espécimen
+[33m8b0ad55[m Corregir completamente estadisticas.html - resumen, gráficos y tabla
+[33m1db0c7f[m Fix: usar nombre_usuario en lugar de usuario en tabla de participantes
+[33mbcc34c5[m Mejorar tabla de participantes en estadisticas.html
+[33m92f79f8[m Arreglar tabla de datos por participante en estadisticas admin
+[33mfbddd94[m DEBUG: imprimir credenciales admin y variables
+[33mc5cfe39[m Fix admin: usar os.environ.get sin load_dotenv
+[33md24bb84[m Configurar credenciales admin mediante variables de entorno
+[33m4f92bca[m Reemplazar requirements corrupto con lista limpia de dependencias reales
+[33m6fc53d5[m Reemplazar requirements corrupto con lista limpia de dependencias reales
+[33m800b733[m Agregar python-dotenv a requirements
+[33ma0de881[m Configurar credenciales admin mediante variables de entorno
+[33m03c4762[m Agregar todos los gráficos estadísticos: precisión, tiempo, SUS, cargas cognitivas, correlación, evolución
+[33m9197a5f[m Corregir gráfico de cargas cognitivas para mostrar datos reales
+[33me4aa7ea[m Agregar certificado, estadísticas y .gitignore
+[33mdd08fd3[m Agregar ruta /estadisticas y botón en admin
+[33m4b45a96[m Cambios completos: zoom, glosario, reflexiones metacognitivas, estrategias, reinicio
+[33m8166a7f[m Mejoras: estadísticas 4 grupos y reflexiones con escala numérica
+[33mefb01b9[m Agregar pantalla de bienvenida de 5 segundos
+[33m8bcfd7a[m Agregar banner de bienvenida en registro
+[33ma33b836[m Cambiar persistencia de sesionId a usuarioId
+[33m44d6097[m Agregar contenido completo a las descargas de PDF, guía y glosario
+[33me9025b3[m Corregir errores de canvas y tbody en dashboard
+[33m7383e20[m Crear tablas automáticamente al iniciar
+[33m59af13b[m Corregir sintaxis del try/except
+[33m09fbbfe[m Importación condicional de models para compatibilidad local/Render
+[33m5d1a9c0[m Corregir importación de models para Render
+[33me2048a2[m Sin versiones fijas - que pip resuelva automáticamente
+[33mbd972bc[m Versiones compatibles de Flask y Werkzeug
+[33mcedd988[m Requirements.txt limpio sin referencias a Conda
+[33m14a718e[m Forzar Python 3.12
+[33md36b681[m Primera versión: Clave taxonómica Linepithema con Flask

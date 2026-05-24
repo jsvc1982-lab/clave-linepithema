@@ -1,84 +1,120 @@
-from flask import Flask, request, jsonify, session, send_from_directory
+from flask import Flask, request, jsonify, session, send_from_directory, redirect, url_for
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+from dotenv import load_dotenv
+import random
+import json
+import os
+import re
+
 try:
     from backend.models import db, Usuario, SesionExperimental, ResultadoIdentificacion, ResultadoEncuesta, ReflexionMetacognitiva, Configuracion
 except ImportError:
     from models import db, Usuario, SesionExperimental, ResultadoIdentificacion, ResultadoEncuesta, ReflexionMetacognitiva, Configuracion
-import random
-import json
-from datetime import datetime
-import os
-from functools import wraps
-import os
-from dotenv import load_dotenv
 
-# Cargar variables de entorno
+# ===== CONFIGURACIÓN =====
 load_dotenv()
-app = Flask(__name__, static_folder='../frontend/static', template_folder='../frontend/templates')
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'clave-secreta-tesis-2024')
 
-# Base de datos en memoria (sin problemas de permisos)
-import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, '..', 'frontend')
 
-# Configurar base de datos para Render (PostgreSQL) o local (SQLite)
+app = Flask(
+    __name__,
+    static_folder=os.path.join(FRONTEND_DIR, 'static'),
+    template_folder=os.path.join(FRONTEND_DIR, 'templates')
+)
+
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+if not app.config['SECRET_KEY']:
+    raise RuntimeError('SECRET_KEY no está definida en las variables de entorno')
+
+# Base de datos: PostgreSQL en Render, SQLite local
 database_url = os.getenv('DATABASE_URL', 'sqlite:///database.db')
-if database_url and database_url.startswith('postgres://'):
+if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-print("📂 Base de datos en memoria (RAM)")
+CORS(app, supports_credentials=True, origins=os.getenv('ALLOWED_ORIGIN', 'http://127.0.0.1:5000'))
 
-CORS(app, supports_credentials=True, origins="http://127.0.0.1:5000")
 db.init_app(app)
 with app.app_context():
     db.create_all()
-    print("✅ Tablas creadas/verificadas en la base de datos")
 
-# Pool completo de especies (todas las disponibles)
+# ===== CREDENCIALES ADMIN (solo desde variables de entorno) =====
+ADMIN_USER = os.environ.get('ADMIN_USER')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
+if not ADMIN_USER or not ADMIN_PASSWORD:
+    raise RuntimeError('ADMIN_USER y ADMIN_PASSWORD deben estar definidos en las variables de entorno')
+
+# ===== POOL DE ESPECIES =====
 POOL_ESPECIES = [
-    {'id': 'humile', 'nombre': 'Linepithema humile', 'activa': True},
-    {'id': 'angulatum', 'nombre': 'Linepithema angulatum', 'activa': True},
-    {'id': 'piliferum', 'nombre': 'Linepithema piliferum', 'activa': True},
-    {'id': 'gallardoi', 'nombre': 'Linepithema gallardoi', 'activa': True},
-    {'id': 'iniquum', 'nombre': 'Linepithema iniquum', 'activa': False},
+    {'id': 'humile',      'nombre': 'Linepithema humile',      'activa': True},
+    {'id': 'angulatum',   'nombre': 'Linepithema angulatum',   'activa': True},
+    {'id': 'piliferum',   'nombre': 'Linepithema piliferum',   'activa': True},
+    {'id': 'gallardoi',   'nombre': 'Linepithema gallardoi',   'activa': True},
+    {'id': 'iniquum',     'nombre': 'Linepithema iniquum',     'activa': False},
     {'id': 'neotropicum', 'nombre': 'Linepithema neotropicum', 'activa': False},
-    {'id': 'hirsutum', 'nombre': 'Linepithema hirsutum', 'activa': False},
+    {'id': 'hirsutum',    'nombre': 'Linepithema hirsutum',    'activa': False},
     {'id': 'dispertitum', 'nombre': 'Linepithema dispertitum', 'activa': False},
-    {'id': 'tsachila', 'nombre': 'Linepithema tsachila', 'activa': False}
+    {'id': 'tsachila',    'nombre': 'Linepithema tsachila',    'activa': False},
 ]
-# ===== CONFIGURACIÓN ADMIN =====
-# ===== PROTECCIÓN PARA ADMIN =====
-import os
 
-ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
-
-# ==== DEPURACIÓN (borrar después) ====
-print(f"🔐 [DEBUG] ADMIN_USER leído: '{ADMIN_USER}'")
-print(f"🔐 [DEBUG] ADMIN_PASSWORD leída: '{ADMIN_PASSWORD}'")
-print(f"🔐 [DEBUG] Todas las variables: {list(os.environ.keys())}")
-# ===== DECORADOR PARA PROTEGER RUTAS ADMIN =====
-def admin_required(f):
+# ===== DECORADORES =====
+def login_required(f):
+    """Protege rutas que requieren sesión de estudiante."""
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    def decorated(*args, **kwargs):
+        if not session.get('usuario_id'):
+            return redirect(url_for('serve_login'))
+        return f(*args, **kwargs)
+    return decorated
+
+def admin_required(f):
+    """Protege rutas que requieren sesión de administrador."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
         if not session.get('admin_logged_in'):
             return jsonify({'error': 'Acceso no autorizado'}), 401
         return f(*args, **kwargs)
-    return decorated_function
+    return decorated
 
-# ===== FUNCIONES DE CONFIGURACIÓN =====
+# ===== UTILIDADES =====
+def calcular_sus(respuestas):
+    """
+    Calcula el puntaje SUS a partir de una lista de 10 respuestas (1-5)
+    o un diccionario {clave: valor}.
+    Retorna un float entre 0 y 100, o None si los datos son inválidos.
+    """
+    try:
+        if isinstance(respuestas, dict):
+            valores = [int(v) for v in respuestas.values() if str(v).isdigit()]
+        elif isinstance(respuestas, list):
+            valores = [int(v) for v in respuestas]
+        else:
+            return None
+
+        if len(valores) != 10:
+            return None
+
+        score = 0
+        for i in range(10):
+            if i % 2 == 0:
+                score += valores[i] - 1
+            else:
+                score += 5 - valores[i]
+        return round(max(0.0, min(100.0, score * 2.5)), 2)
+    except (ValueError, TypeError):
+        return None
+
 def get_especies_activas():
-    """Devuelve la lista de especies activas (las que se usan en las claves)"""
     config = Configuracion.query.filter_by(clave='especies_activas').first()
     if config:
         return json.loads(config.valor)
-    # Valor por defecto: primeras 4 especies
-    return [e['id'] for e in POOL_ESPECIES[:4] if e['activa']]
+    return [e['id'] for e in POOL_ESPECIES if e['activa']]
 
 def set_especies_activas(especies_ids):
-    """Guarda las especies activas en la configuración"""
     config = Configuracion.query.filter_by(clave='especies_activas').first()
     if config:
         config.valor = json.dumps(especies_ids)
@@ -88,11 +124,9 @@ def set_especies_activas(especies_ids):
     db.session.commit()
 
 def get_pool_especimenes():
-    """Devuelve la lista de especímenes basada en las especies activas"""
     especies_activas = get_especies_activas()
     pool = []
     for especie in especies_activas:
-        # 2 especímenes por especie activa
         pool.append({'id': f'{especie}_1', 'especie': especie})
         pool.append({'id': f'{especie}_2', 'especie': especie})
     return pool
@@ -101,10 +135,6 @@ def get_pool_especimenes():
 @app.route('/')
 def index():
     return send_from_directory(app.template_folder, 'login.html')
-
-@app.route('/estadisticas')
-def estadisticas():
-    return send_from_directory(app.template_folder, 'estadisticas.html')
 
 @app.route('/login')
 def serve_login():
@@ -115,24 +145,33 @@ def serve_registro():
     return send_from_directory(app.template_folder, 'registro.html')
 
 @app.route('/dashboard')
+@login_required
 def serve_dashboard():
     return send_from_directory(app.template_folder, 'dashboard.html')
 
 @app.route('/clave_2d')
+@login_required
 def serve_clave_2d():
     return send_from_directory(app.template_folder, 'clave_2d.html')
 
 @app.route('/clave_2d_meta')
+@login_required
 def serve_clave_2d_meta():
     return send_from_directory(app.template_folder, 'clave_2d_meta.html')
 
 @app.route('/clave_3d')
+@login_required
 def serve_clave_3d():
     return send_from_directory(app.template_folder, 'clave_3d.html')
 
 @app.route('/clave_3d_meta')
+@login_required
 def serve_clave_3d_meta():
     return send_from_directory(app.template_folder, 'clave_3d_meta.html')
+
+@app.route('/estadisticas')
+def estadisticas():
+    return send_from_directory(app.template_folder, 'estadisticas.html')
 
 @app.route('/admin')
 def serve_admin():
@@ -140,69 +179,30 @@ def serve_admin():
         return send_from_directory(app.template_folder, 'admin.html')
     return send_from_directory(app.template_folder, 'admin_login.html')
 
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    return send_from_directory('C:/tesis_linepithema/frontend/static', filename)
-
-# ===== API USUARIOS =====
-# ===== API PÚBLICAS PARA USUARIOS =====
-@app.route('/api/usuario/<nombre_usuario>', methods=['GET'])
-def get_usuario_by_nombre(nombre_usuario):
-    """Obtiene datos de un usuario por su nombre"""
-    usuario = Usuario.query.filter_by(nombre_usuario=nombre_usuario).first()
-    if not usuario:
-        return jsonify({'error': 'Usuario no encontrado'}), 404
-    return jsonify({
-        'id': usuario.id,
-        'nombre_usuario': usuario.nombre_usuario,
-        'correo': usuario.correo,
-        'grupo_asignado': usuario.grupo_asignado,
-        'semestre': usuario.semestre,
-        'curso': usuario.curso,
-        'experiencia_taxonomica': usuario.experiencia_taxonomica,
-        'habilidad_espacial': usuario.habilidad_espacial,
-        'familiaridad_3d': usuario.familiaridad_3d
-    })
-
-@app.route('/api/usuario/<int:usuario_id>/resultados', methods=['GET'])
-def get_resultados_usuario(usuario_id):
-    """Obtiene los resultados de identificación de un usuario específico"""
-    # Verificar que el usuario existe
-    usuario = Usuario.query.get(usuario_id)
-    if not usuario:
-        return jsonify({'error': 'Usuario no encontrado'}), 404
-    
-    resultados = []
-    for sesion in usuario.sesiones:
-        for r in sesion.resultados:
-            resultados.append({
-                'sesion_id': sesion.id,
-                'especimen': r.especie_id,
-                'correcta': r.especie_correcta,
-                'seleccionada': r.especie_seleccionada,
-                'acerto': r.es_correcta,
-                'tiempo': r.tiempo_segundos,
-                'orden': r.orden
-            })
-    return jsonify(resultados)
-
-
+# ===== API USUARIOS (PÚBLICAS) =====
 @app.route('/api/registro', methods=['POST'])
 def registro():
     try:
         datos = request.json
-        print(f"📥 Registro: {datos.get('usuario')}")
-        
-        if Usuario.query.filter_by(nombre_usuario=datos['usuario']).first():
+        if not datos:
+            return jsonify({'error': 'Datos inválidos'}), 400
+
+        usuario_val = datos.get('usuario', '').strip()
+        correo_val = datos.get('correo', '').strip()
+        contrasena_val = datos.get('contrasena', '')
+
+        if not usuario_val or not correo_val or not contrasena_val:
+            return jsonify({'error': 'Usuario, correo y contraseña son obligatorios'}), 400
+
+        if Usuario.query.filter_by(nombre_usuario=usuario_val).first():
             return jsonify({'error': 'Usuario ya existe'}), 400
-        if Usuario.query.filter_by(correo=datos['correo']).first():
+        if Usuario.query.filter_by(correo=correo_val).first():
             return jsonify({'error': 'Correo ya registrado'}), 400
-        
-        hashed_password = generate_password_hash(datos['contrasena'])
+
         nuevo_usuario = Usuario(
-            nombre_usuario=datos['usuario'],
-            correo=datos['correo'],
-            contrasena_hash=hashed_password,
+            nombre_usuario=usuario_val,
+            correo=correo_val,
+            contrasena_hash=generate_password_hash(contrasena_val),
             semestre=datos.get('semestre'),
             curso=datos.get('curso'),
             genero=datos.get('genero', 'No especificado'),
@@ -212,19 +212,20 @@ def registro():
         )
         db.session.add(nuevo_usuario)
         db.session.commit()
-        
-        print(f"✅ Usuario creado: {nuevo_usuario.nombre_usuario}")
         return jsonify({'mensaje': 'Registro exitoso', 'id': nuevo_usuario.id}), 201
     except Exception as e:
-        print(f"❌ Error en registro: {e}")
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/login', methods=['POST'])
 def login():
     try:
         datos = request.json
-        usuario = Usuario.query.filter_by(nombre_usuario=datos['usuario']).first()
-        if usuario and check_password_hash(usuario.contrasena_hash, datos['contrasena']):
+        if not datos:
+            return jsonify({'error': 'Datos inválidos'}), 400
+
+        usuario = Usuario.query.filter_by(nombre_usuario=datos.get('usuario', '').strip()).first()
+        if usuario and check_password_hash(usuario.contrasena_hash, datos.get('contrasena', '')):
             session['usuario_id'] = usuario.id
             session['usuario_nombre'] = usuario.nombre_usuario
             return jsonify({
@@ -242,9 +243,9 @@ def logout():
     session.pop('usuario_id', None)
     session.pop('usuario_nombre', None)
     return jsonify({'mensaje': 'Sesión cerrada'})
+
 @app.route('/api/verificar_sesion', methods=['GET'])
 def verificar_sesion():
-    """Verifica si el usuario tiene sesión activa"""
     if session.get('usuario_id'):
         return jsonify({
             'activa': True,
@@ -252,47 +253,178 @@ def verificar_sesion():
             'id': session.get('usuario_id')
         })
     return jsonify({'activa': False}), 401
+
+@app.route('/api/usuario/me', methods=['GET'])
+def get_usuario_me():
+    """Devuelve los datos del usuario con sesión activa."""
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    usuario = Usuario.query.get(session['usuario_id'])
+    if not usuario:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    return jsonify({
+        'id': usuario.id,
+        'nombre_usuario': usuario.nombre_usuario,
+        'correo': usuario.correo,
+        'grupo_asignado': usuario.grupo_asignado,
+        'semestre': usuario.semestre,
+        'curso': usuario.curso,
+        'experiencia_taxonomica': usuario.experiencia_taxonomica,
+        'habilidad_espacial': usuario.habilidad_espacial,
+        'familiaridad_3d': usuario.familiaridad_3d
+    })
+
+@app.route('/api/usuario/me/resultados', methods=['GET'])
+def get_resultados_me():
+    """Devuelve los resultados del usuario con sesión activa."""
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    usuario = Usuario.query.get(session['usuario_id'])
+    if not usuario:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    resultados = []
+    for sesion_exp in usuario.sesiones:
+        for r in sesion_exp.resultados:
+            resultados.append({
+                'sesion_id': sesion_exp.id,
+                'especimen': r.especie_id,
+                'correcta': r.especie_correcta,
+                'seleccionada': r.especie_seleccionada,
+                'acerto': r.es_correcta,
+                'tiempo': r.tiempo_segundos,
+                'orden': r.orden
+            })
+    return jsonify(resultados)
+
+@app.route('/api/usuario/me/encuestas/completadas', methods=['GET'])
+def encuestas_completadas_me():
+    """Verifica encuestas completadas del usuario con sesión activa."""
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    try:
+        sesion_exp = SesionExperimental.query.filter_by(
+            usuario_id=session['usuario_id']
+        ).order_by(SesionExperimental.id.desc()).first()
+
+        if not sesion_exp:
+            return jsonify({
+                'sus_completada': False,
+                'carga_completada': False,
+                'ambas_completadas': False,
+                'sesion_id': None
+            })
+
+        encuestas = ResultadoEncuesta.query.filter_by(sesion_id=sesion_exp.id).all()
+        sus_completada = any(e.tipo == 'SUS' for e in encuestas)
+        carga_completada = any(e.tipo == 'COGNITIVE_LOAD' for e in encuestas)
+
+        return jsonify({
+            'sus_completada': sus_completada,
+            'carga_completada': carga_completada,
+            'ambas_completadas': sus_completada and carga_completada,
+            'sesion_id': sesion_exp.id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Rutas legacy por compatibilidad con HTML existente (redirigen a /me)
+@app.route('/api/usuario/<nombre_usuario>', methods=['GET'])
+def get_usuario_by_nombre(nombre_usuario):
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    usuario = Usuario.query.filter_by(nombre_usuario=nombre_usuario).first()
+    if not usuario:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    if usuario.id != session['usuario_id']:
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+    return jsonify({
+        'id': usuario.id,
+        'nombre_usuario': usuario.nombre_usuario,
+        'correo': usuario.correo,
+        'grupo_asignado': usuario.grupo_asignado,
+        'semestre': usuario.semestre,
+        'curso': usuario.curso,
+        'experiencia_taxonomica': usuario.experiencia_taxonomica,
+        'habilidad_espacial': usuario.habilidad_espacial,
+        'familiaridad_3d': usuario.familiaridad_3d
+    })
+
+@app.route('/api/usuario/<int:usuario_id>/resultados', methods=['GET'])
+def get_resultados_usuario(usuario_id):
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    if usuario_id != session['usuario_id']:
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+    usuario = Usuario.query.get(usuario_id)
+    if not usuario:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    resultados = []
+    for sesion_exp in usuario.sesiones:
+        for r in sesion_exp.resultados:
+            resultados.append({
+                'sesion_id': sesion_exp.id,
+                'especimen': r.especie_id,
+                'correcta': r.especie_correcta,
+                'seleccionada': r.especie_seleccionada,
+                'acerto': r.es_correcta,
+                'tiempo': r.tiempo_segundos,
+                'orden': r.orden
+            })
+    return jsonify(resultados)
+
+@app.route('/api/usuario/<int:usuario_id>/encuestas/completadas', methods=['GET'])
+def encuestas_completadas(usuario_id):
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    if usuario_id != session['usuario_id']:
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+    try:
+        sesion_exp = SesionExperimental.query.filter_by(
+            usuario_id=usuario_id
+        ).order_by(SesionExperimental.id.desc()).first()
+
+        if not sesion_exp:
+            return jsonify({
+                'sus_completada': False,
+                'carga_completada': False,
+                'ambas_completadas': False,
+                'sesion_id': None
+            })
+
+        encuestas = ResultadoEncuesta.query.filter_by(sesion_id=sesion_exp.id).all()
+        sus_completada = any(e.tipo == 'SUS' for e in encuestas)
+        carga_completada = any(e.tipo == 'COGNITIVE_LOAD' for e in encuestas)
+
+        return jsonify({
+            'sus_completada': sus_completada,
+            'carga_completada': carga_completada,
+            'ambas_completadas': sus_completada and carga_completada,
+            'sesion_id': sesion_exp.id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # ===== API ADMIN LOGIN =====
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
     data = request.json
-    password = data.get('password')
-    username = data.get('username')
-    
+    if not data:
+        return jsonify({'error': 'Datos inválidos'}), 400
+
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+
     if username == ADMIN_USER and password == ADMIN_PASSWORD:
         session['admin_logged_in'] = True
         session['admin_user'] = username
         return jsonify({'success': True, 'message': 'Login exitoso'})
-    elif password == ADMIN_PASSWORD:  # Compatibilidad con versión anterior
-        session['admin_logged_in'] = True
-        session['admin_user'] = 'admin'
-        return jsonify({'success': True, 'message': 'Login exitoso'})
-    
-    return jsonify({'success': False, 'error': 'Credenciales incorrectas'}), 401
-        
-    if username:
-        # Modo usuario + contraseña
-        if username == ADMIN_USER and password == ADMIN_PASSWORD:
-            session['admin_logged_in'] = True
-            session['admin_user'] = username
-            return jsonify({'success': True, 'message': 'Login exitoso'})
-    else:
-        # Modo solo contraseña (compatibilidad)
-        if password == ADMIN_PASSWORD:
-            session['admin_logged_in'] = True
-            session['admin_user'] = 'admin'
-            return jsonify({'success': True, 'message': 'Login exitoso'})
-    
+
     return jsonify({'success': False, 'error': 'Credenciales incorrectas'}), 401
 
 @app.route('/api/admin/verificar', methods=['GET'])
 def verificar_admin():
-    """Verifica si el administrador tiene sesión activa"""
     if session.get('admin_logged_in'):
-        return jsonify({
-            'authenticated': True,
-            'user': session.get('admin_user')
-        })
+        return jsonify({'authenticated': True, 'user': session.get('admin_user')})
     return jsonify({'authenticated': False}), 401
 
 @app.route('/api/admin/logout', methods=['POST'])
@@ -307,16 +439,17 @@ def admin_logout():
 def get_usuarios():
     usuarios = Usuario.query.all()
     return jsonify([{
-        'id': u.id, 
-        'nombre_usuario': u.nombre_usuario, 
+        'id': u.id,
+        'nombre_usuario': u.nombre_usuario,
         'correo': u.correo,
-        'semestre': u.semestre, 
-        'curso': u.curso, 
+        'semestre': u.semestre,
+        'curso': u.curso,
         'genero': u.genero,
         'experiencia_taxonomica': u.experiencia_taxonomica,
         'habilidad_espacial': u.habilidad_espacial,
         'familiaridad_3d': u.familiaridad_3d,
-        'grupo_asignado': u.grupo_asignado
+        'grupo_asignado': u.grupo_asignado,
+        'fecha_registro': u.fecha_registro.isoformat() if u.fecha_registro else None
     } for u in usuarios])
 
 @app.route('/api/admin/asignar_grupo', methods=['POST'])
@@ -324,30 +457,49 @@ def get_usuarios():
 def asignar_grupo():
     try:
         data = request.json
+        grupos_validos = ['2D', '2D_META', '3D', '3D_META']
+        if data.get('grupo') not in grupos_validos:
+            return jsonify({'error': 'Grupo inválido'}), 400
         usuario = Usuario.query.get(data['usuario_id'])
-        if usuario:
-            usuario.grupo_asignado = data['grupo']
-            db.session.commit()
-            return jsonify({'mensaje': f'Grupo {data["grupo"]} asignado'})
-        return jsonify({'error': 'Usuario no encontrado'}), 404
+        if not usuario:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        usuario.grupo_asignado = data['grupo']
+        db.session.commit()
+        return jsonify({'mensaje': f'Grupo {data["grupo"]} asignado a {usuario.nombre_usuario}'})
     except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/asignar_grupo_lote', methods=['POST'])
+@admin_required
+def asignar_grupo_lote():
+    """Asigna grupos automáticamente en rotación a usuarios sin grupo."""
+    try:
+        usuarios_sin_grupo = Usuario.query.filter_by(grupo_asignado=None).all()
+        grupos = ['2D', '2D_META', '3D', '3D_META']
+        asignados = 0
+        for i, u in enumerate(usuarios_sin_grupo):
+            u.grupo_asignado = grupos[i % len(grupos)]
+            asignados += 1
+        db.session.commit()
+        return jsonify({'mensaje': f'{asignados} usuarios asignados en rotación'})
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/config/especies', methods=['GET'])
 @admin_required
 def get_especies_config():
-    especies_activas = get_especies_activas()
-    return jsonify({
-        'todas': POOL_ESPECIES,
-        'activas': especies_activas
-    })
+    return jsonify({'todas': POOL_ESPECIES, 'activas': get_especies_activas()})
 
 @app.route('/api/admin/config/especies', methods=['POST'])
 @admin_required
 def set_especies_config():
     try:
         data = request.json
-        set_especies_activas(data['activas'])
+        ids_validos = [e['id'] for e in POOL_ESPECIES]
+        activas = [e for e in data.get('activas', []) if e in ids_validos]
+        set_especies_activas(activas)
         return jsonify({'mensaje': 'Configuración actualizada'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -355,15 +507,14 @@ def set_especies_config():
 @app.route('/api/admin/datos', methods=['GET'])
 @admin_required
 def ver_datos():
-    """Devuelve todos los resultados de identificación"""
     resultados = []
-    for sesion in SesionExperimental.query.all():
-        usuario = Usuario.query.get(sesion.usuario_id)
-        for r in sesion.resultados:
+    for sesion_exp in SesionExperimental.query.all():
+        usuario = Usuario.query.get(sesion_exp.usuario_id)
+        for r in sesion_exp.resultados:
             resultados.append({
                 'usuario': usuario.nombre_usuario if usuario else 'desconocido',
-                'sesion_id': sesion.id,
-                'grupo': sesion.grupo,
+                'sesion_id': sesion_exp.id,
+                'grupo': sesion_exp.grupo,
                 'especimen': r.especie_id,
                 'correcta': r.especie_correcta,
                 'seleccionada': r.especie_seleccionada,
@@ -376,50 +527,34 @@ def ver_datos():
 @app.route('/api/admin/encuestas', methods=['GET'])
 @admin_required
 def get_encuestas():
-    """Devuelve todas las encuestas para análisis SUS y carga cognitiva"""
     try:
-        print("🔍 Consultando encuestas...")
         encuestas = []
         for enc in ResultadoEncuesta.query.all():
-            sesion = SesionExperimental.query.get(enc.sesion_id)
-            grupo = sesion.grupo if sesion else None
-            
-            # Parsear respuestas JSON - puede ser dict, list, o string
+            sesion_exp = SesionExperimental.query.get(enc.sesion_id)
+            grupo = sesion_exp.grupo if sesion_exp else None
+
             sus_total = None
             carga_intrinseca = None
             carga_extrinseca = None
             carga_germana = None
-            
+
             if enc.respuestas_json:
                 try:
                     parsed = json.loads(enc.respuestas_json)
-                    
-                    # Si es una lista (formato antiguo)
-                    if isinstance(parsed, list):
-                        if enc.tipo == 'SUS' and len(parsed) >= 10:
-                            # Calcular SUS a partir de la lista
-                            score = 0
-                            for i in range(10):
-                                if i % 2 == 0:
-                                    score += parsed[i] - 1
-                                else:
-                                    score += 5 - parsed[i]
-                            sus_total = score * 2.5
-                        elif enc.tipo == 'COGNITIVE_LOAD' and len(parsed) >= 10:
+                    if enc.tipo == 'SUS':
+                        sus_total = calcular_sus(parsed)
+                    elif enc.tipo == 'COGNITIVE_LOAD':
+                        if isinstance(parsed, list) and len(parsed) >= 10:
                             carga_intrinseca = sum(parsed[0:4])
                             carga_extrinseca = sum(parsed[4:8])
                             carga_germana = sum(parsed[8:10])
-                    
-                    # Si es un diccionario (formato nuevo)
-                    elif isinstance(parsed, dict):
-                        sus_total = parsed.get('sus_total')
-                        carga_intrinseca = parsed.get('carga_intrinseca')
-                        carga_extrinseca = parsed.get('carga_extrinseca')
-                        carga_germana = parsed.get('carga_germana')
-                        
-                except Exception as e:
-                    print(f"Error parseando JSON: {e}")
-            
+                        elif isinstance(parsed, dict):
+                            carga_intrinseca = parsed.get('carga_intrinseca')
+                            carga_extrinseca = parsed.get('carga_extrinseca')
+                            carga_germana = parsed.get('carga_germana')
+                except Exception:
+                    pass
+
             encuestas.append({
                 'id': enc.id,
                 'sesion_id': enc.sesion_id,
@@ -431,13 +566,43 @@ def get_encuestas():
                 'carga_extrinseca': carga_extrinseca,
                 'carga_germana': carga_germana,
             })
-        print(f"✅ Total encuestas: {len(encuestas)}")
         return jsonify(encuestas)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"❌ Error en get_encuestas: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/reflexiones', methods=['GET'])
+@admin_required
+def get_reflexiones():
+    try:
+        reflexiones = []
+        for ref in ReflexionMetacognitiva.query.all():
+            sesion_exp = SesionExperimental.query.get(ref.sesion_id)
+            if not sesion_exp:
+                continue
+            usuario = Usuario.query.get(sesion_exp.usuario_id)
+            if not usuario:
+                continue
+
+            respuesta = ref.respuesta or ''
+            datos = {
+                'id': ref.id,
+                'usuario': usuario.nombre_usuario,
+                'grupo': sesion_exp.grupo,
+                'momento': ref.momento,
+                'pregunta': ref.pregunta,
+                'respuesta_raw': respuesta,
+                'timestamp': ref.timestamp.isoformat() if ref.timestamp else None
+            }
+
+            numeros = re.findall(r'(\d+)%', respuesta)
+            for i, num in enumerate(numeros[:3], 1):
+                datos[f'valor{i}'] = int(num)
+
+            reflexiones.append(datos)
+        return jsonify(reflexiones)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/usuarios/<int:usuario_id>', methods=['DELETE'])
 @admin_required
 def eliminar_usuario(usuario_id):
@@ -445,39 +610,64 @@ def eliminar_usuario(usuario_id):
         usuario = Usuario.query.get(usuario_id)
         if not usuario:
             return jsonify({'error': 'Usuario no encontrado'}), 404
-        
-        # Eliminar reflexiones de las sesiones del usuario
-        for sesion in usuario.sesiones:
-            ReflexionMetacognitiva.query.filter_by(sesion_id=sesion.id).delete()
-            ResultadoEncuesta.query.filter_by(sesion_id=sesion.id).delete()
-            ResultadoIdentificacion.query.filter_by(sesion_id=sesion.id).delete()
-                # Eliminar las sesiones
+        for sesion_exp in usuario.sesiones:
+            ReflexionMetacognitiva.query.filter_by(sesion_id=sesion_exp.id).delete()
+            ResultadoEncuesta.query.filter_by(sesion_id=sesion_exp.id).delete()
+            ResultadoIdentificacion.query.filter_by(sesion_id=sesion_exp.id).delete()
         SesionExperimental.query.filter_by(usuario_id=usuario_id).delete()
-        
-        # Eliminar el usuario
         db.session.delete(usuario)
         db.session.commit()
-        
-        return jsonify({'mensaje': 'Usuario eliminado correctamente'}), 200
+        return jsonify({'mensaje': 'Usuario eliminado correctamente'})
     except Exception as e:
         db.session.rollback()
-        print(f"Error eliminando usuario: {e}")
-        return jsonify({'error': str(e)}), 500        
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/exportar_csv', methods=['GET'])
+@admin_required
+def exportar_csv():
+    """Exporta todos los resultados como CSV."""
+    from io import StringIO
+    import csv
+    from flask import Response
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['usuario', 'grupo', 'sesion_id', 'especimen',
+                     'especie_correcta', 'especie_seleccionada', 'acerto', 'tiempo_s'])
+
+    for sesion_exp in SesionExperimental.query.all():
+        usuario = Usuario.query.get(sesion_exp.usuario_id)
+        nombre = usuario.nombre_usuario if usuario else 'desconocido'
+        for r in sesion_exp.resultados:
+            writer.writerow([
+                nombre, sesion_exp.grupo, sesion_exp.id,
+                r.especie_id, r.especie_correcta, r.especie_seleccionada,
+                r.es_correcta, r.tiempo_segundos
+            ])
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=resultados_linepithema.csv'}
+    )
+
 # ===== API EXPERIMENTO =====
 @app.route('/api/experimento/iniciar', methods=['POST'])
 def iniciar_experimento():
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
     try:
         data = request.json
-        usuario = Usuario.query.get(data['usuario_id'])
+        usuario_id = session['usuario_id']
+        usuario = Usuario.query.get(usuario_id)
         if not usuario:
             return jsonify({'error': 'Usuario no encontrado'}), 404
-        
-        # Obtener pool de especímenes basado en especies activas
+
         pool = get_pool_especimenes()
-        
-        # Seleccionar 2 especímenes aleatorios
+        if len(pool) < 2:
+            return jsonify({'error': 'No hay suficientes especímenes activos'}), 400
+
         especimenes = random.sample(pool, 2)
-        
         nueva_sesion = SesionExperimental(
             usuario_id=usuario.id,
             grupo=usuario.grupo_asignado,
@@ -486,18 +676,19 @@ def iniciar_experimento():
         )
         db.session.add(nueva_sesion)
         db.session.commit()
-        
         return jsonify({
             'sesion_id': nueva_sesion.id,
             'especimenes': especimenes,
             'grupo': usuario.grupo_asignado
         })
     except Exception as e:
-        print(f"❌ Error iniciando sesión: {e}")
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/experimento/guardar_resultado', methods=['POST'])
 def guardar_resultado():
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
     try:
         data = request.json
         resultado = ResultadoIdentificacion(
@@ -513,10 +704,13 @@ def guardar_resultado():
         db.session.commit()
         return jsonify({'mensaje': 'Resultado guardado'})
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/experimento/guardar_reflexion', methods=['POST'])
 def guardar_reflexion():
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
     try:
         data = request.json
         reflexion = ReflexionMetacognitiva(
@@ -529,121 +723,38 @@ def guardar_reflexion():
         db.session.commit()
         return jsonify({'mensaje': 'Reflexión guardada'})
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/experimento/guardar_encuesta', methods=['POST'])
 def guardar_encuesta():
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
     try:
         data = request.json
         respuestas = data['respuestas']
-        
-        # Calcular SUS si es el caso y no viene puntaje
+        tipo = data['tipo']
+
         puntaje_total = data.get('puntaje_total')
-        if data['tipo'] == 'SUS' and not puntaje_total:
-            # Cálculo básico SUS (formato estándar: preguntas 1-10)
-            if isinstance(respuestas, dict):
-                valores = [int(v) for v in respuestas.values() if str(v).isdigit()]
-                if len(valores) == 10:
-                    # Fórmula SUS: (suma de impares - 5) + (25 - suma de pares) * 2.5
-                    suma_impares = sum(valores[i] for i in range(0, 10, 2))
-                    suma_pares = sum(valores[i] for i in range(1, 10, 2))
-                    puntaje_total = ((suma_impares - 5) + (25 - suma_pares)) * 2.5
-                    puntaje_total = max(0, min(100, puntaje_total))
-        
+        if tipo == 'SUS' and not puntaje_total:
+            puntaje_total = calcular_sus(respuestas)
+
         encuesta = ResultadoEncuesta(
             sesion_id=data['sesion_id'],
-            tipo=data['tipo'],
+            tipo=tipo,
             respuestas_json=json.dumps(respuestas),
             puntaje_total=puntaje_total
         )
         db.session.add(encuesta)
         db.session.commit()
-        return jsonify({'mensaje': 'Encuesta guardada'})
+        return jsonify({'mensaje': 'Encuesta guardada', 'puntaje': puntaje_total})
     except Exception as e:
-        print(f"❌ Error guardando encuesta: {e}")
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
-@app.route('/api/usuario/<int:usuario_id>/encuestas/completadas', methods=['GET'])
-def encuestas_completadas(usuario_id):
-    try:
-        # Obtener la última sesión del usuario
-        sesion = SesionExperimental.query.filter_by(usuario_id=usuario_id).order_by(SesionExperimental.id.desc()).first()
-        
-        if not sesion:
-            return jsonify({
-                'sus_completada': False,
-                'carga_completada': False,
-                'ambas_completadas': False,
-                'sesion_id': None
-            })
-        
-        # Verificar encuestas de esa sesión
-        encuestas = ResultadoEncuesta.query.filter_by(sesion_id=sesion.id).all()
-        sus_completada = any(e.tipo == 'SUS' for e in encuestas)
-        carga_completada = any(e.tipo == 'COGNITIVE_LOAD' for e in encuestas)
-        
-        return jsonify({
-            'sus_completada': sus_completada,
-            'carga_completada': carga_completada,
-            'ambas_completadas': sus_completada and carga_completada,
-            'sesion_id': sesion.id
-        })
-    except Exception as e:
-        print(f"Error en encuestas_completadas: {e}")
-        return jsonify({'error': str(e)}), 500      
-@app.route('/api/admin/reflexiones', methods=['GET'])
-@admin_required
-def get_reflexiones():
-    """Devuelve todas las reflexiones metacognitivas para análisis"""
-    try:
-        reflexiones = []
-        for ref in ReflexionMetacognitiva.query.all():
-            # Obtener información de la sesión y usuario
-            sesion = SesionExperimental.query.get(ref.sesion_id)
-            if not sesion:
-                continue
-            
-            usuario = Usuario.query.get(sesion.usuario_id)
-            if not usuario:
-                continue
-            
-            # Parsear la respuesta (formato: "Clave: valor | Clave2: valor2")
-            respuesta = ref.respuesta or ""
-            
-            # Extraer valores numéricos según el momento
-            datos = {
-                'id': ref.id,
-                'usuario': usuario.nombre_usuario,
-                'grupo': sesion.grupo,
-                'momento': ref.momento,
-                'pregunta': ref.pregunta,
-                'respuesta_raw': respuesta,
-                'timestamp': ref.timestamp.isoformat() if ref.timestamp else None
-            }
-            
-            # Extraer valores específicos según el tipo de reflexión
-            if 'conocimiento' in respuesta.lower() or 'Confianza' in respuesta or 'seguro' in respuesta:
-                import re
-                numeros = re.findall(r'(\d+)%', respuesta)
-                if len(numeros) >= 1:
-                    datos['valor1'] = int(numeros[0])
-                if len(numeros) >= 2:
-                    datos['valor2'] = int(numeros[1])
-                if len(numeros) >= 3:
-                    datos['valor3'] = int(numeros[2])
-            
-            reflexiones.append(datos)
-        
-        return jsonify(reflexiones)
-    except Exception as e:
-        print(f"❌ Error en get_reflexiones: {e}")
-        return jsonify({'error': str(e)}), 500    
-# ===== INICIALIZACIÓN =====
+
+# ===== ARRANQUE =====
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        # Configurar especies activas por defecto (las primeras 4)
-        set_especies_activas([e['id'] for e in POOL_ESPECIES[:4]])
-        print("✅ Base de datos lista")
-        print("🚀 Servidor en http://127.0.0.1:5000")
-        print("🔐 Admin login: admin / admin123")
+        set_especies_activas([e['id'] for e in POOL_ESPECIES if e['activa']])
     app.run(debug=False, port=5000)

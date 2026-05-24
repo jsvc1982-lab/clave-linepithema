@@ -10,75 +10,80 @@
         *{margin:0;padding:0;box-sizing:border-box;}
         body{background:#0A0E17;color:#E0E0E0;font-family:'Segoe UI',sans-serif;padding:20px;}
         .container{max-width:1400px;margin:0 auto;}
-        h1{background:linear-gradient(45deg,#00D4FF,#7B61FF);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-        .subtitle{color:#A0A0B0;margin-bottom:30px;border-bottom:1px solid #00D4FF30;padding-bottom:10px;}
-        .tabs{display:flex;gap:10px;margin-bottom:25px;flex-wrap:wrap;}
-        .tab{padding:12px 25px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;cursor:pointer;font-weight:600;}
+        h1{background:linear-gradient(45deg,#00D4FF,#7B61FF);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-size:1.8rem;}
+        .subtitle{color:#A0A0B0;margin-bottom:25px;border-bottom:1px solid #00D4FF30;padding-bottom:10px;font-size:0.9rem;}
+        .tabs{display:flex;gap:8px;margin-bottom:25px;flex-wrap:wrap;}
+        .tab{padding:10px 20px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.9rem;transition:all 0.2s;}
+        .tab:hover{border-color:#00D4FF80;}
         .tab.active{background:linear-gradient(45deg,#00D4FF20,#7B61FF20);border-color:#00D4FF;color:#00D4FF;}
-        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:25px;}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-bottom:25px;}
         .stat-card{background:#121826;border:1px solid #00D4FF40;border-radius:15px;padding:20px;text-align:center;}
         .stat-number{font-size:2rem;font-weight:bold;color:#00D4FF;}
+        .stat-label{color:#A0A0B0;font-size:0.85rem;margin-top:6px;}
         .card{background:#121826;border:1px solid #00D4FF40;border-radius:15px;padding:25px;margin-bottom:25px;}
-        .card-title{color:#00D4FF;border-bottom:1px solid #00D4FF30;padding-bottom:10px;margin-bottom:20px;}
-        .table-container{background:#121826;border:1px solid #00D4FF40;border-radius:15px;padding:20px;overflow-x:auto;}
+        .card-title{color:#00D4FF;border-bottom:1px solid #00D4FF30;padding-bottom:10px;margin-bottom:20px;font-weight:bold;}
+        .table-wrap{overflow-x:auto;}
         table{width:100%;border-collapse:collapse;}
-        th{text-align:left;padding:12px;background:#1A1F36;color:#00D4FF;}
-        td{padding:10px 12px;border-bottom:1px solid #1A1F36;}
-        .badge{padding:4px 8px;border-radius:12px;font-size:0.8rem;}
+        th{text-align:left;padding:12px;background:#1A1F36;color:#00D4FF;font-size:0.85rem;}
+        td{padding:10px 12px;border-bottom:1px solid #1A1F36;font-size:0.85rem;}
+        .badge{padding:3px 8px;border-radius:12px;font-size:0.78rem;}
         .badge-2d{background:#00D4FF20;color:#00D4FF;}
         .badge-2d-meta{background:#00D4FF40;color:#00D4FF;}
         .badge-3d{background:#7B61FF20;color:#7B61FF;}
         .badge-3d-meta{background:#7B61FF40;color:#7B61FF;}
-        .btn-group{display:flex;gap:5px;flex-wrap:wrap;}
-        .btn-small{padding:6px 12px;font-size:0.8rem;border:none;border-radius:5px;cursor:pointer;}
+        .badge-sin{background:#FFAA0020;color:#FFAA00;}
+        .btn-group{display:flex;gap:4px;flex-wrap:wrap;}
+        .btn-sm{padding:5px 10px;font-size:0.78rem;border:none;border-radius:5px;cursor:pointer;font-weight:600;}
         .btn-2d{background:#00D4FF;color:#0A0E17;}
         .btn-2d-meta{background:#00D4FF80;color:#0A0E17;}
         .btn-3d{background:#7B61FF;color:white;}
         .btn-3d-meta{background:#7B61FF80;color:white;}
         .btn-danger{background:#FF375F;color:white;}
-        .export-buttons{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
-        .btn{padding:12px 24px;border:none;border-radius:8px;font-weight:600;cursor:pointer;}
+        .toolbar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+        .btn{padding:10px 20px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9rem;transition:all 0.2s;}
+        .btn:hover{transform:translateY(-2px);}
         .btn-primary{background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;}
         .btn-secondary{background:#1A1F36;border:1px solid #00D4FF40;color:#00D4FF;}
-        .btn:hover{transform:translateY(-2px);}
+        .btn-success{background:#00D4FF20;border:1px solid #00D4FF40;color:#00D4FF;}
+        .search-input{padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;font-size:0.9rem;width:250px;}
+        .search-input:focus{outline:none;border-color:#00D4FF;}
         .mensaje-flotante{position:fixed;bottom:20px;right:20px;background:#00D4FF;color:#0A0E17;padding:12px 20px;border-radius:8px;font-weight:bold;z-index:1000;animation:fadeOut 3s forwards;}
         @keyframes fadeOut{0%{opacity:1;}70%{opacity:1;}100%{opacity:0;}}
         .especies-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:15px;}
-        .especie-card{background:#1A1F36;border:2px solid #1A1F36;border-radius:10px;padding:15px;cursor:pointer;display:flex;align-items:center;gap:10px;}
+        .especie-card{background:#1A1F36;border:2px solid #1A1F36;border-radius:10px;padding:15px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all 0.2s;}
+        .especie-card:hover{border-color:#00D4FF80;}
         .especie-card.active{border-color:#00D4FF;background:linear-gradient(135deg,#00D4FF10,#7B61FF10);}
-        @media (max-width:800px){.charts-grid{grid-template-columns:1fr;}}
+        @media(max-width:800px){.charts-grid{grid-template-columns:1fr;}}
     </style>
 </head>
 <body>
 <div class="container">
     <h1>📊 Panel de Administración</h1>
-    <div class="subtitle">Gestión de participantes y análisis de resultados</div>
+    <div class="subtitle">Gestión de participantes y análisis de resultados — Clave Linepithema</div>
 
-    <!-- FIX: data-tab attribute para selección robusta de pestañas -->
     <div class="tabs">
-        <div class="tab active" data-tab="usuarios" onclick="cambiarTab('usuarios')">👥 Usuarios</div>
-        <div class="tab" data-tab="especies" onclick="cambiarTab('especies')">🔬 Especies Activas</div>
-        <div class="tab" data-tab="estadisticas" onclick="cambiarTab('estadisticas')">📊 Estadísticas</div>
-        <div class="tab" data-tab="graficos" onclick="cambiarTab('graficos')">📈 Gráficos</div>
-        <div class="tab" data-tab="analisis" onclick="cambiarTab('analisis')">📉 Análisis Estadístico</div>
-        <div class="tab" data-tab="detalles" onclick="cambiarTab('detalles')">🔍 Resultados Detallados</div>
-        <div class="tab" data-tab="estadisticas_estudiante" onclick="cambiarTab('estadisticas_estudiante')">📋 Estadísticas por Estudiante</div>
-        <div class="tab" data-tab="reflexiones" onclick="cambiarTab('reflexiones')">🧠 Reflexiones Metacognitivas</div>
+        <div class="tab active" data-tab="usuarios"    onclick="cambiarTab('usuarios')">👥 Usuarios</div>
+        <div class="tab"        data-tab="especies"    onclick="cambiarTab('especies')">🔬 Especies</div>
+        <div class="tab"        data-tab="estadisticas" onclick="cambiarTab('estadisticas')">📊 Estadísticas</div>
+        <div class="tab"        data-tab="graficos"    onclick="cambiarTab('graficos')">📈 Gráficos</div>
+        <div class="tab"        data-tab="analisis"    onclick="cambiarTab('analisis')">📉 Análisis</div>
+        <div class="tab"        data-tab="detalles"    onclick="cambiarTab('detalles')">🔍 Resultados</div>
+        <div class="tab"        data-tab="reflexiones" onclick="cambiarTab('reflexiones')">🧠 Reflexiones</div>
     </div>
 
-    <div class="export-buttons">
-        <button class="btn btn-primary" onclick="exportarExcel()">📊 Exportar a Excel</button>
-        <button class="btn btn-secondary" onclick="exportarCSV()">📥 Exportar CSV</button>
-        <button class="btn btn-secondary" onclick="exportarJSON()">📥 Exportar JSON</button>
-        <button class="btn btn-secondary" onclick="exportarReporteHTML()">📄 Ver Reporte HTML</button>
-        <button class="btn btn-primary" onclick="window.location.href='/estadisticas'">📊 Estadísticas Avanzadas</button>
+    <div class="toolbar">
+        <button class="btn btn-primary"   onclick="exportarExcel()">📊 Excel</button>
+        <button class="btn btn-secondary" onclick="exportarCSVServidor()">📥 CSV (servidor)</button>
+        <button class="btn btn-secondary" onclick="exportarJSON()">📥 JSON</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/estadisticas'">📊 Estadísticas avanzadas</button>
+        <button class="btn btn-danger"    onclick="cerrarSesionAdmin()" style="background:#FF375F20;border:1px solid #FF375F40;color:#FF375F;">🔓 Cerrar sesión</button>
     </div>
 
     <div id="tabContent"></div>
 </div>
 
 <script>
-    let usuarios = [], especiesConfig = { todas: [], activas: [] }, resultados = [], encuestas = [], reflexiones = [];
+    let usuarios = [], especiesConfig = { todas:[], activas:[] }, resultados = [], encuestas = [], reflexiones = [];
 
     document.addEventListener('DOMContentLoaded', () => {
         Promise.all([
@@ -90,330 +95,378 @@
         ]).then(([u, e, r, ec, ref]) => {
             usuarios = u; especiesConfig = e; resultados = r; encuestas = ec; reflexiones = ref;
             cambiarTab('usuarios');
-        }).catch(e => console.error(e));
+        }).catch(err => {
+            document.getElementById('tabContent').innerHTML =
+                '<div style="padding:40px;text-align:center;color:#FF375F;">❌ Error cargando datos. Verifica que estás autenticado.</div>';
+        });
     });
 
-    function mostrarMensaje(m, c) {
-        let d = document.createElement('div');
+    function mostrarMensaje(m, c='#00D4FF') {
+        const d = document.createElement('div');
         d.className = 'mensaje-flotante';
         d.textContent = m;
         d.style.background = c;
         document.body.appendChild(d);
-        setTimeout(() => d.remove(), 3000);
+        setTimeout(() => d.remove(), 3500);
     }
 
-    // FIX: usa data-tab para activar la pestaña correcta, sin depender del texto
     function cambiarTab(tab) {
-        document.querySelectorAll('.tab').forEach(t => {
-            t.classList.toggle('active', t.dataset.tab === tab);
-        });
-
-        if (tab === 'usuarios') mostrarUsuarios();
-        else if (tab === 'especies') mostrarEspecies();
-        else if (tab === 'estadisticas') mostrarEstadisticas();
-        else if (tab === 'graficos') mostrarGraficos();
-        else if (tab === 'analisis') mostrarAnalisisEstadistico();
-        else if (tab === 'detalles') mostrarResultadosDetallados();
-        else if (tab === 'estadisticas_estudiante') mostrarEstadisticasEstudiante();
-        else if (tab === 'reflexiones') mostrarReflexiones();
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+        const acciones = {
+            'usuarios':     mostrarUsuarios,
+            'especies':     mostrarEspecies,
+            'estadisticas': mostrarEstadisticas,
+            'graficos':     mostrarGraficos,
+            'analisis':     mostrarAnalisisEstadistico,
+            'detalles':     mostrarResultadosDetallados,
+            'reflexiones':  mostrarReflexiones
+        };
+        if (acciones[tab]) acciones[tab]();
     }
 
+    // ===== USUARIOS =====
     function mostrarUsuarios() {
-        let html = `<div class="stats-grid">
-            <div class="stat-card"><div class="stat-number">${usuarios.length}</div><div class="stat-label">Total</div></div>
-            <div class="stat-card"><div class="stat-number">${usuarios.filter(u => !u.grupo_asignado).length}</div><div class="stat-label">Pendientes</div></div>
-        </div>
-        <div class="table-container"><table><thead><tr><th>ID</th><th>Usuario</th><th>Correo</th><th>Sem.</th><th>Curso</th><th>Exp.</th><th>Hab.Esp</th><th>Grupo</th><th>Acciones</th></tr></thead><tbody id="tbodyUsuarios"></tbody></table></div>`;
-        document.getElementById('tabContent').innerHTML = html;
-        const tbody = document.getElementById('tbodyUsuarios');
-        tbody.innerHTML = usuarios.map(u => {
-            let badge = '', text = u.grupo_asignado || 'Pendiente';
-            if (u.grupo_asignado === '2D') badge = 'badge-2d';
-            else if (u.grupo_asignado === '2D_META') badge = 'badge-2d-meta';
-            else if (u.grupo_asignado === '3D') badge = 'badge-3d';
-            else if (u.grupo_asignado === '3D_META') badge = 'badge-3d-meta';
-            let btns = !u.grupo_asignado
-                ? `<div class="btn-group"><button class="btn-small btn-2d" onclick="asignarGrupo(${u.id},'2D')">2D</button><button class="btn-small btn-2d-meta" onclick="asignarGrupo(${u.id},'2D_META')">2D+M</button><button class="btn-small btn-3d" onclick="asignarGrupo(${u.id},'3D')">3D</button><button class="btn-small btn-3d-meta" onclick="asignarGrupo(${u.id},'3D_META')">3D+M</button><button class="btn-small btn-danger" onclick="eliminarUsuario(${u.id})">🗑️</button></div>`
-                : `<button class="btn-small btn-danger" onclick="eliminarUsuario(${u.id})">🗑️</button>`;
-            return `<tr><td>${u.id}</td><td><strong>${u.nombre_usuario}</strong></td><td>${u.correo}</td><td>${u.semestre || '-'}</td><td>${u.curso || '-'}</td><td>${u.experiencia_taxonomica || '-'}/5</td><td>${u.habilidad_espacial || '-'}/20</td><td><span class="badge ${badge}">${text}</span></td><td>${btns}</td></tr>`;
+        const pendientes = usuarios.filter(u => !u.grupo_asignado).length;
+        document.getElementById('tabContent').innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-number">${usuarios.length}</div><div class="stat-label">Total usuarios</div></div>
+                <div class="stat-card"><div class="stat-number">${pendientes}</div><div class="stat-label">Sin grupo</div></div>
+                <div class="stat-card"><div class="stat-number">${usuarios.length - pendientes}</div><div class="stat-label">Con grupo</div></div>
+            </div>
+            <div class="card">
+                <div class="card-title">👥 Usuarios registrados</div>
+                <div class="toolbar">
+                    <input class="search-input" type="text" id="buscarUsuario" placeholder="🔍 Buscar por nombre o correo..." oninput="filtrarTabla()">
+                    <button class="btn btn-success" onclick="asignarGrupoLote()">⚡ Asignar grupos automáticamente</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr>
+                            <th>ID</th><th>Usuario</th><th>Correo</th><th>Sem.</th><th>Curso</th>
+                            <th>Exp.</th><th>Hab.Esp.</th><th>Género</th><th>Grupo</th><th>Acciones</th>
+                        </tr></thead>
+                        <tbody id="tbodyUsuarios"></tbody>
+                    </table>
+                </div>
+            </div>`;
+        renderTablaUsuarios(usuarios);
+    }
+
+    function renderTablaUsuarios(lista) {
+        document.getElementById('tbodyUsuarios').innerHTML = lista.map(u => {
+            const badgeClass = {'2D':'badge-2d','2D_META':'badge-2d-meta','3D':'badge-3d','3D_META':'badge-3d-meta'}[u.grupo_asignado] || 'badge-sin';
+            const texto = u.grupo_asignado || 'Pendiente';
+            const btns = !u.grupo_asignado
+                ? `<div class="btn-group">
+                    <button class="btn-sm btn-2d"      onclick="asignarGrupo(${u.id},'2D')">2D</button>
+                    <button class="btn-sm btn-2d-meta" onclick="asignarGrupo(${u.id},'2D_META')">2D+M</button>
+                    <button class="btn-sm btn-3d"      onclick="asignarGrupo(${u.id},'3D')">3D</button>
+                    <button class="btn-sm btn-3d-meta" onclick="asignarGrupo(${u.id},'3D_META')">3D+M</button>
+                    <button class="btn-sm btn-danger"  onclick="eliminarUsuario(${u.id})">🗑️</button>
+                   </div>`
+                : `<div class="btn-group">
+                    <button class="btn-sm btn-danger" onclick="eliminarUsuario(${u.id})">🗑️</button>
+                   </div>`;
+            return `<tr>
+                <td>${u.id}</td>
+                <td><strong>${u.nombre_usuario}</strong></td>
+                <td>${u.correo}</td>
+                <td>${u.semestre || '—'}</td>
+                <td>${u.curso || '—'}</td>
+                <td>${u.experiencia_taxonomica ?? '—'}/5</td>
+                <td>${u.habilidad_espacial ?? '—'}/20</td>
+                <td>${u.genero || '—'}</td>
+                <td><span class="badge ${badgeClass}">${texto}</span></td>
+                <td>${btns}</td>
+            </tr>`;
         }).join('');
     }
 
-    async function asignarGrupo(id, g) {
-        if (!confirm(`¿Asignar al grupo ${g}?`)) return;
-        await fetch('/api/admin/asignar_grupo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario_id: id, grupo: g }) });
-        mostrarMensaje(`✅ Grupo ${g} asignado`, '#00D4FF');
-        location.reload();
+    function filtrarTabla() {
+        const q = document.getElementById('buscarUsuario').value.toLowerCase();
+        const filtrados = usuarios.filter(u =>
+            u.nombre_usuario.toLowerCase().includes(q) ||
+            u.correo.toLowerCase().includes(q)
+        );
+        renderTablaUsuarios(filtrados);
+    }
+
+    async function asignarGrupo(id, grupo) {
+        if (!confirm(`¿Asignar al grupo ${grupo}?`)) return;
+        const res = await fetch('/api/admin/asignar_grupo', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ usuario_id: id, grupo })
+        });
+        if (res.ok) {
+            mostrarMensaje(`✅ Grupo ${grupo} asignado`);
+            const u = usuarios.find(u => u.id === id);
+            if (u) u.grupo_asignado = grupo;
+            renderTablaUsuarios(usuarios);
+        } else {
+            mostrarMensaje('❌ Error al asignar grupo', '#FF375F');
+        }
+    }
+
+    async function asignarGrupoLote() {
+        const pendientes = usuarios.filter(u => !u.grupo_asignado).length;
+        if (pendientes === 0) { mostrarMensaje('ℹ️ Todos los usuarios ya tienen grupo asignado'); return; }
+        if (!confirm(`¿Asignar grupos en rotación automática a ${pendientes} usuarios sin grupo?`)) return;
+        const res = await fetch('/api/admin/asignar_grupo_lote', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje(`✅ ${data.mensaje}`);
+            // Recargar usuarios
+            const u = await fetch('/api/admin/usuarios').then(r => r.json());
+            usuarios = u;
+            mostrarUsuarios();
+        } else {
+            mostrarMensaje('❌ Error en asignación', '#FF375F');
+        }
     }
 
     async function eliminarUsuario(id) {
-        if (!confirm('¿Eliminar usuario? Se pierden TODOS sus datos.')) return;
-        await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' });
-        mostrarMensaje('✅ Usuario eliminado', '#00D4FF');
-        location.reload();
+        const u = usuarios.find(u => u.id === id);
+        if (!confirm(`¿Eliminar a "${u?.nombre_usuario}"? Se perderán TODOS sus datos.`)) return;
+        const res = await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            mostrarMensaje('✅ Usuario eliminado');
+            usuarios = usuarios.filter(u => u.id !== id);
+            renderTablaUsuarios(usuarios);
+        } else {
+            mostrarMensaje('❌ Error al eliminar', '#FF375F');
+        }
     }
 
+    // ===== ESPECIES =====
     function mostrarEspecies() {
-        document.getElementById('tabContent').innerHTML = `<div class="card"><div class="card-title">🔬 Selecciona especies activas</div><div id="especiesGrid" class="especies-grid"></div><div style="display:flex;gap:15px;margin-top:20px;"><button class="btn btn-primary" onclick="guardarEspecies()">💾 Guardar</button><button class="btn btn-secondary" onclick="seleccionarTodas()">✅ Todas</button><button class="btn btn-secondary" onclick="deseleccionarTodas()">❌ Ninguna</button></div></div>`;
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">🔬 Especies activas en el experimento</div>
+                <div id="especiesGrid" class="especies-grid"></div>
+                <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
+                    <button class="btn btn-primary"   onclick="guardarEspecies()">💾 Guardar</button>
+                    <button class="btn btn-secondary" onclick="seleccionarTodas()">✅ Todas</button>
+                    <button class="btn btn-secondary" onclick="deseleccionarTodas()">❌ Ninguna</button>
+                </div>
+                <p style="color:#A0A0B0;font-size:0.85rem;margin-top:12px;">Las especies activas son las que se asignarán al azar a los estudiantes en el experimento.</p>
+            </div>`;
         renderEspeciesConfig();
     }
 
     function toggleEspecie(id) {
-        if (especiesConfig.activas.includes(id)) especiesConfig.activas = especiesConfig.activas.filter(i => i !== id);
-        else especiesConfig.activas.push(id);
+        if (especiesConfig.activas.includes(id))
+            especiesConfig.activas = especiesConfig.activas.filter(i => i !== id);
+        else
+            especiesConfig.activas.push(id);
         renderEspeciesConfig();
     }
 
     function renderEspeciesConfig() {
         const grid = document.getElementById('especiesGrid');
-        if (grid) grid.innerHTML = especiesConfig.todas.map(esp => {
-            let act = especiesConfig.activas.includes(esp.id);
-            return `<div class="especie-card ${act ? 'active' : ''}" onclick="toggleEspecie('${esp.id}')"><input type="checkbox" ${act ? 'checked' : ''} style="accent-color:#00D4FF;" onclick="event.stopPropagation();toggleEspecie('${esp.id}')"><div><strong>${esp.nombre}</strong><br><span style="color:#A0A0B0;">${esp.id}</span></div></div>`;
+        if (!grid) return;
+        grid.innerHTML = especiesConfig.todas.map(esp => {
+            const act = especiesConfig.activas.includes(esp.id);
+            return `<div class="especie-card ${act?'active':''}" onclick="toggleEspecie('${esp.id}')">
+                <input type="checkbox" ${act?'checked':''} style="accent-color:#00D4FF;" onclick="event.stopPropagation();toggleEspecie('${esp.id}')">
+                <div><strong>${esp.nombre}</strong><br><span style="color:#A0A0B0;font-size:0.8rem;">${esp.id}</span></div>
+            </div>`;
         }).join('');
     }
 
-    function seleccionarTodas() { especiesConfig.activas = especiesConfig.todas.map(e => e.id); renderEspeciesConfig(); mostrarMensaje('✅ Todas seleccionadas', '#00D4FF'); }
-    function deseleccionarTodas() { especiesConfig.activas = []; renderEspeciesConfig(); mostrarMensaje('❌ Ninguna seleccionada', '#FF375F'); }
-    async function guardarEspecies() { await fetch('/api/admin/config/especies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activas: especiesConfig.activas }) }); mostrarMensaje('✅ Configuración guardada', '#00D4FF'); }
+    function seleccionarTodas()   { especiesConfig.activas = especiesConfig.todas.map(e=>e.id); renderEspeciesConfig(); }
+    function deseleccionarTodas() { especiesConfig.activas = []; renderEspeciesConfig(); }
+    async function guardarEspecies() {
+        const res = await fetch('/api/admin/config/especies', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ activas: especiesConfig.activas })
+        });
+        mostrarMensaje(res.ok ? '✅ Configuración guardada' : '❌ Error al guardar', res.ok ? '#00D4FF' : '#FF375F');
+    }
 
-    // FIX: función cerrada correctamente — ya NO contiene a mostrarGraficos ni a las demás
+    // ===== ESTADÍSTICAS =====
     function mostrarEstadisticas() {
-        const totalUsuarios = usuarios.length;
-        const totalSesiones = [...new Set(resultados.map(r => r.sesion_id))].length;
-        const aciertos = resultados.filter(r => r.acerto).length;
-        const precision = resultados.length > 0 ? Math.round((aciertos / resultados.length) * 100) : 0;
-        const tiempoProm = resultados.length > 0 ? Math.round(resultados.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resultados.length) : 0;
+        const grupos = ['2D','2D_META','3D','3D_META'];
+        const total  = resultados.length;
+        const aciertos = resultados.filter(r=>r.acerto).length;
+        const precision = total > 0 ? Math.round((aciertos/total)*100) : 0;
+        const tiempoProm = total > 0 ? Math.round(resultados.reduce((s,r)=>s+(r.tiempo||0),0)/total) : 0;
 
-        const grupos = ['2D', '2D_META', '3D', '3D_META'];
-        const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
-
-        const precisionPorGrupo = grupos.map(g => {
-            const resGrupo = resultados.filter(r => r.grupo === g);
-            const aciertosGrupo = resGrupo.filter(r => r.acerto).length;
-            return resGrupo.length > 0 ? Math.round((aciertosGrupo / resGrupo.length) * 100) : 0;
-        });
-
-        const tiempoPorGrupo = grupos.map(g => {
-            const resGrupo = resultados.filter(r => r.grupo === g);
-            return resGrupo.length > 0 ? Math.round(resGrupo.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resGrupo.length) : 0;
-        });
+        const filas = grupos.map(g => {
+            const rg = resultados.filter(r=>r.grupo===g);
+            const ag = rg.filter(r=>r.acerto).length;
+            const pg = rg.length > 0 ? Math.round((ag/rg.length)*100) : 0;
+            const tg = rg.length > 0 ? Math.round(rg.reduce((s,r)=>s+(r.tiempo||0),0)/rg.length) : 0;
+            const eg = encuestas.filter(e=>e.grupo===g&&e.tipo==='SUS');
+            const sg = eg.length > 0 ? Math.round(eg.reduce((s,e)=>s+(e.puntaje_total||0),0)/eg.length) : '—';
+            const ug = usuarios.filter(u=>u.grupo_asignado===g).length;
+            return `<tr><td><strong>${g}</strong></td><td>${ug}</td><td>${rg.length}</td><td>${pg}%</td><td>${tg}s</td><td>${sg}${sg!=='—'?'/100':''}</td></tr>`;
+        }).join('');
 
         document.getElementById('tabContent').innerHTML = `
             <div class="stats-grid">
-                <div class="stat-card"><div class="stat-number">${totalUsuarios}</div><div class="stat-label">Usuarios</div></div>
-                <div class="stat-card"><div class="stat-number">${totalSesiones}</div><div class="stat-label">Sesiones</div></div>
+                <div class="stat-card"><div class="stat-number">${usuarios.length}</div><div class="stat-label">Usuarios</div></div>
+                <div class="stat-card"><div class="stat-number">${total}</div><div class="stat-label">Identificaciones</div></div>
                 <div class="stat-card"><div class="stat-number">${precision}%</div><div class="stat-label">Precisión global</div></div>
                 <div class="stat-card"><div class="stat-number">${tiempoProm}s</div><div class="stat-label">Tiempo promedio</div></div>
             </div>
             <div class="card">
                 <div class="card-title">📊 Resultados por grupo</div>
-                <div class="table-container">
-                    <table>
-                        <thead><tr><th>Grupo</th><th>Precisión</th><th>Tiempo promedio</th></tr></thead>
-                        <tbody>
-                            ${gruposNombres.map((g, i) => `<tr><td><strong>${g}</strong></td><td>${precisionPorGrupo[i]}%</td><td>${tiempoPorGrupo[i]}s</td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                <div class="table-wrap">
+                    <table><thead><tr><th>Grupo</th><th>N</th><th>Identif.</th><th>Precisión</th><th>Tiempo prom.</th><th>SUS prom.</th></tr></thead>
+                    <tbody>${filas}</tbody></table>
                 </div>
-            </div>
-        `;
-    } // ← CIERRE CORRECTO de mostrarEstadisticas
+            </div>`;
+    }
 
-    // FIX: ahora es una función global, accesible desde cambiarTab
+    // ===== GRÁFICOS =====
     function mostrarGraficos() {
-        const grupos = ['2D', '2D_META', '3D', '3D_META'];
-        const gruposNombres = ['2D', '2D+Meta', '3D', '3D+Meta'];
+        const grupos = ['2D','2D_META','3D','3D_META'];
+        const labels = ['2D','2D+Meta','3D','3D+Meta'];
+        const colores = ['#00D4FF','#00D4FF80','#7B61FF','#7B61FF80'];
 
-        const precisionPorGrupo = grupos.map(g => {
-            const resGrupo = resultados.filter(r => r.grupo === g);
-            const aciertosGrupo = resGrupo.filter(r => r.acerto).length;
-            return resGrupo.length > 0 ? Math.round((aciertosGrupo / resGrupo.length) * 100) : 0;
-        });
-
-        const tiempoPorGrupo = grupos.map(g => {
-            const resGrupo = resultados.filter(r => r.grupo === g);
-            return resGrupo.length > 0 ? Math.round(resGrupo.reduce((sum, r) => sum + (r.tiempo || 0), 0) / resGrupo.length) : 0;
-        });
-
-        const susPorGrupo = grupos.map(g => {
-            const encuestasGrupo = encuestas.filter(e => e.grupo === g && e.tipo === 'SUS');
-            if (encuestasGrupo.length === 0) return 0;
-            return Math.round(encuestasGrupo.reduce((sum, e) => sum + (e.puntaje_total || 0), 0) / encuestasGrupo.length);
-        });
+        const precision = grupos.map(g=>{ const r=resultados.filter(r=>r.grupo===g); return r.length?Math.round(r.filter(r=>r.acerto).length/r.length*100):0; });
+        const tiempo    = grupos.map(g=>{ const r=resultados.filter(r=>r.grupo===g); return r.length?Math.round(r.reduce((s,r)=>s+(r.tiempo||0),0)/r.length):0; });
+        const sus       = grupos.map(g=>{ const e=encuestas.filter(e=>e.grupo===g&&e.tipo==='SUS'); return e.length?Math.round(e.reduce((s,e)=>s+(e.puntaje_total||0),0)/e.length):0; });
 
         document.getElementById('tabContent').innerHTML = `
-            <div class="charts-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(400px,1fr)); gap:25px;">
-                <div class="chart-container" style="background:#1A1F36; border-radius:15px; padding:20px;">
-                    <div class="card-title">📊 Precisión por grupo</div>
-                    <canvas id="chartPrecision"></canvas>
-                </div>
-                <div class="chart-container" style="background:#1A1F36; border-radius:15px; padding:20px;">
-                    <div class="card-title">⏱️ Tiempo promedio por grupo</div>
-                    <canvas id="chartTiempo"></canvas>
-                </div>
-                <div class="chart-container" style="background:#1A1F36; border-radius:15px; padding:20px;">
-                    <div class="card-title">📋 Puntaje SUS por grupo</div>
-                    <canvas id="chartSUS"></canvas>
-                </div>
-            </div>
-        `;
-
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;">
+                <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">📊 Precisión por grupo</div><canvas id="chPrecision"></canvas></div>
+                <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">⏱️ Tiempo promedio (s)</div><canvas id="chTiempo"></canvas></div>
+                <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">📋 Puntaje SUS</div><canvas id="chSUS"></canvas></div>
+                <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">🥧 Distribución aciertos</div><canvas id="chDist"></canvas></div>
+            </div>`;
         setTimeout(() => {
-            new Chart(document.getElementById('chartPrecision'), {
-                type: 'bar',
-                data: { labels: gruposNombres, datasets: [{ label: 'Precisión (%)', data: precisionPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
-                options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
-            });
-            new Chart(document.getElementById('chartTiempo'), {
-                type: 'bar',
-                data: { labels: gruposNombres, datasets: [{ label: 'Tiempo (segundos)', data: tiempoPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
-                options: { responsive: true }
-            });
-            new Chart(document.getElementById('chartSUS'), {
-                type: 'bar',
-                data: { labels: gruposNombres, datasets: [{ label: 'Puntaje SUS', data: susPorGrupo, backgroundColor: ['#00D4FF', '#00D4FF80', '#7B61FF', '#7B61FF80'], borderRadius: 8 }] },
-                options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
-            });
-        }, 100);
+            const opts = (max) => ({ responsive:true, plugins:{legend:{labels:{color:'#E0E0E0'}}}, scales:{y:{beginAtZero:true, max, ticks:{color:'#A0A0B0'}}, x:{ticks:{color:'#A0A0B0'}}}});
+            new Chart(document.getElementById('chPrecision'), { type:'bar', data:{ labels, datasets:[{ label:'Precisión (%)', data:precision, backgroundColor:colores, borderRadius:8 }] }, options:opts(100) });
+            new Chart(document.getElementById('chTiempo'),    { type:'bar', data:{ labels, datasets:[{ label:'Tiempo (s)',    data:tiempo,    backgroundColor:colores, borderRadius:8 }] }, options:opts(null) });
+            new Chart(document.getElementById('chSUS'),       { type:'bar', data:{ labels, datasets:[{ label:'SUS',           data:sus,       backgroundColor:colores, borderRadius:8 }] }, options:opts(100) });
+            const tot = resultados.length;
+            const ac  = resultados.filter(r=>r.acerto).length;
+            new Chart(document.getElementById('chDist'), { type:'doughnut', data:{ labels:['✅ Correctos','❌ Incorrectos'], datasets:[{ data:[ac, tot-ac], backgroundColor:['#00D4FF','#FF375F'], borderWidth:0 }] }, options:{ responsive:true, plugins:{legend:{position:'bottom',labels:{color:'#E0E0E0'}}} } });
+        }, 80);
     }
 
+    // ===== ANÁLISIS =====
     function mostrarAnalisisEstadistico() {
-    // Separar grupos
-    const grupo2d = resultados.filter(r => r.grupo === '2D' || r.grupo === '2D_META');
-    const grupo3d = resultados.filter(r => r.grupo === '3D' || r.grupo === '3D_META');
-    
-    // Si no hay datos
-    if (resultados.length === 0) {
-        document.getElementById('tabContent').innerHTML = `<div class="card"><div class="card-title">📊 Análisis Estadístico</div><p>No hay datos suficientes para el análisis.</p></div>`;
-        return;
-    }
-    
-    // Calcular precisión
-    const aciertos2d = grupo2d.filter(r => r.acerto).length;
-    const aciertos3d = grupo3d.filter(r => r.acerto).length;
-    const precision2d = grupo2d.length > 0 ? (aciertos2d / grupo2d.length * 100).toFixed(1) : 0;
-    const precision3d = grupo3d.length > 0 ? (aciertos3d / grupo3d.length * 100).toFixed(1) : 0;
-    
-    // Calcular tiempos promedio
-    const tiempo2d = grupo2d.length > 0 ? (grupo2d.reduce((s,r) => s + (r.tiempo || 0), 0) / grupo2d.length).toFixed(1) : 0;
-    const tiempo3d = grupo3d.length > 0 ? (grupo3d.reduce((s,r) => s + (r.tiempo || 0), 0) / grupo3d.length).toFixed(1) : 0;
-    
-    // Mejoras
-    const mejoraPrecision = (precision3d - precision2d).toFixed(1);
-    const mejoraTiempo = tiempo2d > 0 ? ((tiempo2d - tiempo3d) / tiempo2d * 100).toFixed(1) : 0;
-    
-    // Determinar significancia (simulada)
-    const esSignificativo = mejoraPrecision > 5;
-    
-    document.getElementById('tabContent').innerHTML = `
-        <div class="card">
-            <div class="card-title">📊 Análisis Estadístico - Comparación 2D vs 3D</div>
-            
-            <div class="table-container">
-                <table style="width:100%">
-                    <thead><tr><th>Indicador</th><th>Grupo 2D (n=${grupo2d.length})</th><th>Grupo 3D (n=${grupo3d.length})</th><th>Diferencia</th></tr></thead>
+        const g2d = resultados.filter(r=>r.grupo==='2D'||r.grupo==='2D_META');
+        const g3d = resultados.filter(r=>r.grupo==='3D'||r.grupo==='3D_META');
+        const ac2d = g2d.filter(r=>r.acerto).length;
+        const ac3d = g3d.filter(r=>r.acerto).length;
+        const p2d = g2d.length > 0 ? (ac2d/g2d.length*100).toFixed(1) : 0;
+        const p3d = g3d.length > 0 ? (ac3d/g3d.length*100).toFixed(1) : 0;
+        const t2d = g2d.length > 0 ? (g2d.reduce((s,r)=>s+(r.tiempo||0),0)/g2d.length).toFixed(1) : 0;
+        const t3d = g3d.length > 0 ? (g3d.reduce((s,r)=>s+(r.tiempo||0),0)/g3d.length).toFixed(1) : 0;
+        const diffP = (p3d - p2d).toFixed(1);
+        const diffT = t2d > 0 ? ((t2d - t3d)/t2d*100).toFixed(1) : 0;
+
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">📊 Análisis 2D vs 3D</div>
+                <div class="table-wrap">
+                    <table><thead><tr><th>Indicador</th><th>Grupo 2D (n=${g2d.length})</th><th>Grupo 3D (n=${g3d.length})</th><th>Diferencia</th></tr></thead>
                     <tbody>
-                        <tr style="background:#1A1F36;"><td><strong>✅ Precisión</strong></td><td>${precision2d}%</td><td>${precision3d}%</td><td style="color:${mejoraPrecision >= 0 ? '#00D4FF' : '#FF375F'}">${mejoraPrecision >= 0 ? '+' : ''}${mejoraPrecision}%</td></tr>
-                        <tr><td><strong>⏱️ Tiempo promedio</strong></td><td>${tiempo2d}s</td><td>${tiempo3d}s</td><td style="color:${mejoraTiempo >= 0 ? '#00D4FF' : '#FF375F'}">${mejoraTiempo >= 0 ? '-' : '+'}${Math.abs(mejoraTiempo)}%</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <div style="margin-top:20px; padding:15px; background:#1A1F36; border-radius:10px;">
-                <h3 style="color:#00D4FF;">📋 Conclusiones</h3>
-                <p>📊 <strong>Precisión:</strong> El grupo 3D obtuvo un ${precision3d}% de aciertos, frente al ${precision2d}% del grupo 2D. Una mejora de <strong>${Math.abs(mejoraPrecision)} puntos porcentuales</strong>.</p>
-                <p>⏱️ <strong>Eficiencia:</strong> El grupo 3D completó las identificaciones un ${mejoraTiempo}% más rápido que el grupo 2D.</p>
-                <p>${esSignificativo ? '✅ La diferencia es estadísticamente relevante a favor del grupo 3D.' : '⚠️ Las diferencias observadas requieren una muestra más grande para confirmar significancia estadística.'}</p>
-            </div>
-        </div>
-    `;
-}
+                        <tr><td><strong>✅ Precisión</strong></td><td>${p2d}%</td><td>${p3d}%</td><td style="color:${diffP>=0?'#00D4FF':'#FF375F'}">${diffP>=0?'+':''}${diffP}%</td></tr>
+                        <tr><td><strong>⏱️ Tiempo prom.</strong></td><td>${t2d}s</td><td>${t3d}s</td><td style="color:${diffT>=0?'#00D4FF':'#FF375F'}">${diffT>=0?'-':'+'}${Math.abs(diffT)}%</td></tr>
+                    </tbody></table>
+                </div>
+                <div style="margin-top:20px;padding:15px;background:#1A1F36;border-radius:10px;">
+                    <p>📊 <strong>Precisión:</strong> El grupo 3D obtuvo <strong>${p3d}%</strong> de aciertos vs <strong>${p2d}%</strong> del grupo 2D (<strong>${Math.abs(diffP)} puntos</strong> de diferencia).</p>
+                    <p style="margin-top:8px;">⏱️ <strong>Tiempo:</strong> El grupo 3D fue un <strong>${diffT}%</strong> ${diffT>=0?'más rápido':'más lento'} que el grupo 2D.</p>
+                    <p style="margin-top:8px;">${Math.abs(diffP)>5?'✅ Diferencia relevante, pendiente prueba estadística con muestra completa.':'⚠️ Se necesita una muestra mayor para confirmar significancia estadística.'}</p>
+                </div>
+            </div>`;
+    }
 
+    // ===== RESULTADOS DETALLADOS =====
     function mostrarResultadosDetallados() {
-        let html = `<div class="card"><div class="card-title">🔬 Resultados Detallados</div><div class="table-container"><table><thead><tr><th>Usuario</th><th>Grupo</th><th>Espécimen</th><th>Correcta</th><th>Seleccionada</th><th>Resultado</th><th>Tiempo</th></tr></thead><tbody>`;
-        resultados.forEach(r => {
-            html += `<tr><td>${r.usuario}</td><td>${r.grupo}</td><td>${r.especimen || 'N/A'}</td><td>${r.correcta || 'N/A'}</td><td>${r.seleccionada || 'N/A'}</td><td style="color:${r.acerto ? '#00D4FF' : '#FF375F'}">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</td><td>${(r.tiempo || 0).toFixed(1)}s</td></tr>`;
-        });
-        html += `</tbody></table></div></div>`;
-        document.getElementById('tabContent').innerHTML = html;
+        const filas = resultados.map(r=>`
+            <tr>
+                <td>${r.usuario}</td><td>${r.grupo||'—'}</td>
+                <td>${r.especimen||'—'}</td><td>${r.correcta||'—'}</td><td>${r.seleccionada||'—'}</td>
+                <td style="color:${r.acerto?'#00D4FF':'#FF375F'}">${r.acerto?'✅ Correcto':'❌ Incorrecto'}</td>
+                <td>${(r.tiempo||0).toFixed(1)}s</td>
+            </tr>`).join('');
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">🔍 Resultados detallados (${resultados.length} registros)</div>
+                <div class="table-wrap">
+                    <table><thead><tr><th>Usuario</th><th>Grupo</th><th>Espécimen</th><th>Correcta</th><th>Seleccionada</th><th>Resultado</th><th>Tiempo</th></tr></thead>
+                    <tbody>${filas || '<tr><td colspan="7" style="text-align:center;padding:20px;">Sin resultados aún.</td></tr>'}</tbody></table>
+                </div>
+            </div>`;
     }
 
-    function mostrarEstadisticasEstudiante() {
-        let mapa = new Map();
-        resultados.forEach(r => {
-            if (!mapa.has(r.usuario)) mapa.set(r.usuario, { total: 0, aciertos: 0 });
-            let s = mapa.get(r.usuario);
-            s.total++;
-            if (r.acerto) s.aciertos++;
-        });
-        let html = `<div class="card"><div class="card-title">📋 Estadísticas por Estudiante</div><div class="table-container"><table><thead><tr><th>Estudiante</th><th>Total</th><th>Aciertos</th><th>Precisión</th></tr></thead><tbody>`;
-        mapa.forEach((s, u) => {
-            let p = s.total ? Math.round((s.aciertos / s.total) * 100) : 0;
-            html += `<tr><td><strong>${u}</strong></td><td>${s.total}</td><td>${s.aciertos}</td><td>${p}%</td></tr>`;
-        });
-        html += `</tbody></table></div></div>`;
-        document.getElementById('tabContent').innerHTML = html;
-    }
-
+    // ===== REFLEXIONES =====
     function mostrarReflexiones() {
-        let html = `<div class="card"><div class="card-title">🧠 Reflexiones Metacognitivas</div><div class="table-container"><table><thead><tr><th>Usuario</th><th>Grupo</th><th>Momento</th><th>Respuesta</th></tr></thead><tbody>`;
-        reflexiones.forEach(r => { html += `<tr><td>${r.usuario}</td><td>${r.grupo}</td><td>${r.momento || '-'}</td><td>${(r.respuesta_raw || '').substring(0, 100)}...</td></tr>`; });
-        html += `</tbody></table></div><div style="margin-top:15px;"><button class="btn btn-secondary" onclick="exportarReflexionesCSV()">📥 Exportar Reflexiones CSV</button></div></div>`;
-        document.getElementById('tabContent').innerHTML = html;
+        const filas = reflexiones.map(r=>`
+            <tr>
+                <td>${r.usuario}</td><td>${r.grupo}</td><td>${r.momento||'—'}</td>
+                <td style="max-width:300px;font-size:0.82rem;">${(r.respuesta_raw||'').substring(0,120)}${(r.respuesta_raw||'').length>120?'…':''}</td>
+            </tr>`).join('');
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">🧠 Reflexiones metacognitivas (${reflexiones.length})</div>
+                <div style="margin-bottom:15px;">
+                    <button class="btn btn-secondary" onclick="exportarReflexionesCSV()">📥 Exportar CSV</button>
+                </div>
+                <div class="table-wrap">
+                    <table><thead><tr><th>Usuario</th><th>Grupo</th><th>Momento</th><th>Respuesta</th></tr></thead>
+                    <tbody>${filas || '<tr><td colspan="4" style="text-align:center;padding:20px;">Sin reflexiones aún.</td></tr>'}</tbody></table>
+                </div>
+            </div>`;
     }
 
-    function exportarReflexionesCSV() {
-        let csv = "Usuario,Grupo,Momento,Pregunta,Respuesta\n";
-        reflexiones.forEach(r => { csv += `"${r.usuario}","${r.grupo}","${r.momento}","${(r.pregunta || '').replace(/"/g, '""')}","${(r.respuesta_raw || '').replace(/"/g, '""')}"\n`; });
-        let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-        let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `reflexiones_${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(a.href);
-        mostrarMensaje('✅ Reflexiones exportadas', '#00D4FF');
-    }
-
-    async function obtenerTodos() { return { usuarios, resultados, encuestas, reflexiones }; }
-
-    function exportarExcel() {
-        (async () => {
-            let { usuarios, resultados, encuestas, reflexiones } = await obtenerTodos();
-            let wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(usuarios.map(u => ({ ID: u.id, Usuario: u.nombre_usuario, Correo: u.correo, Grupo: u.grupo_asignado || 'Sin asignar' }))), 'Usuarios');
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resultados.map(r => ({ Usuario: r.usuario, Grupo: r.grupo, Especimen: r.especimen || '', Resultado: r.acerto ? 'Correcto' : 'Incorrecto', Tiempo: r.tiempo || 0 }))), 'Resultados');
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(encuestas.map(e => ({ Usuario: e.usuario || '', Grupo: e.grupo || '', Tipo: e.tipo, Puntaje: e.puntaje_total || '' }))), 'Encuestas');
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reflexiones.map(r => ({ Usuario: r.usuario, Grupo: r.grupo, Momento: r.momento, Respuesta: r.respuesta_raw }))), 'Reflexiones');
-            XLSX.writeFile(wb, `datos_${new Date().toISOString().split('T')[0]}.xlsx`);
-            mostrarMensaje('✅ Excel exportado', '#00D4FF');
-        })();
-    }
-
-    // FIX: exportarCSV ahora genera CSV real en lugar de llamar a exportarExcel
-    function exportarCSV() {
-        (async () => {
-            let { resultados } = await obtenerTodos();
-            let csv = "Usuario,Grupo,Especimen,Correcta,Seleccionada,Resultado,Tiempo\n";
-            resultados.forEach(r => {
-                csv += `"${r.usuario}","${r.grupo}","${r.especimen || ''}","${r.correcta || ''}","${r.seleccionada || ''}","${r.acerto ? 'Correcto' : 'Incorrecto'}","${(r.tiempo || 0).toFixed(1)}"\n`;
-            });
-            let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-            let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `datos_${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(a.href);
-            mostrarMensaje('✅ CSV exportado', '#00D4FF');
-        })();
+    // ===== EXPORTAR =====
+    function exportarCSVServidor() {
+        window.open('/api/admin/exportar_csv', '_blank');
+        mostrarMensaje('✅ Descargando CSV desde servidor');
     }
 
     function exportarJSON() {
-        obtenerTodos().then(d => {
-            let b = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
-            let a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `datos_${new Date().toISOString().split('T')[0]}.json`; a.click();
-            mostrarMensaje('✅ JSON exportado', '#00D4FF');
-        });
+        const blob = new Blob([JSON.stringify({ usuarios, resultados, encuestas, reflexiones }, null, 2)], { type:'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `datos_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        mostrarMensaje('✅ JSON exportado');
     }
 
-    function exportarReporteHTML() {
-        (async () => {
-            let { usuarios, resultados } = await obtenerTodos();
-            let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte</title><style>body{font-family:Arial;margin:40px;background:#0A0E17;color:#E0E0E0;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #444;padding:8px;}th{background:#1A1F36;color:#00D4FF;}</style></head><body><h1>Reporte de Resultados</h1><p>Generado: ${new Date().toLocaleString()}</p><h2>Usuarios</h2><table><thead><tr><th>ID</th><th>Usuario</th><th>Correo</th><th>Grupo</th></tr></thead><tbody>${usuarios.map(u => `<tr><td>${u.id}</td><td>${u.nombre_usuario}</td><td>${u.correo}</td><td>${u.grupo_asignado || ''}</td></tr>`).join('')}</tbody></table><h2>Resultados</h2><table><thead><tr><th>Usuario</th><th>Resultado</th><th>Tiempo</th></tr></thead><tbody>${resultados.map(r => `<tr><td>${r.usuario}</td><td>${r.acerto ? 'Correcto' : 'Incorrecto'}</td><td>${r.tiempo}s</td></tr>`).join('')}</tbody></table></body></html>`;
-            let b = new Blob([html], { type: 'text/html' }); let a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `reporte_${new Date().toISOString().split('T')[0]}.html`; a.click();
-            mostrarMensaje('✅ Reporte generado', '#00D4FF');
-        })();
+    function exportarExcel() {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+            usuarios.map(u=>({ ID:u.id, Usuario:u.nombre_usuario, Correo:u.correo, Grupo:u.grupo_asignado||'Sin asignar', Semestre:u.semestre, Curso:u.curso }))
+        ), 'Usuarios');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+            resultados.map(r=>({ Usuario:r.usuario, Grupo:r.grupo, Especimen:r.especimen||'', Correcta:r.correcta||'', Seleccionada:r.seleccionada||'', Resultado:r.acerto?'Correcto':'Incorrecto', Tiempo:r.tiempo||0 }))
+        ), 'Resultados');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+            encuestas.map(e=>({ Sesion:e.sesion_id, Grupo:e.grupo||'', Tipo:e.tipo, Puntaje:e.puntaje_total||'' }))
+        ), 'Encuestas');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+            reflexiones.map(r=>({ Usuario:r.usuario, Grupo:r.grupo, Momento:r.momento, Respuesta:r.respuesta_raw }))
+        ), 'Reflexiones');
+        XLSX.writeFile(wb, `datos_${new Date().toISOString().split('T')[0]}.xlsx`);
+        mostrarMensaje('✅ Excel exportado');
+    }
+
+    function exportarReflexionesCSV() {
+        let csv = 'Usuario,Grupo,Momento,Pregunta,Respuesta\n';
+        reflexiones.forEach(r => {
+            csv += `"${r.usuario}","${r.grupo}","${r.momento}","${(r.pregunta||'').replace(/"/g,'""')}","${(r.respuesta_raw||'').replace(/"/g,'""')}"\n`;
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' }));
+        a.download = `reflexiones_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        mostrarMensaje('✅ Reflexiones exportadas');
+    }
+
+    async function cerrarSesionAdmin() {
+        if (!confirm('¿Cerrar sesión del panel de administración?')) return;
+        await fetch('/api/admin/logout', { method:'POST' });
+        window.location.href = '/admin';
     }
 </script>
 </body>

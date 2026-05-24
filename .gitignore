@@ -1,4 +1,39 @@
-"instance/database.db" 
-"python/" 
-".env" 
-".env" 
+# Variables de entorno
+.env
+.env.*
+
+# Base de datos local
+instance/
+*.db
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Entorno virtual
+venv/
+.venv/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
