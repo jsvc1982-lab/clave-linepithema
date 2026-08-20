@@ -209,6 +209,16 @@
             gap: 8px;
         }
 
+        @media screen and (max-width: 700px) {
+            .action-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .action-btn {
+                font-size: 0.85rem;
+                padding: 10px 6px;
+            }
+        }
+
         .action-btn {
             padding: 10px;
             border: none;
@@ -1021,13 +1031,14 @@ if (especimenes[index]) {
                 transform: translate(-50%, -50%);
                 background: ${color};
                 color: #0A0E17;
-                padding: 25px 40px;
+                padding: 20px 25px;
                 border-radius: 20px;
-                font-size: 1.5rem;
+                font-size: 1.3rem;
                 font-weight: bold;
                 z-index: 10000;
                 text-align: center;
-                min-width: 350px;
+                width: min(350px, 90vw);
+                box-sizing: border-box;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.5);
                 border: 2px solid white;
                 animation: fadeInOut 3s ease forwards;

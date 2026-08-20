@@ -45,7 +45,7 @@
         .btn-primary{background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;}
         .btn-secondary{background:#1A1F36;border:1px solid #00D4FF40;color:#00D4FF;}
         .btn-success{background:#00D4FF20;border:1px solid #00D4FF40;color:#00D4FF;}
-        .search-input{padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;font-size:0.9rem;width:250px;}
+        .search-input{padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;font-size:0.9rem;width:250px;max-width:100%;flex:1 1 200px;}
         .search-input:focus{outline:none;border-color:#00D4FF;}
         .mensaje-flotante{position:fixed;bottom:20px;right:20px;background:#00D4FF;color:#0A0E17;padding:12px 20px;border-radius:8px;font-weight:bold;z-index:1000;animation:fadeOut 3s forwards;}
         @keyframes fadeOut{0%{opacity:1;}70%{opacity:1;}100%{opacity:0;}}
@@ -53,7 +53,19 @@
         .especie-card{background:#1A1F36;border:2px solid #1A1F36;border-radius:10px;padding:15px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all 0.2s;}
         .especie-card:hover{border-color:#00D4FF80;}
         .especie-card.active{border-color:#00D4FF;background:linear-gradient(135deg,#00D4FF10,#7B61FF10);}
+        .table-wrap table{min-width:600px;}
         @media(max-width:800px){.charts-grid{grid-template-columns:1fr;}}
+        @media(max-width:480px){
+            body{padding:10px;}
+            h1{font-size:1.4rem;}
+            .subtitle{font-size:0.8rem;}
+            .card,.stat-card{padding:15px;}
+            .tab{padding:8px 12px;font-size:0.8rem;}
+            th,td{padding:8px;font-size:0.75rem;}
+            .search-input{width:100%;}
+            .toolbar,.btn-group{gap:6px;}
+            .btn{padding:8px 14px;font-size:0.85rem;}
+        }
     </style>
 </head>
 <body>
@@ -329,7 +341,7 @@
         const sus       = grupos.map(g=>{ const e=encuestas.filter(e=>e.grupo===g&&e.tipo==='SUS'); return e.length?Math.round(e.reduce((s,e)=>s+(e.puntaje_total||0),0)/e.length):0; });
 
         document.getElementById('tabContent').innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;">
+            <div class="charts-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">📊 Precisión por grupo</div><canvas id="chPrecision"></canvas></div>
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">⏱️ Tiempo promedio (s)</div><canvas id="chTiempo"></canvas></div>
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">📋 Puntaje SUS</div><canvas id="chSUS"></canvas></div>

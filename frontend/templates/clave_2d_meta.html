@@ -3,9 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clave 3D con Metacognición - Linepithema</title>
+    <title>Clave 2D con Metacognición - Linepithema</title>
+    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.0.8/dist/medium-zoom.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         body {
             background-color: #0A0E17;
@@ -19,14 +24,19 @@
             display: grid;
             grid-template-columns: 350px 1fr 300px;
             grid-template-rows: 80px 1fr 100px;
-            grid-template-areas: "header header header" "sidebar main aside" "footer footer footer";
+            grid-template-areas: 
+                "header header header"
+                "sidebar main aside"
+                "footer footer footer";
             height: 100vh;
             gap: 1px;
             background: linear-gradient(45deg, #00D4FF20, #7B61FF20);
         }
 
         @media screen and (max-width: 900px) {
-            .app-container { grid-template-columns: 250px 1fr 220px; }
+            .app-container {
+                grid-template-columns: 250px 1fr 220px;
+            }
         }
 
         .header {
@@ -62,7 +72,10 @@
             overflow-y: auto;
         }
 
-        .progress-section { margin-bottom: 25px; }
+        .progress-section {
+            margin-bottom: 25px;
+        }
+
         .progress-bar-container {
             background: #1A1F36;
             height: 10px;
@@ -70,6 +83,7 @@
             overflow: hidden;
             margin: 10px 0;
         }
+
         .progress-bar {
             height: 100%;
             background: linear-gradient(90deg, #00D4FF, #7B61FF);
@@ -108,7 +122,11 @@
             line-height: 1.5;
         }
 
-        .options-grid { display: grid; gap: 12px; margin-bottom: 20px; }
+        .options-grid {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
 
         .option-card {
             background: #121826;
@@ -118,7 +136,12 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-        .option-card:hover { border-color: #00D4FF60; transform: translateX(3px); }
+
+        .option-card:hover {
+            border-color: #00D4FF60;
+            transform: translateX(3px);
+        }
+
         .option-card.selected {
             border-color: #00D4FF;
             background: linear-gradient(135deg, #00D4FF10, #7B61FF10);
@@ -175,11 +198,33 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-        .btn-prev { background: transparent; border: 2px solid #00D4FF; color: #00D4FF; }
-        .btn-next { background: linear-gradient(45deg, #00D4FF, #7B61FF); color: white; }
-        .btn-submit { background: linear-gradient(45deg, #7B61FF, #00D4FF); color: white; }
-        .btn-download { background: linear-gradient(45deg, #00D4FF, #7B61FF); color: white; }
-        .btn-exit { background: transparent; border: 2px solid #FF375F; color: #FF375F; }
+
+        .btn-prev {
+            background: transparent;
+            border: 2px solid #00D4FF;
+            color: #00D4FF;
+        }
+
+        .btn-next {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: white;
+        }
+
+        .btn-submit {
+            background: linear-gradient(45deg, #7B61FF, #00D4FF);
+            color: white;
+        }
+
+        .btn-download {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: white;
+        }
+
+        .btn-exit {
+            background: transparent;
+            border: 2px solid #FF375F;
+            color: #FF375F;
+        }
 
         .result-message {
             background: #1A1F36;
@@ -189,8 +234,16 @@
             margin: 15px 0;
             font-size: 0.95rem;
         }
-        .result-correct { border-color: #00D4FF; color: #00D4FF; }
-        .result-incorrect { border-color: #FF375F; color: #FF375F; }
+
+        .result-correct {
+            border-color: #00D4FF;
+            color: #00D4FF;
+        }
+
+        .result-incorrect {
+            border-color: #FF375F;
+            color: #FF375F;
+        }
 
         .species-info {
             background: #121826;
@@ -216,41 +269,49 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            position: relative;
         }
 
-        .viewer-controls {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 10;
+        .view-tabs {
             display: flex;
-            gap: 10px;
-            background: rgba(26,31,54,0.9);
-            backdrop-filter: blur(10px);
-            padding: 10px;
-            border-radius: 12px;
-            border: 1px solid #00D4FF40;
+            gap: 8px;
+            padding: 15px 15px 0 15px;
+            flex-wrap: wrap;
         }
 
-        .ctrl-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
+        .view-tab {
+            padding: 8px 16px;
             background: #1A1F36;
             border: 1px solid #00D4FF40;
-            color: #00D4FF;
-            font-size: 1.2rem;
+            border-radius: 8px 8px 0 0;
             cursor: pointer;
+            font-size: 0.9rem;
             transition: all 0.3s ease;
+        }
+
+        .view-tab.active {
+            background: linear-gradient(45deg, #00D4FF20, #7B61FF20);
+            border-color: #00D4FF;
+            color: #00D4FF;
+        }
+
+        .image-container {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 15px;
+            min-height: 0;
         }
-        .ctrl-btn:hover { background: #00D4FF20; border-color: #00D4FF; transform: scale(1.1); }
 
-        #sketchfab-container { width: 100%; height: 100%; }
-        #sketchfab-container iframe { width: 100%; height: 100%; border: 0; }
+        .specimen-image {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 10px;
+            border: 2px solid #00D4FF30;
+        }
 
         .aside {
             grid-area: aside;
@@ -274,8 +335,16 @@
             margin-bottom: 10px;
             border-left: 4px solid #00D4FF;
         }
-        .glossary-term { font-weight: bold; color: #00D4FF; }
-        .glossary-def { font-size: 0.85rem; color: #A0A0B0; }
+
+        .glossary-term {
+            font-weight: bold;
+            color: #00D4FF;
+        }
+
+        .glossary-def {
+            font-size: 0.85rem;
+            color: #A0A0B0;
+        }
 
         .footer {
             grid-area: footer;
@@ -305,7 +374,7 @@
 
         .intro-card {
             background: linear-gradient(135deg, #121826, #1A1F36);
-            max-width: 1000px;
+            max-width: 900px;
             width: 100%;
             margin: auto;
             border-radius: 25px;
@@ -323,7 +392,11 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .diagram-container { text-align: center; margin: 20px 0; }
+        .diagram-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
         .diagram-image {
             max-width: 100%;
             max-height: 300px;
@@ -344,7 +417,11 @@
             border-radius: 10px;
             border-left: 4px solid #00D4FF;
         }
-        .part-name { font-weight: bold; color: #00D4FF; }
+
+        .part-name {
+            font-weight: bold;
+            color: #00D4FF;
+        }
 
         .start-btn {
             display: block;
@@ -374,6 +451,30 @@
             100% { transform: rotate(360deg); }
         }
 
+        .mensaje-flotante {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #00D4FF;
+            color: #0A0E17;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            z-index: 10000;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: fadeOut 2s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; display: none; }
+        }
+
         .modal {
             position: fixed;
             top: 0;
@@ -401,7 +502,11 @@
             margin: auto;
         }
 
-        .modal-content h3 { color: #00D4FF; margin-bottom: 20px; }
+        .modal-content h3 {
+            color: #00D4FF;
+            margin-bottom: 20px;
+        }
+
         .modal-content textarea {
             width: 100%;
             height: 150px;
@@ -412,6 +517,7 @@
             padding: 10px;
             margin: 15px 0;
         }
+
         .modal-content button {
             width: 100%;
             padding: 12px;
@@ -422,12 +528,13 @@
             font-weight: bold;
             cursor: pointer;
         }
+
     </style>
 </head>
 <body>
     <div id="introScreen" class="intro-overlay">
         <div class="intro-card" style="max-width: 1000px;">
-            <h1 class="intro-title">🔬 Morfología de Linepithema (3D con Metacognición)</h1>
+            <h1 class="intro-title">🔬 Morfología de Linepithema</h1>
             
             <div style="background: #00D4FF10; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #00D4FF;">
                 <p style="margin: 0; color: #E0E0E0;">
@@ -487,14 +594,14 @@
                 </div>
             </div>
             
-            <button class="start-btn" id="startBtn">🚀 Comenzar identificación 3D con Metacognición</button>
+            <button class="start-btn" id="startBtn">🚀 Comenzar identificación</button>
         </div>
     </div>
 
     <div id="mainApp" style="display: none;">
         <div class="app-container">
             <header class="header">
-                <div class="logo"><h1>🔬 CLAVE 3D - GRUPO EXPERIMENTAL (CON METACOGNICIÓN)</h1></div>
+                <div class="logo"><h1>🔬 CLAVE 2D - GRUPO EXPERIMENTAL (CON METACOGNICIÓN)</h1></div>
                 <div class="user-badge" id="userBadge">Usuario: <span>Cargando...</span></div>
             </header>
 
@@ -508,16 +615,13 @@
 
             <main class="main-content">
                 <div class="viewer-container">
-                    <div class="viewer-controls">
-                        <button class="ctrl-btn" id="fullscreenBtn" title="Pantalla completa">⛶</button>
-                        <button class="ctrl-btn" id="helpBtn" title="Ayuda">?</button>
+                    <div class="view-tabs">
+                        <div class="view-tab active" onclick="cambiarVista('cabeza')">🔍 Cabeza</div>
+                        <div class="view-tab" onclick="cambiarVista('lateral')">🔍 Lateral</div>
+                        <div class="view-tab" onclick="cambiarVista('dorsal')">🔍 Dorsal</div>
                     </div>
-                    <div id="sketchfab-container"></div>
-                    <div id="modelLoading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(26,31,54,0.9); padding: 20px; border-radius: 10px; display: none;">
-                        <div style="text-align: center;">
-                            <div style="width: 40px; height: 40px; border: 4px solid #1A1F36; border-top-color: #00D4FF; border-radius: 50%; margin: 0 auto 15px; animation: spin 1s linear infinite;"></div>
-                            <div>Cargando modelo 3D...</div>
-                        </div>
+                    <div class="image-container">
+                        <img id="specimenImage" class="specimen-image" src="" alt="Espécimen">
                     </div>
                 </div>
             </main>
@@ -538,10 +642,7 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
-        <script>
+    <script>
         // ===== CONFIGURACIÓN DE LA CLAVE =====
          const CLAVE = {
     1: {
@@ -635,19 +736,6 @@
     {term: "Surco metanotal", def: "Depresión o surco en el mesosoma que separa el mesonoto del propodeo. Puede ser impreso o no según la especie. Es visible en vista dorsal."},
     {term: "Tórax", def: "Región media del cuerpo donde se insertan las patas. En hormigas se compone de pronoto, mesonoto, metanoto y propodeo. Es sinónimo de mesosoma."}
 ];
-        // ===== IDs DE SKETCHFAB =====
-        const SKETCHFAB_IDS = {
-            'humile': '025bb0ee56524252908b38fed8258c18',
-            'angulatum': '57befd4a693c40688864a1a982654944',
-            'piliferum': 'b284b04a830f4071992f60758c58ca88',
-            'gallardoi': '6a95914411cb4908b0005c7b9edc8042',
-            'iniquum': '8f18447dfe914fa9b7366e32a92400df',
-            'neotropicum': '0fddcc33c1b74e41826a89101bbe9a45',
-            'hirsutum': '24749fca9ddc46f0b9fef8ce5ea63749',
-            'dispertitum': '149082dea00c440bbb85cfb2471a821f',
-            'tsachila': 'af60725d90fa4a7bb71ab6f9d9840c7d'
-        };
-
         // ===== VARIABLES GLOBALES =====
         let usuario = null;
         let usuarioId = null;
@@ -662,9 +750,29 @@
         let tiempoInicioEspecimen = Date.now();
         let timerInterval;
         let especiesCompletadas = [false, false];
-        let estrategiaActual = '';
+        let vistaActual = 'lateral';
 
-        // ===== FUNCIÓN PARA OBTENER ID DE USUARIO DESDE SESIÓN =====
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            usuario = urlParams.get('usuario');
+            
+            usuarioId = await obtenerUsuarioId();
+            if (!usuarioId) {
+                mostrarFeedback('⚠️ Sesión no válida. Por favor inicia sesión nuevamente.', '#FF375F');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
+                return;
+            }
+            
+            if (usuario) {
+                document.getElementById('userBadge').innerHTML = `Usuario: <span>${usuario}</span>`;
+            }
+            cargarGlosario();
+            document.getElementById('startBtn').addEventListener('click', iniciarConReflexion);
+        });
+
         async function obtenerUsuarioId() {
             try {
                 const response = await fetch('/api/verificar_sesion');
@@ -678,26 +786,6 @@
             return null;
         }
 
-        // ===== FUNCIONES SKETCHFAB =====
-        function loadSketchfabModel(species) {
-            document.getElementById('modelLoading').style.display = 'block';
-            const uid = SKETCHFAB_IDS[species];
-            if (!uid) {
-                document.getElementById('sketchfab-container').innerHTML = '<div style="color:red; padding:20px;">Error: Modelo no disponible</div>';
-                document.getElementById('modelLoading').style.display = 'none';
-                return;
-            }
-            document.getElementById('sketchfab-container').innerHTML = `
-                <iframe 
-                    src="https://sketchfab.com/models/${uid}/embed?autostart=1&preload=1&transparent=1&ui_controls=1&ui_infos=0&ui_stop=0&ui_watermark=0&ui_measure=1"
-                    allow="autoplay; fullscreen; xr-spatial-tracking"
-                    allowfullscreen
-                    style="width:100%; height:100%; border:0;">
-                </iframe>
-            `;
-            document.getElementById('modelLoading').style.display = 'none';
-        }
-
         function cargarGlosario() {
             const container = document.getElementById('glossaryContainer');
             container.innerHTML = GLOSARIO.map(g => `
@@ -708,38 +796,47 @@
             `).join('');
         }
 
-        function mostrarFeedback(mensaje, color) {
-            const existing = document.querySelector('.feedback-modal');
-            if (existing) existing.remove();
+        // ===== INICIAR CON SESIÓN PRIMERO =====
+        async function iniciarConReflexion() {
+            try {
+                const response = await fetch('/api/experimento/iniciar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ usuario_id: usuarioId })
+                });
+                if (!response.ok) throw new Error('Error al iniciar');
+                const data = await response.json();
+                sesionId = data.sesion_id;
+                especimenes = data.especimenes.slice(0, 2);
+            } catch (error) {
+                console.error('Error iniciando sesión:', error);
+                mostrarFeedback('❌ Error al iniciar la sesión experimental', '#FF375F');
+                return;
+            }
             
-            const feedback = document.createElement('div');
-            feedback.className = 'feedback-modal';
-            feedback.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: ${color};
-                color: #0A0E17;
-                padding: 25px 40px;
-                border-radius: 20px;
-                font-size: 1.5rem;
-                font-weight: bold;
-                z-index: 10000;
-                text-align: center;
-                min-width: 350px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-                border: 2px solid white;
-                animation: fadeInOut 3s ease forwards;
-            `;
-            const icono = color.includes('00D4FF') ? '✅' : '❌';
-            feedback.innerHTML = `${icono} ${mensaje}`;
-            document.body.appendChild(feedback);
-            setTimeout(() => feedback.remove(), 3000);
+            respuestas = new Array(especimenes.length).fill(null);
+             especiesCompletadas = new Array(especimenes.length).fill(false);  // ← AGREGAR AQUÍ
+    
+    // Intentar cargar progreso guardado ANTES de la reflexión
+    if (cargarProgresoLocal()) {
+        const primeraNoCompletada = especiesCompletadas.findIndex(c => c === false);
+        if (primeraNoCompletada !== -1) {
+            indiceActual = primeraNoCompletada;
+            mostrarFeedback('🔄 Cargando progreso anterior...', '#00D4FF');
+            // Saltar reflexión previa si ya hay progreso
+            iniciarIdentificacion();
+            return;
+        } else {
+            setTimeout(() => mostrarResumenFinal(), 500);
+            return;
+        }
+    }
+            mostrarReflexionPrevia();
+            
         }
 
         // ===== REFLEXIONES METACOGNITIVAS =====
-      function mostrarReflexionPrevia() {
+       function mostrarReflexionPrevia() {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
@@ -782,67 +879,79 @@
                     <span id="valor3" style="color: #00D4FF;">10</span> min
                 </div>
             </div>
-            
-            <div style="margin: 20px 0;">
-                <label style="color: #00D4FF;">4. ¿Qué habilidad tienes para imaginar objetos en 3D (rotación mental)?</label>
-                <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
-                    <span>0%</span>
-                    <input type="range" id="reflexion4" min="0" max="100" value="50" style="flex: 1;">
-                    <span>100%</span>
-                </div>
-                <div style="text-align: center; margin-top: 5px;">
-                    <span id="valor4" style="color: #00D4FF;">50</span>%
-                </div>
-            </div>
-            
-            <div style="margin: 20px 0;">
-                <label style="color: #00D4FF;">5. Elige la estrategia que usarás para identificar las especies:</label>
-                <div style="background: #1A1F36; padding: 15px; border-radius: 10px; margin-top: 10px;">
-                    <div style="margin-bottom: 10px;">
-                        <input type="radio" name="estrategia" id="estrat1" value="sistematica" checked>
-                        <label for="estrat1" style="color:#E0E0E0;">📋 <strong>Exploración sistemática</strong> - Observar cada carácter en orden</label>
-                    </div>
-                    <div style="margin-bottom: 10px;">
-                        <input type="radio" name="estrategia" id="estrat2" value="comparativa">
-                        <label for="estrat2" style="color:#E0E0E0;">🔍 <strong>Comparación activa</strong> - Comparar con imágenes de referencia</label>
-                    </div>
-                    <div>
-                        <input type="radio" name="estrategia" id="estrat3" value="hipotetica">
-                        <label for="estrat3" style="color:#E0E0E0;">💡 <strong>Hipotético-deductiva</strong> - Generar hipótesis y verificarlas</label>
-                    </div>
-                </div>
-            </div>
-            
-            <button onclick="guardarReflexionPrevia()" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Comenzar identificación</button>
+            <!-- ✅ NUEVA PREGUNTA: RAZONAMIENTO ESPACIAL -->
+<div style="margin: 20px 0;">
+    <label style="color: #00D4FF;">4. ¿Qué habilidad tienes para imaginar objetos en 3D (rotación mental)?</label>
+    <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+        <span>0%</span>
+        <input type="range" id="reflexion4" min="0" max="100" value="50" style="flex: 1;">
+        <span>100%</span>
+    </div>
+    <div style="text-align: center; margin-top: 5px;">
+        <span id="valor4" style="color: #00D4FF;">50</span>%
+    </div>
+</div>
+<!-- Selección de estrategia -->
+<div style="margin: 20px 0;">
+    <label style="color: #00D4FF;">5. Elige la estrategia que usarás para identificar las especies:</label>
+    <div style="background: #1A1F36; padding: 15px; border-radius: 10px; margin-top: 10px;">
+        <div style="margin-bottom: 10px;">
+            <input type="radio" name="estrategia" id="estrat1" value="sistematica" checked>
+            <label for="estrat1" style="color:#E0E0E0;">📋 <strong>Exploración sistemática</strong> - Observar cada carácter en orden: glándula metapleural → pilosidad → escapos</label>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <input type="radio" name="estrategia" id="estrat2" value="comparativa">
+            <label for="estrat2" style="color:#E0E0E0;">🔍 <strong>Comparación activa</strong> - Comparar el espécimen con las imágenes de referencia o con mi memoria</label>
+        </div>
+        <div>
+            <input type="radio" name="estrategia" id="estrat3" value="hipotetica">
+            <label for="estrat3" style="color:#E0E0E0;">💡 <strong>Hipotético-deductiva</strong> - Generar hipótesis sobre la especie desde el inicio y verificarlas con los caracteres</label>
+        </div>
+    </div>
+</div>
+<button onclick="guardarReflexionPrevia()" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Comenzar identificación</button>
         </div>
     `;
     document.body.appendChild(modal);
     
-    document.getElementById('reflexion1').addEventListener('input', function(e) { document.getElementById('valor1').textContent = e.target.value; });
-    document.getElementById('reflexion2').addEventListener('input', function(e) { document.getElementById('valor2').textContent = e.target.value; });
-    document.getElementById('reflexion3').addEventListener('input', function(e) { document.getElementById('valor3').textContent = e.target.value; });
-    document.getElementById('reflexion4').addEventListener('input', function(e) { document.getElementById('valor4').textContent = e.target.value; });
+    // Actualizar valores mostrados
+    document.getElementById('reflexion1').addEventListener('input', function(e) {
+        document.getElementById('valor1').textContent = e.target.value;
+    });
+    document.getElementById('reflexion2').addEventListener('input', function(e) {
+        document.getElementById('valor2').textContent = e.target.value;
+    });
+    document.getElementById('reflexion3').addEventListener('input', function(e) {
+        document.getElementById('valor3').textContent = e.target.value;
+    });
+    document.getElementById('reflexion4').addEventListener('input', function(e) {
+    document.getElementById('valor4').textContent = e.target.value;
+    });
 }
+
         async function guardarReflexionPrevia() {
     const nivelConocimiento = document.getElementById('reflexion1').value;
     const nivelConfianza = document.getElementById('reflexion2').value;
     const tiempoEstimado = document.getElementById('reflexion3').value;
     const razonamientoEspacial = document.getElementById('reflexion4').value;
-    
     const estrategia = document.querySelector('input[name="estrategia"]:checked').value;
-    let estrategiaTexto = '';
-    if (estrategia === 'sistematica') estrategiaTexto = 'Exploración sistemática';
-    else if (estrategia === 'comparativa') estrategiaTexto = 'Comparación activa';
-    else estrategiaTexto = 'Hipotético-deductiva';
-    estrategiaActual = estrategiaTexto;
+let estrategiaTexto = '';
+if (estrategia === 'sistematica') estrategiaTexto = 'Exploración sistemática';
+else if (estrategia === 'comparativa') estrategiaTexto = 'Comparación activa';
+else estrategiaTexto = 'Hipotético-deductiva';
     
-    const respuesta = `Nivel de conocimiento: ${nivelConocimiento}% | Confianza: ${nivelConfianza}% | Tiempo estimado: ${tiempoEstimado} min | Razonamiento espacial: ${razonamientoEspacial}% | Estrategia: ${estrategiaTexto}`;
+    const respuesta = `Nivel de conocimiento: ${nivelConocimiento}% | Confianza: ${nivelConfianza}% | Tiempo estimado: ${tiempoEstimado} min | Razonamiento espacial: ${razonamientoEspacial}% | Estrategia: ${estrategiaTexto}%`;
     
     if (sesionId) {
         await fetch('/api/experimento/guardar_reflexion', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ sesion_id: sesionId, momento: 'pre', pregunta: 'Reflexión previa (escala numérica)', respuesta: respuesta })
+            body: JSON.stringify({ 
+                sesion_id: sesionId, 
+                momento: 'pre', 
+                pregunta: 'Reflexión previa (escala numérica)', 
+                respuesta: respuesta 
+            })
         });
     }
     document.querySelector('.modal').remove();
@@ -857,6 +966,7 @@
             <div class="modal-content" style="max-width: 600px;">
                 <h3>💭 Reflexión durante la identificación</h3>
                 <p>Pregunta ${preguntaNum}</p>
+                
                 <div style="margin: 20px 0;">
                     <label style="color: #00D4FF;">¿Qué tan seguro/a estás de tu respuesta hasta ahora?</label>
                     <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
@@ -868,29 +978,53 @@
                         <span id="seguridadValor" style="color: #00D4FF;">50</span>%
                     </div>
                 </div>
+                
                 <div style="margin: 20px 0;">
                     <label style="color: #00D4FF;">¿La estrategia que elegiste está funcionando?</label>
                     <div style="display: flex; gap: 15px; margin-top: 10px;">
-                        <label><input type="radio" name="cambioEstrategia" value="si" checked> ✅ Sí, seguir igual</label>
-                        <label><input type="radio" name="cambioEstrategia" value="no"> 🔄 No, quiero cambiar</label>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="cambioEstrategia" value="si" checked> ✅ Sí, seguir igual
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="radio" name="cambioEstrategia" value="no"> 🔄 No, quiero cambiar de estrategia
+                        </label>
                     </div>
                 </div>
+                
+                <!-- NUEVA SECCIÓN: Selección de nueva estrategia (oculta al inicio) -->
                 <div id="seleccionNuevaEstrategia" style="display: none; margin: 20px 0; padding: 15px; background: #1A1F36; border-radius: 10px;">
                     <label style="color: #00D4FF;">Selecciona la nueva estrategia:</label>
                     <div style="margin-top: 10px;">
-                        <div><input type="radio" name="nuevaEstrategia" value="sistematica" checked> 📋 Exploración sistemática</div>
-                        <div><input type="radio" name="nuevaEstrategia" value="comparativa"> 🔍 Comparación activa</div>
-                        <div><input type="radio" name="nuevaEstrategia" value="hipotetica"> 💡 Hipotético-deductiva</div>
+                        <div style="margin-bottom: 10px;">
+                            <input type="radio" name="nuevaEstrategia" id="nuevaEstrat1" value="sistematica" checked>
+                            <label for="nuevaEstrat1" style="color:#E0E0E0;">📋 <strong>Exploración sistemática</strong></label>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <input type="radio" name="nuevaEstrategia" id="nuevaEstrat2" value="comparativa">
+                            <label for="nuevaEstrat2" style="color:#E0E0E0;">🔍 <strong>Comparación activa</strong></label>
+                        </div>
+                        <div>
+                            <input type="radio" name="nuevaEstrategia" id="nuevaEstrat3" value="hipotetica">
+                            <label for="nuevaEstrat3" style="color:#E0E0E0;">💡 <strong>Hipotético-deductiva</strong></label>
+                        </div>
                     </div>
                 </div>
-                <button onclick="guardarReflexionDurante(${preguntaNum})" style="width:100%; padding:12px; background:linear-gradient(45deg,#00D4FF,#7B61FF); border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer;">Continuar</button>
+                
+                <button onclick="guardarReflexionDurante(${preguntaNum})" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Continuar</button>
             </div>
         `;
         document.body.appendChild(modal);
         
-        document.querySelectorAll('input[name="cambioEstrategia"]').forEach(radio => {
+        // Mostrar/ocultar selección de nueva estrategia
+        const radios = document.querySelectorAll('input[name="cambioEstrategia"]');
+        radios.forEach(radio => {
             radio.addEventListener('change', function() {
-                document.getElementById('seleccionNuevaEstrategia').style.display = this.value === 'no' ? 'block' : 'none';
+                const divNueva = document.getElementById('seleccionNuevaEstrategia');
+                if (this.value === 'no') {
+                    divNueva.style.display = 'block';
+                } else {
+                    divNueva.style.display = 'none';
+                }
             });
         });
         
@@ -902,11 +1036,13 @@
     });
 }
 
-       async function guardarReflexionDurante(preguntaNum) {
+        async function guardarReflexionDurante(preguntaNum) {
     const seguridad = document.getElementById('reflexionDuranteSeguridad').value;
     const cambiarEstrategia = document.querySelector('input[name="cambioEstrategia"]:checked').value;
+    
     let respuesta = `Seguridad: ${seguridad}% | ¿Cambiar estrategia? ${cambiarEstrategia === 'si' ? 'No' : 'Sí'}`;
     
+    // Si quiere cambiar, guardar la nueva estrategia
     if (cambiarEstrategia === 'no') {
         const nuevaEstrategia = document.querySelector('input[name="nuevaEstrategia"]:checked').value;
         let nuevaEstrategiaTexto = '';
@@ -921,19 +1057,27 @@
         await fetch('/api/experimento/guardar_reflexion', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ sesion_id: sesionId, momento: 'durante', pregunta: `Pregunta ${preguntaNum} (monitoreo de estrategia)`, respuesta: respuesta })
+            body: JSON.stringify({ 
+                sesion_id: sesionId, 
+                momento: 'durante', 
+                pregunta: `Pregunta ${preguntaNum} (monitoreo de estrategia)`, 
+                respuesta: respuesta 
+            })
         });
     }
     document.querySelector('.modal').remove();
     
+    // Si el usuario quiere cambiar de estrategia, reiniciar
     if (cambiarEstrategia === 'no') {
         if (confirm('¿Cambiar de estrategia? Se reiniciará la identificación.')) {
             reiniciarIdentificacion();
             return;
         }
     }
+    
     window.resolverReflexion();
 }
+
         function mostrarReflexionPost() {
     return new Promise((resolve) => {
         const modal = document.createElement('div');
@@ -1021,59 +1165,33 @@
     document.querySelector('.modal').remove();
     window.resolverReflexionPost();
 }
-        
 
-        // ===== INICIAR CON SESIÓN PRIMERO =====
-        async function iniciarConReflexion() {
-            try {
-                const response = await fetch('/api/experimento/iniciar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ usuario_id: usuarioId })
-                });
-                if (!response.ok) throw new Error('Error al iniciar');
-                const data = await response.json();
-                sesionId = data.sesion_id;
-                especimenes = data.especimenes.slice(0, 2);
-            } catch (error) {
-                console.error('Error iniciando sesión:', error);
-                mostrarFeedback('❌ Error al iniciar la sesión experimental', '#FF375F');
-                return;
-            }
-            
-            respuestas = new Array(especimenes.length).fill(null);
-             especiesCompletadas = new Array(especimenes.length).fill(false);  // ← AGREGAR AQUÍ
+        // ===== FUNCIONES PRINCIPALES =====
+        function iniciarIdentificacion() {
+    document.getElementById('introScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
     
-    // Intentar cargar progreso guardado ANTES de la reflexión
-    if (cargarProgresoLocal()) {
-    const primeraNoCompletada = especiesCompletadas.findIndex(c => c === false);
-    if (primeraNoCompletada !== -1) {
-        indiceActual = primeraNoCompletada;
-        mostrarFeedback('🔄 Cargando progreso anterior...', '#00D4FF');
-        iniciarIdentificacion();
-        return;
-    } else {
-    // ✅ TODAS LAS ESPECIES COMPLETADAS → IR DIRECTAMENTE A ENCUESTAS
-    mostrarFeedback('📝 Identificaciones completadas. Ahora las encuestas.', '#00D4FF');
-    setTimeout(() => {
-        // Ocultar la pantalla de introducción y mostrar la app
-        document.getElementById('introScreen').style.display = 'none';
-        document.getElementById('mainApp').style.display = 'block';
-        // Llamar directamente a las encuestas
-        mostrarEncuestas();
-    }, 1500);
-    return;
+    tiempoInicio = Date.now();
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(actualizarTimer, 1000);
+    cargarEspecimen(indiceActual);
 }
-}
-            mostrarReflexionPrevia();
-            
-        }
 
         function actualizarTimer() {
             const t = Math.floor((Date.now() - tiempoInicio) / 1000);
             const m = Math.floor(t / 60);
             const s = t % 60;
             document.getElementById('timer').textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }
+
+        function cambiarVista(vista) {
+            vistaActual = vista;
+            document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            if (especimenes.length > 0 && especimenes[indiceActual]) {
+                const especie = especimenes[indiceActual].especie;
+                document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${especie}/${vista}.jpg`;
+            }
         }
 
         async function guardarResultadoBackend(especimenId, especieCorrecta, especieSeleccionada, esCorrecta, tiempo) {
@@ -1099,18 +1217,8 @@
             }
         }
 
-        function iniciarIdentificacion() {
-    document.getElementById('introScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    
-    tiempoInicio = Date.now();
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(actualizarTimer, 1000);
-    cargarEspecimen(indiceActual);
-  }
-
-        function cargarEspecimen(index) {
-             pasoActual = 1; 
+       function cargarEspecimen(index) {
+         pasoActual = 1; 
     // Verificar si esta especie ya fue completada
     if (especiesCompletadas[index]) {
         mostrarFeedback('⚠️ Esta especie ya fue identificada anteriormente', '#FFAA00');
@@ -1134,16 +1242,31 @@
     document.getElementById('specimenCounter').textContent = `ESPÉCIMEN ${index+1}/${especimenes.length}`;
     document.getElementById('progressBar').style.width = `${((index+1)/especimenes.length)*100}%`;
     
-    if (especimenes[index]) {
-        // Para 2D usa imagen, para 3D usa Sketchfab
-        if (typeof loadSketchfabModel === 'function') {
-            loadSketchfabModel(especimenes[index].especie);
-        } else {
-            const especie = especimenes[index].especie;
-            document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${especie}/${vistaActual}.jpg`;
-        }
+if (especimenes[index]) {
+    if (typeof loadSketchfabModel === 'function') {
+        loadSketchfabModel(especimenes[index].especie);
+    } else {
+        const especie = especimenes[index].especie;
+        const img = document.getElementById('specimenImage');
+        img.src = `/static/imagenes/linepithema/${especie}/${vistaActual}.jpg`;
+        img.style.cursor = 'zoom-in';
+        img.style.transition = 'transform 0.2s ease';
+        
+        // Zoom con scroll (rueda del mouse)
+        let currentScale = 1;
+        img.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                currentScale = Math.min(currentScale + 0.1, 3);
+            } else {
+                currentScale = Math.max(currentScale - 0.1, 1);
+            }
+            img.style.transform = `scale(${currentScale})`;
+            img.style.transformOrigin = 'center center';
+        });
     }
-    mostrarPregunta(1);
+}
+            mostrarPregunta(1);
 }
 
         async function mostrarPregunta(numero) {
@@ -1253,6 +1376,38 @@
     }, 2000);
 }
 
+        function mostrarFeedback(mensaje, color) {
+            const existing = document.querySelector('.feedback-modal');
+            if (existing) existing.remove();
+            
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback-modal';
+            feedback.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: ${color};
+                color: #0A0E17;
+                padding: 25px 40px;
+                border-radius: 20px;
+                font-size: 1.5rem;
+                font-weight: bold;
+                z-index: 10000;
+                text-align: center;
+                min-width: 350px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                border: 2px solid white;
+                animation: fadeInOut 3s ease forwards;
+            `;
+            
+            const icono = color.includes('00D4FF') ? '✅' : '❌';
+            feedback.innerHTML = `${icono} ${mensaje}`;
+            document.body.appendChild(feedback);
+            
+            setTimeout(() => feedback.remove(), 3000);
+        }
+
         function mostrarResumenFinal() {
             const aciertos = respuestas.filter(r => r !== null && r !== 'incorrecto').length;
             const total = especimenes.length;
@@ -1273,10 +1428,28 @@
             clearInterval(timerInterval);
         }
 
-        function anteriorPregunta() { if(pasoActual > 1) mostrarPregunta(pasoActual - 1); }
-        function siguientePregunta() { if(pasoActual < 8) mostrarPregunta(pasoActual + 1); }
-        function salirIdentificacion() { if(confirm('¿Salir? Se perderá el progreso.')) window.location.href='/dashboard?usuario='+usuario; }
-        function descargarGuia() { alert('Descarga de guía - En desarrollo'); }
+        function anteriorPregunta() { 
+            if(pasoActual > 1) mostrarPregunta(pasoActual - 1); 
+        }
+        
+        function siguientePregunta() { 
+            if(pasoActual < 8) mostrarPregunta(pasoActual + 1); 
+        }
+        
+        function salirIdentificacion() { 
+            if(confirm('¿Salir? Se perderá el progreso.')) 
+                window.location.href = '/dashboard?usuario=' + usuario; 
+        }
+
+        function descargarGuia() {
+            const contenido = `GUÍA DE IDENTIFICACIÓN - GÉNERO Linepithema...`;
+            const blob = new Blob([contenido], {type:'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'guia_linepithema.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
 
         // ===== ENCUESTAS =====
         function mostrarEncuestas() {
@@ -1423,18 +1596,21 @@
             }
         }
 
-        // ===== ZOOM Y DESCARGAS =====
+        // ===== ZOOM Y DESCARGA =====
         function toggleZoom() {
             const modal = document.getElementById('zoomModal');
-            if (modal.style.display === 'flex') modal.style.display = 'none';
-            else modal.style.display = 'flex';
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none';
+            } else {
+                modal.style.display = 'flex';
+            }
         }
 
         function cerrarZoom() {
             document.getElementById('zoomModal').style.display = 'none';
         }
 
-        function descargarPDFCompleto() {
+       function descargarPDFCompleto() {
     const contenido = `CLAVE TAXONÓMICA - GÉNERO Linepithema
 ========================================
 
@@ -1602,38 +1778,6 @@ Mandíbulas: Estructuras bucales utilizadas para cortar, transportar y defender.
     a.click();
     URL.revokeObjectURL(a.href);
 }
-
-        // ===== EVENTOS Y INICIALIZACIÓN =====
-        document.getElementById('fullscreenBtn').onclick = () => {
-            const c = document.querySelector('.viewer-container');
-            if (document.fullscreenElement) document.exitFullscreen();
-            else c.requestFullscreen();
-        };
-
-        document.getElementById('helpBtn').onclick = () => {
-            alert("🔍 Visor Sketchfab\n\n• Rotar: arrastrar mouse\n• Zoom: rueda del mouse\n• Medición: icono regla en el visor\n• Pantalla completa: ⛶\n\n💡 También puedes usar los atajos de teclado del visor");
-        };
-
-        // Inicializar
-        document.addEventListener('DOMContentLoaded', async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            usuario = urlParams.get('usuario');
-            
-            usuarioId = await obtenerUsuarioId();
-            if (!usuarioId) {
-                mostrarFeedback('⚠️ Sesión no válida. Por favor inicia sesión nuevamente.', '#FF375F');
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 2000);
-                return;
-            }
-            
-            if (usuario) {
-                document.getElementById('userBadge').innerHTML = `Usuario: <span>${usuario}</span>`;
-            }
-            cargarGlosario();
-            document.getElementById('startBtn').addEventListener('click', iniciarConReflexion);
-        });
         // ===== PERSISTENCIA DE PROGRESO =====
 function guardarProgresoLocal() {
     if (!usuarioId) return;
@@ -1668,15 +1812,26 @@ window.addEventListener('beforeunload', function() {
     }
 });
 function reiniciarIdentificacion() {
+    // Reiniciar variables
     indiceActual = 0;
     pasoActual = 1;
     respuestas = [];
     especiesCompletadas = [false, false];
     respuestaUsuario = '';
     respuestaSeleccionada = null;
-    if (usuarioId) localStorage.removeItem(`progreso_${usuarioId}`);
+    
+    // Limpiar localStorage para esta sesión
+    if (usuarioId) {
+        localStorage.removeItem(`progreso_${usuarioId}`);
+    }
+    
+    // Mostrar feedback
     mostrarFeedback('🔄 Reiniciando identificación con nueva estrategia...', '#00D4FF');
-    setTimeout(() => { cargarEspecimen(0); }, 1500);
+    
+    // Recargar el primer espécimen
+    setTimeout(() => {
+        cargarEspecimen(0);
+    }, 1500);
 }
     </script>
 </body>
