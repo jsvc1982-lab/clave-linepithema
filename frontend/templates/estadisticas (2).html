@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas Avanzadas - Clave Linepithema</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{background-color:#0A0E17;color:#E0E0E0;font-family:'Segoe UI',sans-serif;padding:20px;}
+        .container{max-width:1400px;margin:0 auto;}
+        h1{background:linear-gradient(45deg,#00D4FF,#7B61FF);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:5px;}
+        .subtitle{color:#A0A0B0;margin-bottom:25px;border-bottom:1px solid #00D4FF30;padding-bottom:10px;font-size:0.9rem;}
+        .section{background:#121826;border:1px solid #00D4FF40;border-radius:15px;padding:25px;margin-bottom:25px;}
+        .section-title{color:#00D4FF;font-size:1.2rem;margin-bottom:20px;border-bottom:1px solid #00D4FF30;padding-bottom:10px;font-weight:bold;}
+        table{width:100%;border-collapse:collapse;margin:15px 0;background:#1A1F36;border-radius:10px;overflow:hidden;}
+        th{background:#1A1F36;color:#00D4FF;padding:12px;text-align:left;border-bottom:1px solid #00D4FF40;font-size:0.85rem;}
+        td{padding:10px 12px;border-bottom:1px solid #1A1F36;font-size:0.85rem;}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin:15px 0;}
+        .stat-card{background:#1A1F36;border-radius:10px;padding:15px;}
+        .stat-number{font-size:1.8rem;font-weight:bold;color:#00D4FF;}
+        .stat-label{color:#A0A0B0;margin-top:5px;font-size:0.85rem;}
+        .btn{padding:10px 20px;border:none;border-radius:8px;font-weight:600;cursor:pointer;transition:transform 0.2s;font-size:0.9rem;}
+        .btn-primary{background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;}
+        .btn-secondary{background:#1A1F36;border:1px solid #00D4FF40;color:#00D4FF;}
+        .btn:hover{transform:translateY(-2px);}
+        .flex-buttons{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+        .badge-ok{color:#00D4FF;font-weight:bold;}
+        .badge-err{color:#FF375F;font-weight:bold;}
+        .chart-container{background:#1A1F36;border-radius:15px;padding:20px;margin:15px 0;}
+        .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:20px;margin-bottom:20px;}
+        canvas{max-height:320px;width:100%;}
+        .mensaje-flotante{position:fixed;bottom:20px;right:20px;background:#00D4FF;color:#0A0E17;padding:12px 20px;border-radius:8px;z-index:1000;animation:fadeOut 3s forwards;}
+        @keyframes fadeOut{0%{opacity:1;}70%{opacity:1;}100%{opacity:0;}}
+        .filtro-botones{margin-bottom:15px;display:flex;gap:8px;flex-wrap:wrap;}
+        .filtro-btn{padding:6px 14px;border:1px solid #00D4FF40;background:#1A1F36;color:#A0A0B0;border-radius:6px;cursor:pointer;font-size:0.85rem;}
+        .filtro-btn.active{background:#00D4FF20;color:#00D4FF;border-color:#00D4FF;}
+        .loading-state{text-align:center;padding:60px;color:#A0A0B0;font-size:1.1rem;}
+        .error-state{text-align:center;padding:40px;color:#FF375F;background:#FF375F10;border-radius:12px;border:1px solid #FF375F40;}
+        @media(max-width:800px){.charts-grid{grid-template-columns:1fr;}}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📊 Estadísticas Avanzadas</h1>
+    <div class="subtitle">Análisis estadístico completo — Clave Taxonómica Linepithema</div>
+
+    <div class="flex-buttons">
+        <button class="btn btn-primary"   onclick="exportarExcel()">📊 Excel</button>
+        <button class="btn btn-primary"   onclick="exportarJSON()">📥 JSON</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/admin'">← Volver al Admin</button>
+    </div>
+
+    <div id="contenido"><div class="loading-state">📊 Cargando datos...</div></div>
+</div>
+
+<script>
+    let usuarios=[], resultados=[], encuestas=[], reflexiones=[];
+    let filtroActual='todos';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await cargarDatos();
+        renderTodo();
+    });
+
+    async function cargarDatos() {
+        try {
+            const [u, r, e, ref] = await Promise.all([
+                fetch('/api/admin/usuarios').then(r=>r.json()),
+                fetch('/api/admin/datos').then(r=>r.json()),
+                fetch('/api/admin/encuestas').then(r=>r.json()),
+                fetch('/api/admin/reflexiones').then(r=>r.json())
+            ]);
+            usuarios=u; resultados=r; encuestas=e; reflexiones=ref;
+        } catch(err) {
+            document.getElementById('contenido').innerHTML =
+                `<div class="error-state">❌ Error al cargar datos. Verifica que estás autenticado como administrador.<br><br><button class="btn btn-secondary" onclick="window.location.href='/admin'">← Ir al login</button></div>`;
+            throw err;
+        }
+    }
+
+    function mostrarMensaje(m, c='#00D4FF') {
+        const d=document.createElement('div');
+        d.className='mensaje-flotante'; d.textContent=m; d.style.background=c;
+        document.body.appendChild(d); setTimeout(()=>d.remove(),3500);
+    }
+
+    // ===== RENDER PRINCIPAL =====
+    function renderTodo() {
+        let html = '';
+        html += seccionResumen();
+        html += seccionGraficos();
+        html += seccionCargasCognitivas();
+        html += seccionCorrelacion();
+        html += seccionEvolucion();
+        html += seccionComparacion();
+        html += seccionPorEspecimen();
+        html += seccionParticipantes(filtroActual);
+        html += seccionAnalisisFactorial();
+        document.getElementById('contenido').innerHTML = html;
+        setTimeout(dibujarGraficos, 100);
+    }
+
+    // ===== SECCIONES =====
+    function seccionResumen() {
+        const grupos=['2D','2D_META','3D','3D_META'];
+        const nombres=['2D','2D + Meta','3D','3D + Meta'];
+        let cards = grupos.map((g,i)=>{
+            const ug=usuarios.filter(u=>u.grupo_asignado===g);
+            const rg=resultados.filter(r=>r.grupo===g);
+            const ac=rg.filter(r=>r.acerto===true).length;
+            const p=rg.length?( ac/rg.length*100).toFixed(1):0;
+            const t=rg.length?(rg.reduce((s,r)=>s+(r.tiempo||0),0)/rg.length).toFixed(1):0;
+            const eg=encuestas.filter(e=>e.grupo===g&&e.tipo==='SUS');
+            const s=eg.length?(eg.reduce((s,e)=>s+(e.puntaje_total||0),0)/eg.length).toFixed(1):'—';
+            return `<div class="stat-card">
+                <div class="stat-number">${ug.length}</div><div class="stat-label">${nombres[i]} (n)</div>
+                <div style="margin-top:10px;font-size:1.3rem;font-weight:bold;color:#7B61FF;">${p}%</div>
+                <div class="stat-label">Precisión</div>
+                <div style="margin-top:6px;font-size:0.85rem;color:#A0A0B0;">⏱️ ${t}s · 📝 SUS: ${s}</div>
+            </div>`;
+        }).join('');
+        return `<div class="section"><div class="section-title">📈 1. Resumen por Grupo</div><div class="stats-grid">${cards}</div></div>`;
+    }
+
+    function seccionGraficos() {
+        const grupos=['2D','2D_META','3D','3D_META'];
+        window._labels=['2D','2D+META','3D','3D+META'];
+        window._precision=grupos.map(g=>{const r=resultados.filter(r=>r.grupo===g);return r.length?(r.filter(r=>r.acerto===true).length/r.length*100).toFixed(1):0;});
+        window._tiempo=grupos.map(g=>{const r=resultados.filter(r=>r.grupo===g);return r.length?(r.reduce((s,r)=>s+(r.tiempo||0),0)/r.length).toFixed(1):0;});
+        window._sus=grupos.map(g=>{const e=encuestas.filter(e=>e.grupo===g&&e.tipo==='SUS');return e.length?(e.reduce((s,e)=>s+(e.puntaje_total||0),0)/e.length).toFixed(1):0;});
+        return `<div class="section"><div class="section-title">📊 2. Gráficos Principales</div>
+            <div class="charts-grid">
+                <div class="chart-container"><canvas id="chP"></canvas><p style="text-align:center;margin-top:8px;font-size:0.85rem;color:#A0A0B0;">Precisión (%)</p></div>
+                <div class="chart-container"><canvas id="chT"></canvas><p style="text-align:center;margin-top:8px;font-size:0.85rem;color:#A0A0B0;">Tiempo promedio (s)</p></div>
+                <div class="chart-container"><canvas id="chS"></canvas><p style="text-align:center;margin-top:8px;font-size:0.85rem;color:#A0A0B0;">Puntaje SUS</p></div>
+                <div class="chart-container"><canvas id="chD"></canvas><p style="text-align:center;margin-top:8px;font-size:0.85rem;color:#A0A0B0;">Distribución total</p></div>
+            </div></div>`;
+    }
+
+    function seccionCargasCognitivas() {
+        const grupos=['2D','2D_META','3D','3D_META'];
+        let intr={},extr={},germ={},cnt={};
+        grupos.forEach(g=>{intr[g]=0;extr[g]=0;germ[g]=0;cnt[g]=0;});
+        encuestas.forEach(e=>{
+            if(e.tipo==='COGNITIVE_LOAD'&&e.grupo&&(e.carga_intrinseca||e.carga_extrinseca)){
+                intr[e.grupo]+=(e.carga_intrinseca||0);
+                extr[e.grupo]+=(e.carga_extrinseca||0);
+                germ[e.grupo]+=(e.carga_germana||0);
+                cnt[e.grupo]++;
+            }
+        });
+        grupos.forEach(g=>{if(cnt[g]>0){intr[g]=(intr[g]/cnt[g]).toFixed(1);extr[g]=(extr[g]/cnt[g]).toFixed(1);germ[g]=(germ[g]/cnt[g]).toFixed(1);}else{intr[g]=0;extr[g]=0;germ[g]=0;}});
+        window._cargas={labels:grupos,intr:grupos.map(g=>parseFloat(intr[g])),extr:grupos.map(g=>parseFloat(extr[g])),germ:grupos.map(g=>parseFloat(germ[g]))};
+        const filas=grupos.map(g=>`<tr><td><strong>${g}</strong></td><td>${intr[g]}</td><td>${extr[g]}</td><td>${germ[g]}</td></tr>`).join('');
+        return `<div class="section"><div class="section-title">🧠 3. Cargas Cognitivas</div>
+            <div class="chart-container"><canvas id="chC"></canvas></div>
+            <table><thead><tr><th>Grupo</th><th>Intrínseca</th><th>Extrínseca</th><th>Germana</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+    }
+
+    function seccionCorrelacion() {
+        let pts=[];
+        reflexiones.filter(r=>r.momento==='durante').forEach(r=>{
+            const m=r.respuesta_raw?r.respuesta_raw.match(/Seguridad:\s*(\d+)%/):null;
+            if(m&&r.usuario){
+                const ru=resultados.filter(res=>res.usuario===r.usuario);
+                const ac=ru.filter(res=>res.acerto===true).length;
+                if(ru.length>0) pts.push({x:parseInt(m[1]),y:Math.round(ac/ru.length*100)});
+            }
+        });
+        window._corrPts=pts;
+        return `<div class="section"><div class="section-title">📈 4. Correlación Confianza vs Precisión</div>
+            <div class="chart-container"><canvas id="chCor"></canvas></div>
+            <div class="stat-card" id="corrLabel">Calculando correlación...</div></div>`;
+    }
+
+    function seccionEvolucion() {
+        const grupos=['2D','2D_META','3D','3D_META'];
+        let a1=[0,0,0,0],t1=[0,0,0,0],a2=[0,0,0,0],t2=[0,0,0,0];
+        resultados.forEach(r=>{
+            const i=grupos.indexOf(r.grupo);
+            if(i===-1) return;
+            if(r.orden===1){if(r.acerto)a1[i]++;t1[i]++;}
+            else if(r.orden===2){if(r.acerto)a2[i]++;t2[i]++;}
+        });
+        window._evol={labels:grupos,p1:grupos.map((_,i)=>t1[i]?(a1[i]/t1[i]*100).toFixed(1):0),p2:grupos.map((_,i)=>t2[i]?(a2[i]/t2[i]*100).toFixed(1):0)};
+        return `<div class="section"><div class="section-title">📈 5. Evolución Espécimen 1 vs 2</div>
+            <div class="chart-container"><canvas id="chEv"></canvas></div></div>`;
+    }
+
+    function seccionComparacion() {
+        const grupos=['2D','2D_META','3D','3D_META'];
+        let datos={};
+        grupos.forEach(g=>datos[g]=[]);
+        usuarios.forEach(u=>{
+            if(!u.grupo_asignado||!grupos.includes(u.grupo_asignado)) return;
+            const ru=resultados.filter(r=>r.usuario===u.nombre_usuario);
+            if(ru.length>0){
+                const ac=ru.filter(r=>r.acerto===true).length;
+                datos[u.grupo_asignado].push(ac/ru.length*100);
+            }
+        });
+        let filas='<tr><td colspan="4" style="text-align:center;color:#A0A0B0;">Se necesitan más datos para el análisis estadístico.</td></tr>';
+        let anovaMsg='Datos insuficientes';
+        try {
+            if(typeof jStat!=='undefined') {
+                const anova=calcularANOVA(datos);
+                anovaMsg=`F=${anova.f}, p=${anova.p} (${anova.p<0.05||anova.p==='< 0.001'?'diferencias significativas':'sin significancia estadística'})`;
+                const pares=[];
+                for(let i=0;i<grupos.length;i++) for(let j=i+1;j<grupos.length;j++) {
+                    if(datos[grupos[i]].length>1&&datos[grupos[j]].length>1){
+                        const t=calcularTTest(datos[grupos[i]],datos[grupos[j]]);
+                        pares.push({g1:grupos[i],g2:grupos[j],p:t.p,sig:parseFloat(t.p)<0.05||t.p==='< 0.001'});
+                    }
+                }
+                if(pares.length>0) filas=pares.map(p=>`<tr><td>${p.g1}</td><td>${p.g2}</td><td>${p.p}</td><td style="color:${p.sig?'#00D4FF':'#A0A0B0'}">${p.sig?'✅ Sí':'❌ No'}</td></tr>`).join('');
+            }
+        } catch(e){ anovaMsg='Error en cálculo (jStat no disponible)'; }
+        return `<div class="section"><div class="section-title">📊 6. Comparación Estadística</div>
+            <div class="stat-card" style="margin-bottom:15px;"><strong>ANOVA:</strong> ${anovaMsg}</div>
+            <table><thead><tr><th>Grupo 1</th><th>Grupo 2</th><th>p-value (t-test)</th><th>Significativo (p&lt;0.05)</th></tr></thead>
+            <tbody>${filas}</tbody></table></div>`;
+    }
+
+    function seccionPorEspecimen() {
+        const filas=[...resultados].sort((a,b)=>a.usuario.localeCompare(b.usuario)||(a.orden||0)-(b.orden||0))
+            .map(r=>`<tr><td>${r.usuario}</td><td>${r.grupo||'—'}</td><td>${r.especie||r.especimen||'—'}</td><td>${r.especie_correcta||r.correcta||'—'}</td>
+                <td class="${r.acerto===true?'badge-ok':'badge-err'}">${r.acerto===true?'✅ Sí':'❌ No'}</td><td>${(r.tiempo||0).toFixed(1)}s</td></tr>`).join('');
+        return `<div class="section"><div class="section-title">🧪 7. Resultados por Espécimen</div>
+            <div style="overflow-x:auto;"><table><thead><tr><th>Usuario</th><th>Grupo</th><th>Espécimen</th><th>Correcta</th><th>¿Acertó?</th><th>Tiempo</th></tr></thead>
+            <tbody>${filas||'<tr><td colspan="6" style="text-align:center;padding:20px;">Sin datos aún.</td></tr>'}</tbody></table></div></div>`;
+    }
+
+    function seccionParticipantes(filtro='todos') {
+        const lista = filtro==='todos' ? usuarios : usuarios.filter(u=>u.grupo_asignado===filtro);
+        const botones=['todos','2D','2D_META','3D','3D_META'].map(f=>
+            `<button class="filtro-btn${filtroActual===f?' active':''}" onclick="cambiarFiltro('${f}')">${f==='todos'?'📋 Todos':f}</button>`
+        ).join('');
+        const filas=lista.map(u=>{
+            const ru=resultados.filter(r=>r.usuario===u.nombre_usuario);
+            const ac=ru.filter(r=>r.acerto===true).length;
+            const p=ru.length?(ac/ru.length*100).toFixed(1):0;
+            const t=ru.reduce((s,r)=>s+(r.tiempo||0),0);
+            return `<tr><td>${u.nombre_usuario}</td><td>${u.grupo_asignado||'—'}</td><td>${ru.length}</td><td>${ac}</td>
+                <td class="${parseFloat(p)>=70?'badge-ok':''}">${p}%</td><td>${t.toFixed(1)}s</td></tr>`;
+        }).join('');
+        return `<div class="section"><div class="section-title">👥 8. Datos por Participante</div>
+            <div class="filtro-botones">${botones}</div>
+            <div style="overflow-x:auto;"><table><thead><tr><th>Usuario</th><th>Grupo</th><th>Identificaciones</th><th>Aciertos</th><th>Precisión</th><th>Tiempo</th></tr></thead>
+            <tbody>${filas||'<tr><td colspan="6" style="text-align:center;padding:20px;">Sin datos.</td></tr>'}</tbody></table></div></div>`;
+    }
+
+    async function cambiarFiltro(filtro) {
+        filtroActual = filtro;
+        renderTodo();
+    }
+
+    // ===== GRÁFICOS =====
+    function dibujarGraficos() {
+        const colores=['#00D4FF','#00D4FF80','#7B61FF','#7B61FF80'];
+        const barOpts=(max)=>({ responsive:true, plugins:{legend:{labels:{color:'#E0E0E0'}}}, scales:{y:{beginAtZero:true,max,ticks:{color:'#A0A0B0'}},x:{ticks:{color:'#A0A0B0'}}}});
+        if(window._precision) new Chart(document.getElementById('chP'),{type:'bar',data:{labels:window._labels,datasets:[{label:'Precisión (%)',data:window._precision,backgroundColor:colores,borderRadius:8}]},options:barOpts(100)});
+        if(window._tiempo)    new Chart(document.getElementById('chT'),{type:'bar',data:{labels:window._labels,datasets:[{label:'Tiempo (s)',data:window._tiempo,backgroundColor:colores,borderRadius:8}]},options:barOpts(null)});
+        if(window._sus)       new Chart(document.getElementById('chS'),{type:'bar',data:{labels:window._labels,datasets:[{label:'SUS',data:window._sus,backgroundColor:colores,borderRadius:8}]},options:barOpts(100)});
+        const tot=resultados.length, ac=resultados.filter(r=>r.acerto===true).length;
+        new Chart(document.getElementById('chD'),{type:'doughnut',data:{labels:['✅ Correctos','❌ Incorrectos'],datasets:[{data:[ac,tot-ac],backgroundColor:['#00D4FF','#FF375F'],borderWidth:0}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#E0E0E0'}}}}});
+        if(window._cargas) new Chart(document.getElementById('chC'),{type:'bar',data:{labels:window._cargas.labels,datasets:[
+            {label:'Intrínseca',data:window._cargas.intr,backgroundColor:'#00D4FF'},
+            {label:'Extrínseca',data:window._cargas.extr,backgroundColor:'#FFAA00'},
+            {label:'Germana',   data:window._cargas.germ,backgroundColor:'#7B61FF'}
+        ]},options:{responsive:true,scales:{y:{beginAtZero:true,ticks:{color:'#A0A0B0'}},x:{ticks:{color:'#A0A0B0'}}}}});
+        if(window._corrPts&&window._corrPts.length>1){
+            new Chart(document.getElementById('chCor'),{type:'scatter',data:{datasets:[{label:'Estudiantes',data:window._corrPts,backgroundColor:'#00D4FF'}]},options:{responsive:true,scales:{x:{title:{display:true,text:'Confianza (%)'},min:0,max:100},y:{title:{display:true,text:'Precisión (%)'},min:0,max:100}}}});
+            const r=calcularCorrelacion(window._corrPts.map(p=>p.x),window._corrPts.map(p=>p.y));
+            const lbl=document.getElementById('corrLabel');
+            if(lbl) lbl.innerHTML=`📊 r de Pearson = <strong>${r.r}</strong> &nbsp;|&nbsp; p = <strong>${r.p}</strong>`;
+        } else {
+            const lbl=document.getElementById('corrLabel');
+            if(lbl) lbl.textContent='Sin suficientes datos de reflexión para calcular correlación.';
+        }
+        if(window._evol) new Chart(document.getElementById('chEv'),{type:'line',data:{labels:window._evol.labels,datasets:[
+            {label:'Espécimen 1',data:window._evol.p1,borderColor:'#00D4FF',backgroundColor:'transparent',tension:0.3},
+            {label:'Espécimen 2',data:window._evol.p2,borderColor:'#7B61FF',backgroundColor:'transparent',tension:0.3}
+        ]},options:{responsive:true,scales:{y:{beginAtZero:true,max:100,title:{display:true,text:'Precisión (%)'},ticks:{color:'#A0A0B0'}},x:{ticks:{color:'#A0A0B0'}}}}});
+    }
+
+    // ===== ESTADÍSTICA =====
+    function calcularANOVA(data) {
+        const grupos=Object.keys(data).filter(g=>data[g].length>0);
+        if(grupos.length<2) return {f:'N/A',p:'N/A'};
+        const todas=[].concat(...grupos.map(g=>data[g]));
+        const N=todas.length;
+        const mediaGlobal=todas.reduce((a,b)=>a+b,0)/N;
+        const medias={};
+        grupos.forEach(g=>medias[g]=data[g].reduce((a,b)=>a+b,0)/data[g].length);
+        const ssEntre=grupos.reduce((s,g)=>s+data[g].length*Math.pow(medias[g]-mediaGlobal,2),0);
+        const ssDentro=grupos.reduce((s,g)=>s+data[g].reduce((ss,v)=>ss+Math.pow(v-medias[g],2),0),0);
+        const dfE=grupos.length-1, dfD=N-grupos.length;
+        const F=(ssEntre/dfE)/(ssDentro/dfD);
+        const p=1-jStat.centralF.cdf(F,dfE,dfD);
+        return {f:F.toFixed(3),p:p<0.001?'< 0.001':p.toFixed(4)};
+    }
+
+    function calcularTTest(a,b) {
+        if(a.length<2||b.length<2) return {t:'N/A',p:'N/A'};
+        const ma=a.reduce((s,v)=>s+v,0)/a.length, mb=b.reduce((s,v)=>s+v,0)/b.length;
+        const va=a.reduce((s,v)=>s+Math.pow(v-ma,2),0)/(a.length-1);
+        const vb=b.reduce((s,v)=>s+Math.pow(v-mb,2),0)/(b.length-1);
+        const se=Math.sqrt(va/a.length+vb/b.length);
+        if(se===0) return {t:'0',p:'1'};
+        const t=(ma-mb)/se;
+        const df=a.length+b.length-2;
+        const p=2*(1-jStat.studentt.cdf(Math.abs(t),df));
+        return {t:t.toFixed(3),p:p<0.001?'< 0.001':p.toFixed(4)};
+    }
+
+    function calcularCorrelacion(x,y) {
+        if(x.length<2) return {r:0,p:1};
+        const n=x.length;
+        const sx=x.reduce((a,b)=>a+b,0), sy=y.reduce((a,b)=>a+b,0);
+        const sxy=x.reduce((a,b,i)=>a+b*y[i],0);
+        const sx2=x.reduce((a,b)=>a+b*b,0), sy2=y.reduce((a,b)=>a+b*b,0);
+        const denom=Math.sqrt((n*sx2-sx*sx)*(n*sy2-sy*sy));
+        if(denom===0) return {r:'0',p:'1'};
+        const r=(n*sxy-sx*sy)/denom;
+        const t=r*Math.sqrt((n-2)/(1-r*r));
+        const p=n>2?2*(1-jStat.studentt.cdf(Math.abs(t),n-2)):1;
+        return {r:r.toFixed(3),p:p<0.001?'< 0.001':p.toFixed(4)};
+    }
+
+    // ===== ÁLGEBRA MATRICIAL (para ANOVA factorial y regresión logística) =====
+    function matTranspose(A){ return A[0].map((_,j)=>A.map(row=>row[j])); }
+    function matMultiply(A,B){
+        const r=A.length, c=B[0].length, k=B.length;
+        const R=Array.from({length:r},()=>Array(c).fill(0));
+        for(let i=0;i<r;i++) for(let j=0;j<c;j++){ let s=0; for(let p=0;p<k;p++) s+=A[i][p]*B[p][j]; R[i][j]=s; }
+        return R;
+    }
+    function matInverse(M){
+        const n=M.length;
+        const A=M.map((row,i)=>row.concat(Array.from({length:n},(_,j)=>i===j?1:0)));
+        for(let i=0;i<n;i++){
+            let piv=i;
+            for(let k=i+1;k<n;k++) if(Math.abs(A[k][i])>Math.abs(A[piv][i])) piv=k;
+            if(Math.abs(A[piv][i])<1e-9) throw new Error('Matriz singular (faltan combinaciones de grupos)');
+            [A[i],A[piv]]=[A[piv],A[i]];
+            const d=A[i][i];
+            for(let j=0;j<2*n;j++) A[i][j]/=d;
+            for(let k=0;k<n;k++){
+                if(k===i) continue;
+                const f=A[k][i];
+                for(let j=0;j<2*n;j++) A[k][j]-=f*A[i][j];
+            }
+        }
+        return A.map(row=>row.slice(n));
+    }
+    function solveOLS(X,y){
+        const Xt=matTranspose(X);
+        const XtX=matMultiply(Xt,X);
+        const Xty=matMultiply(Xt,y.map(v=>[v]));
+        const XtXi=matInverse(XtX);
+        const beta=matMultiply(XtXi,Xty).map(r=>r[0]);
+        const yhat=matMultiply(X,beta.map(b=>[b])).map(r=>r[0]);
+        const sse=yhat.reduce((s,yh,i)=>s+Math.pow(y[i]-yh,2),0);
+        return {beta,sse};
+    }
+    function fitLogistic(X,y,maxIter=40){
+        const p=X[0].length;
+        let beta=Array(p).fill(0);
+        for(let iter=0; iter<maxIter; iter++){
+            const eta = X.map(row=>row.reduce((s,x,j)=>s+x*beta[j],0));
+            const pi = eta.map(e=>1/(1+Math.exp(-e)));
+            const W = pi.map(pv=>Math.max(pv*(1-pv),1e-6));
+            const Xt = matTranspose(X);
+            const XtWX = Array.from({length:p},(_,i)=>Array.from({length:p},(_,j)=>{
+                let s=0; for(let k=0;k<X.length;k++) s+=Xt[i][k]*W[k]*X[k][j]; return s;
+            }));
+            const z = eta.map((e,k)=> e + (y[k]-pi[k])/W[k]);
+            const XtWz = Array.from({length:p},(_,i)=>{
+                let s=0; for(let k=0;k<X.length;k++) s+=Xt[i][k]*W[k]*z[k]; return s;
+            });
+            const XtWXi = matInverse(XtWX);
+            const newBeta = XtWXi.map(row=>row.reduce((s,v,j)=>s+v*XtWz[j],0));
+            const delta = newBeta.reduce((s,v,i)=>s+Math.abs(v-beta[i]),0);
+            beta=newBeta;
+            if(delta<1e-6) break;
+        }
+        const eta = X.map(row=>row.reduce((s,x,j)=>s+x*beta[j],0));
+        const pi = eta.map(e=>1/(1+Math.exp(-e)));
+        const W = pi.map(pv=>Math.max(pv*(1-pv),1e-6));
+        const Xt = matTranspose(X);
+        const XtWX = Array.from({length:p},(_,i)=>Array.from({length:p},(_,j)=>{
+            let s=0; for(let k=0;k<X.length;k++) s+=Xt[i][k]*W[k]*X[k][j]; return s;
+        }));
+        const cov = matInverse(XtWX);
+        const se = cov.map((row,i)=>Math.sqrt(Math.max(row[i],0)));
+        return {beta, se};
+    }
+
+    // ===== 9. ANÁLISIS FACTORIAL 2×2×2 =====
+    function construirDatasetFactorial(){
+        const sesionUsuarioMap={};
+        resultados.forEach(r=>{ if(r.sesion_id!==undefined) sesionUsuarioMap[r.sesion_id]=r.usuario; });
+
+        return usuarios.filter(u=>u.grupo_asignado && (u.curso===1||u.curso===2)).map(u=>{
+            const grupo=u.grupo_asignado;
+            const R = grupo.startsWith('3D') ? 1 : -1;      // -1=2D, +1=3D
+            const M = grupo.includes('META') ? 1 : -1;       // -1=Sin Meta, +1=Con Meta
+            const I = u.curso===2 ? 1 : -1;                  // -1=Institución 1, +1=Institución 2
+            const sexoCode = u.genero==='Femenino' ? 1 : (u.genero==='Masculino' ? -1 : null);
+
+            const ru = resultados.filter(r=>r.usuario===u.nombre_usuario);
+            const aciertos = ru.filter(r=>r.acerto===true).length;
+            const precision = ru.length ? (aciertos/ru.length*100) : null;
+            const tiempo = ru.length ? (ru.reduce((s,r)=>s+(r.tiempo||0),0)/ru.length) : null;
+            const objetivoLogrado = ru.length===2 ? (aciertos===2?1:0) : null;
+
+            let cambioEstrategia=null;
+            if(grupo.includes('META')){
+                const refsDurante = reflexiones.filter(r=>r.usuario===u.nombre_usuario && r.momento==='durante');
+                if(refsDurante.length>0){
+                    cambioEstrategia = refsDurante.some(r=>/Cambiar estrategia\?\s*S[ií]/i.test(r.respuesta_raw||'')) ? 1 : 0;
+                }
+            }
+
+            const eu = encuestas.filter(e=>sesionUsuarioMap[e.sesion_id]===u.nombre_usuario);
+            const encSus = eu.find(e=>e.tipo==='SUS');
+            const sus = encSus ? encSus.sus_total : null;
+            const cog = eu.find(e=>e.tipo==='COGNITIVE_LOAD');
+            const cargaIntrinseca = cog ? cog.carga_intrinseca : null;
+            const cargaExtrinseca = cog ? cog.carga_extrinseca : null;
+            const cargaTotal = (cog && cog.carga_intrinseca!=null && cog.carga_extrinseca!=null && cog.carga_germana!=null)
+                ? (cog.carga_intrinseca+cog.carga_extrinseca+cog.carga_germana) : null;
+
+            return {
+                usuario:u.nombre_usuario, grupo, R, M, I, sexoCode,
+                representacion: R===1?'3D':'2D', meta: M===1?'Con Meta':'Sin Meta',
+                institucion:u.curso, sexo:u.genero,
+                precision, tiempo, objetivoLogrado, cambioEstrategia,
+                sus, cargaIntrinseca, cargaExtrinseca, cargaTotal
+            };
+        });
+    }
+
+    function anovaFactorial(dataset, dvKey){
+        const rows = dataset.filter(d=>d[dvKey]!==null && d[dvKey]!==undefined);
+        const n=rows.length;
+        if(n<10) return {error:`Datos insuficientes (n=${n}). Se necesitan más participantes.`};
+        const cols=['Intercepto','Representación (R)','Meta (M)','Institución (I)','R×M','R×I','M×I','R×M×I'];
+        const X = rows.map(r=>[1, r.R, r.M, r.I, r.R*r.M, r.R*r.I, r.M*r.I, r.R*r.M*r.I]);
+        const y = rows.map(r=>r[dvKey]);
+        let full;
+        try { full = solveOLS(X,y); } catch(e){ return {error:'Faltan combinaciones de grupos (celda vacía). No se puede calcular todavía.'}; }
+        const dfResidual = n - X[0].length;
+        if(dfResidual<1) return {error:'No hay suficientes grados de libertad. Se necesitan más participantes.'};
+        const msResidual = full.sse/dfResidual;
+        const efectos=[];
+        for(let c=1;c<X[0].length;c++){
+            const Xred = X.map(row=>row.filter((_,j)=>j!==c));
+            let red;
+            try{ red = solveOLS(Xred,y); } catch(e){ efectos.push({efecto:cols[c],ss:'—',f:'—',p:'—',sig:false}); continue; }
+            const ssEfecto = Math.max(red.sse - full.sse, 0);
+            const F = ssEfecto/msResidual;
+            const p = 1-jStat.centralF.cdf(F,1,dfResidual);
+            efectos.push({efecto:cols[c], ss:ssEfecto.toFixed(2), f:F.toFixed(3), p: p<0.001?'< 0.001':p.toFixed(4), sig: p<0.05});
+        }
+        return {n, dfResidual, efectos};
+    }
+
+    function regresionLogistica(dataset, dvKey, predictores){
+        const rows = dataset.filter(d=>(d[dvKey]===0||d[dvKey]===1) && predictores.every(p=>d[p.key]!==null && d[p.key]!==undefined));
+        const n=rows.length;
+        if(n<10) return {error:`Datos insuficientes (n=${n}).`};
+        const nUnos = rows.filter(r=>r[dvKey]===1).length;
+        if(nUnos===0||nUnos===n) return {error:'La variable no tiene variación (todos Sí o todos No). No se puede ajustar el modelo aún.'};
+        const cols=['Intercepto', ...predictores.map(p=>p.nombre)];
+        const X = rows.map(r=>[1, ...predictores.map(p=>r[p.key])]);
+        const y = rows.map(r=>r[dvKey]);
+        let fit;
+        try{ fit = fitLogistic(X,y); } catch(e){ return {error:e.message}; }
+        const filas = cols.map((nombre,i)=>{
+            const b=fit.beta[i], se=fit.se[i];
+            const z=se>0 ? b/se : 0;
+            const p=2*(1-jStat.normal.cdf(Math.abs(z),0,1));
+            const orLow=Math.exp(b-1.96*se), orHigh=Math.exp(b+1.96*se);
+            return {termino:nombre, or: i===0?'—':Math.exp(b).toFixed(3), ci: i===0?'—':`[${orLow.toFixed(2)}, ${orHigh.toFixed(2)}]`, p: p<0.001?'< 0.001':p.toFixed(4), sig:p<0.05};
+        });
+        return {n, nUnos, filas};
+    }
+
+    function seccionCorrelacionAvanzada(dataset){
+        const vars = [
+            {key:'precision', nombre:'Precisión'},
+            {key:'tiempo', nombre:'Tiempo'},
+            {key:'sus', nombre:'SUS'},
+            {key:'cargaTotal', nombre:'Carga Total'}
+        ];
+        let html = `<div class="stat-card" style="margin-top:15px;"><strong style="color:#7B61FF;">Correlaciones (Pearson) entre variables principales</strong>
+            <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th></th>`;
+        vars.forEach(v=>html+=`<th>${v.nombre}</th>`);
+        html += `</tr></thead><tbody>`;
+        vars.forEach(v1=>{
+            html += `<tr><td><strong>${v1.nombre}</strong></td>`;
+            vars.forEach(v2=>{
+                const pares = dataset.filter(d=>d[v1.key]!=null && d[v2.key]!=null);
+                if(v1.key===v2.key || pares.length<3){ html+=`<td>—</td>`; return; }
+                const r = calcularCorrelacion(pares.map(d=>d[v1.key]), pares.map(d=>d[v2.key]));
+                html += `<td>${r.r} ${parseFloat(r.p)<0.05?'*':''}</td>`;
+            });
+            html += `</tr>`;
+        });
+        html += `</tbody></table></div><div style="font-size:0.75rem;color:#A0A0B0;margin-top:6px;">* p &lt; 0.05</div></div>`;
+        return html;
+    }
+
+    function seccionAnalisisFactorial(){
+        let html = `<div class="section"><div class="section-title">🔬 9. Análisis Factorial 2×2×2 (Representación × Meta × Institución)</div>
+            <div class="stat-card" style="margin-bottom:20px;font-size:0.85rem;color:#A0A0B0;">
+                ⚠️ Vista rápida calculada en el navegador (Suma de Cuadrados Tipo III). Para el análisis definitivo de tu tesis,
+                exporta el dataset con el botón de abajo y procésalo en R o SPSS.
+            </div>
+            <button class="btn btn-secondary" style="margin-bottom:20px;" onclick="exportarDatasetFactorial()">📥 Exportar dataset (Excel) para R/SPSS</button>`;
+
+        let dataset;
+        try { dataset = construirDatasetFactorial(); } catch(e){
+            return html + `<div class="error-state">Error al construir el dataset: ${e.message}</div></div>`;
+        }
+        window._datasetFactorial = dataset;
+
+        const dvsAnova = [
+            {key:'precision', nombre:'Precisión taxonómica (%)'},
+            {key:'tiempo', nombre:'Tiempo de identificación (s)'},
+            {key:'sus', nombre:'Usabilidad (SUS)'},
+            {key:'cargaIntrinseca', nombre:'Carga cognitiva intrínseca'},
+            {key:'cargaExtrinseca', nombre:'Carga cognitiva extrínseca'},
+            {key:'cargaTotal', nombre:'Carga cognitiva total'}
+        ];
+
+        dvsAnova.forEach(dv=>{
+            const res = anovaFactorial(dataset, dv.key);
+            html += `<div class="stat-card" style="margin-bottom:15px;"><strong style="color:#00D4FF;">${dv.nombre}</strong>`;
+            if(res.error){
+                html += `<div style="margin-top:8px;color:#A0A0B0;">${res.error}</div></div>`;
+                return;
+            }
+            html += ` <span style="color:#A0A0B0;font-size:0.8rem;">(n=${res.n}, df residual=${res.dfResidual})</span>
+                <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th>Efecto</th><th>SS</th><th>F</th><th>p</th><th>Sig.</th></tr></thead><tbody>`;
+            res.efectos.forEach(e=>{
+                html += `<tr><td>${e.efecto}</td><td>${e.ss}</td><td>${e.f}</td><td>${e.p}</td><td style="color:${e.sig?'#00D4FF':'#A0A0B0'}">${e.sig?'✅':'—'}</td></tr>`;
+            });
+            html += `</tbody></table></div></div>`;
+        });
+
+        html += `<div class="stat-card" style="margin-bottom:15px;"><strong style="color:#7B61FF;">Logro del objetivo (identificó los 2 especímenes)</strong>`;
+        const predObjetivo = [
+            {key:'R', nombre:'Representación (3D)'},
+            {key:'M', nombre:'Meta (con Meta)'},
+            {key:'I', nombre:'Institución 2'},
+            {key:'sexoCode', nombre:'Sexo (Femenino)'}
+        ];
+        const resObj = regresionLogistica(dataset, 'objetivoLogrado', predObjetivo);
+        if(resObj.error){
+            html += `<div style="margin-top:8px;color:#A0A0B0;">${resObj.error}</div></div>`;
+        } else {
+            html += ` <span style="color:#A0A0B0;font-size:0.8rem;">(n=${resObj.n}, ${resObj.nUnos} lograron el objetivo)</span>
+            <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th>Predictor</th><th>OR</th><th>IC 95%</th><th>p</th><th>Sig.</th></tr></thead><tbody>`;
+            resObj.filas.forEach(f=>{
+                html += `<tr><td>${f.termino}</td><td>${f.or}</td><td>${f.ci}</td><td>${f.p}</td><td style="color:${f.sig?'#00D4FF':'#A0A0B0'}">${f.sig?'✅':'—'}</td></tr>`;
+            });
+            html += `</tbody></table></div></div>`;
+        }
+
+        html += `<div class="stat-card"><strong style="color:#7B61FF;">Cambio de estrategia (solo grupos con Meta)</strong>`;
+        const predCambio = [
+            {key:'R', nombre:'Representación (3D)'},
+            {key:'I', nombre:'Institución 2'},
+            {key:'sexoCode', nombre:'Sexo (Femenino)'}
+        ];
+        const datasetMeta = dataset.filter(d=>d.meta==='Con Meta');
+        const resCambio = regresionLogistica(datasetMeta, 'cambioEstrategia', predCambio);
+        if(resCambio.error){
+            html += `<div style="margin-top:8px;color:#A0A0B0;">${resCambio.error}</div>`;
+        } else {
+            html += ` <span style="color:#A0A0B0;font-size:0.8rem;">(n=${resCambio.n}, ${resCambio.nUnos} cambiaron de estrategia)</span>
+            <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th>Predictor</th><th>OR</th><th>IC 95%</th><th>p</th><th>Sig.</th></tr></thead><tbody>`;
+            resCambio.filas.forEach(f=>{
+                html += `<tr><td>${f.termino}</td><td>${f.or}</td><td>${f.ci}</td><td>${f.p}</td><td style="color:${f.sig?'#00D4FF':'#A0A0B0'}">${f.sig?'✅':'—'}</td></tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+        html += `</div>`;
+
+        html += seccionCorrelacionAvanzada(dataset);
+        html += `</div>`;
+        return html;
+    }
+
+    function exportarDatasetFactorial(){
+        const dataset = window._datasetFactorial || construirDatasetFactorial();
+        const wb=XLSX.utils.book_new();
+        const filas = dataset.map(d=>({
+            Usuario:d.usuario, Grupo:d.grupo, Representacion:d.representacion, Meta:d.meta,
+            Institucion:d.institucion, Sexo:d.sexo, Precision_pct:d.precision, Tiempo_seg:d.tiempo,
+            Objetivo_Logrado:d.objetivoLogrado, Cambio_Estrategia:d.cambioEstrategia,
+            SUS:d.sus, Carga_Intrinseca:d.cargaIntrinseca, Carga_Extrinseca:d.cargaExtrinseca, Carga_Total:d.cargaTotal
+        }));
+        const ws = XLSX.utils.json_to_sheet(filas);
+        XLSX.utils.book_append_sheet(wb, ws, 'DatasetFactorial');
+        XLSX.writeFile(wb, `dataset_factorial_${new Date().toISOString().split('T')[0]}.xlsx`);
+        mostrarMensaje('✅ Dataset exportado (listo para R/SPSS)');
+    }
+
+    // ===== EXPORTAR =====
+    function exportarJSON() {
+        const b=new Blob([JSON.stringify({usuarios,resultados,encuestas,reflexiones},null,2)],{type:'application/json'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`estadisticas_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(a.href);
+        mostrarMensaje('✅ JSON exportado');
+    }
+
+    function exportarExcel() {
+        const wb=XLSX.utils.book_new();
+        const filasPart=usuarios.map(u=>{
+            const ru=resultados.filter(r=>r.usuario===u.nombre_usuario);
+            const ac=ru.filter(r=>r.acerto===true).length;
+            return {Usuario:u.nombre_usuario,Grupo:u.grupo_asignado||'—',Identificaciones:ru.length,Aciertos:ac,'Precisión %':ru.length?(ac/ru.length*100).toFixed(1):0,'Tiempo (s)':ru.reduce((s,r)=>s+(r.tiempo||0),0).toFixed(1)};
+        });
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(filasPart),'Participantes');
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(resultados.map(r=>({Usuario:r.usuario,Grupo:r.grupo,Especimen:r.especimen||'',Correcta:r.correcta||'',Seleccionada:r.seleccionada||'',Resultado:r.acerto?'Correcto':'Incorrecto',Tiempo:r.tiempo||0}))),'Resultados');
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(encuestas.map(e=>({Sesion:e.sesion_id,Grupo:e.grupo||'',Tipo:e.tipo,Puntaje:e.puntaje_total||''}))),'Encuestas');
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(reflexiones.map(r=>({Usuario:r.usuario,Grupo:r.grupo,Momento:r.momento,Respuesta:r.respuesta_raw}))),'Reflexiones');
+        XLSX.writeFile(wb,`estadisticas_${new Date().toISOString().split('T')[0]}.xlsx`);
+        mostrarMensaje('✅ Excel exportado');
+    }
+</script>
+</body>
+</html>
