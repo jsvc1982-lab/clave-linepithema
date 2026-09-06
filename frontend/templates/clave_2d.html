@@ -209,16 +209,6 @@
             gap: 8px;
         }
 
-        @media screen and (max-width: 700px) {
-            .action-buttons {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .action-btn {
-                font-size: 0.85rem;
-                padding: 10px 6px;
-            }
-        }
-
         .action-btn {
             padding: 10px;
             border: none;
@@ -330,6 +320,18 @@
             justify-content: center;
             padding: 15px;
             min-height: 0;
+            overflow: hidden;
+            position: relative;
+            touch-action: none;
+            cursor: grab;
+        }
+
+        .image-container.zoomed {
+            cursor: grab;
+        }
+
+        .image-container.panning {
+            cursor: grabbing;
         }
 
         .specimen-image {
@@ -340,6 +342,40 @@
             object-fit: contain;
             border-radius: 10px;
             border: 2px solid #00D4FF30;
+            transform-origin: 0 0;
+            will-change: transform;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .zoom-reset-btn {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(26,31,54,0.9);
+            backdrop-filter: blur(5px);
+            border: 1px solid #00D4FF40;
+            color: #00D4FF;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: none;
+            z-index: 5;
+        }
+
+        .zoom-hint {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(26,31,54,0.85);
+            border: 1px solid #00D4FF30;
+            color: #8fa3bf;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            pointer-events: none;
+            z-index: 5;
         }
 
         .aside {
@@ -560,7 +596,11 @@
         
         <!-- Modal para zoom -->
         <div id="zoomModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column;">
-            <img id="zoomImg" src="/static/imagenes/linepithema/diagrama_hormiga.png" style="max-width: 90%; max-height: 80%; border-radius: 15px; border: 2px solid #00D4FF;">
+            <div id="zoomModalImgWrap" style="position: relative; width: 90%; height: 75%; overflow: hidden; touch-action: none; cursor: grab; display: flex; align-items: center; justify-content: center;">
+                <img id="zoomImg" src="/static/imagenes/linepithema/diagrama_hormiga.png" style="max-width: 100%; max-height: 100%; border-radius: 15px; border: 2px solid #00D4FF; transform-origin: 0 0; will-change: transform; user-select: none; -webkit-user-drag: none;">
+                <span style="position:absolute; top:10px; left:10px; background:rgba(26,31,54,0.85); border:1px solid #00D4FF30; color:#8fa3bf; padding:4px 10px; border-radius:20px; font-size:0.72rem; pointer-events:none;">🖱️ Rueda: zoom · Clic y arrastra: mover</span>
+                <button id="zoomModalResetBtn" onclick="resetZoomModal()" style="position:absolute; bottom:10px; right:10px; display:none; background: rgba(26,31,54,0.9); border: 1px solid #00D4FF40; color: #00D4FF; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer;">↺ Restablecer</button>
+            </div>
             <div style="margin-top: 20px; display: flex; gap: 15px;">
                 <button onclick="cerrarZoom()" style="padding: 10px 20px; background: #00D4FF; border: none; border-radius: 8px; color: #0A0E17; font-weight: bold; cursor: pointer;">Cerrar</button>
                 <button onclick="descargarPDFCompleto()" style="padding: 10px 20px; background: transparent; border: 2px solid #00D4FF; border-radius: 8px; color: #00D4FF; font-weight: bold; cursor: pointer;">📥 Descargar clave</button>
@@ -608,8 +648,10 @@
                         <div class="view-tab" onclick="cambiarVista('lateral')">🔍 Lateral</div>
                         <div class="view-tab" onclick="cambiarVista('dorsal')">🔍 Dorsal</div>
                     </div>
-                    <div class="image-container">
+                    <div class="image-container" id="imageContainer">
                         <img id="specimenImage" class="specimen-image" src="" alt="Espécimen">
+                        <span class="zoom-hint">🖱️ Rueda: zoom · Clic y arrastra: mover</span>
+                        <button class="zoom-reset-btn" id="zoomResetBtn" onclick="resetZoomPan()">↺ Restablecer</button>
                     </div>
                 </div>
             </main>
@@ -841,8 +883,143 @@ if (cargarProgresoLocal()) {  // ← NUEVA LÍNEA 2
             if (especimenes.length > 0 && especimenes[indiceActual]) {
                 const especie = especimenes[indiceActual].especie;
                 document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${especie}/${vista}.jpg`;
+                resetZoomPan();
             }
         }
+
+        // ===== ZOOM + ARRASTRE (PAN) DEL ESPÉCIMEN =====
+        // Reemplaza el zoom anterior (solo scale centrado, sin poder mover la imagen).
+        // Ahora: la rueda del mouse hace zoom hacia donde apunta el cursor, y con el
+        // mouse presionado (o el dedo, en táctil) se puede arrastrar la imagen para
+        // ubicar la parte que se quiere ampliar.
+        (function setupSpecimenZoomPan() {
+            const container = document.getElementById('imageContainer');
+            const img = document.getElementById('specimenImage');
+            const resetBtn = document.getElementById('zoomResetBtn');
+            if (!container || !img) return;
+
+            let scale = 1, panX = 0, panY = 0;
+            let isPanning = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+            const MIN_SCALE = 1, MAX_SCALE = 5;
+
+            function applyTransform() {
+                img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+                container.classList.toggle('zoomed', scale > 1);
+                resetBtn.style.display = scale > 1 ? 'block' : 'none';
+            }
+
+            function clampPan() {
+                // Evita arrastrar la imagen fuera de vista cuando está poco ampliada.
+                const rect = container.getBoundingClientRect();
+                const maxX = Math.max(0, (rect.width * (scale - 1)) / 2 + rect.width * 0.4);
+                const maxY = Math.max(0, (rect.height * (scale - 1)) / 2 + rect.height * 0.4);
+                panX = Math.min(maxX, Math.max(-maxX, panX));
+                panY = Math.min(maxY, Math.max(-maxY, panY));
+            }
+
+            window.resetZoomPan = function() {
+                scale = 1; panX = 0; panY = 0;
+                img.style.transition = 'transform 0.2s ease';
+                applyTransform();
+                setTimeout(() => { img.style.transition = ''; }, 200);
+            };
+
+            // --- Zoom con rueda del mouse, centrado en el cursor ---
+            container.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const rect = container.getBoundingClientRect();
+                const cursorX = e.clientX - rect.left - rect.width / 2;
+                const cursorY = e.clientY - rect.top - rect.height / 2;
+
+                const prevScale = scale;
+                if (e.deltaY < 0) {
+                    scale = Math.min(scale + 0.2, MAX_SCALE);
+                } else {
+                    scale = Math.max(scale - 0.2, MIN_SCALE);
+                }
+
+                // Ajusta el desplazamiento para que el zoom "crezca" hacia el cursor,
+                // no siempre desde el centro de la imagen.
+                const scaleRatio = scale / prevScale;
+                panX = cursorX - (cursorX - panX) * scaleRatio;
+                panY = cursorY - (cursorY - panY) * scaleRatio;
+
+                if (scale === 1) { panX = 0; panY = 0; }
+                clampPan();
+                applyTransform();
+            }, { passive: false });
+
+            // --- Arrastrar con el mouse (solo si hay zoom aplicado) ---
+            container.addEventListener('mousedown', function(e) {
+                isPanning = true;
+                container.classList.add('panning');
+                startX = e.clientX; startY = e.clientY;
+                startPanX = panX; startPanY = panY;
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', function(e) {
+                if (!isPanning) return;
+                panX = startPanX + (e.clientX - startX);
+                panY = startPanY + (e.clientY - startY);
+                clampPan();
+                applyTransform();
+            });
+            window.addEventListener('mouseup', function() {
+                isPanning = false;
+                container.classList.remove('panning');
+            });
+
+            // --- Doble clic: zoom rápido in/out ---
+            img.addEventListener('dblclick', function(e) {
+                if (scale > 1) {
+                    window.resetZoomPan();
+                } else {
+                    const rect = container.getBoundingClientRect();
+                    panX = -(e.clientX - rect.left - rect.width / 2);
+                    panY = -(e.clientY - rect.top - rect.height / 2);
+                    scale = 2.5;
+                    clampPan();
+                    applyTransform();
+                }
+            });
+
+            // --- Táctil: un dedo arrastra, pellizco (pinch) hace zoom ---
+            let touchStartDist = 0, touchStartScale = 1;
+            container.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 1) {
+                    isPanning = true;
+                    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+                    startPanX = panX; startPanY = panY;
+                } else if (e.touches.length === 2) {
+                    isPanning = false;
+                    touchStartDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    touchStartScale = scale;
+                }
+            }, { passive: true });
+            container.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 1 && isPanning) {
+                    panX = startPanX + (e.touches[0].clientX - startX);
+                    panY = startPanY + (e.touches[0].clientY - startY);
+                    clampPan();
+                    applyTransform();
+                } else if (e.touches.length === 2) {
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, touchStartScale * (dist / touchStartDist)));
+                    clampPan();
+                    applyTransform();
+                }
+            }, { passive: true });
+            container.addEventListener('touchend', function() {
+                isPanning = false;
+                container.classList.remove('panning');
+            });
+        })();
 
         function cargarEspecimen(index) {
              pasoActual = 1; 
@@ -876,21 +1053,7 @@ if (especimenes[index]) {
         const especie = especimenes[index].especie;
         const img = document.getElementById('specimenImage');
         img.src = `/static/imagenes/linepithema/${especie}/${vistaActual}.jpg`;
-        img.style.cursor = 'zoom-in';
-        img.style.transition = 'transform 0.2s ease';
-        
-        // Zoom con scroll (rueda del mouse)
-        let currentScale = 1;
-        img.addEventListener('wheel', function(e) {
-            e.preventDefault();
-            if (e.deltaY < 0) {
-                currentScale = Math.min(currentScale + 0.1, 3);
-            } else {
-                currentScale = Math.max(currentScale - 0.1, 1);
-            }
-            img.style.transform = `scale(${currentScale})`;
-            img.style.transformOrigin = 'center center';
-        });
+        resetZoomPan();
     }
 }          
 
@@ -1031,14 +1194,13 @@ if (especimenes[index]) {
                 transform: translate(-50%, -50%);
                 background: ${color};
                 color: #0A0E17;
-                padding: 20px 25px;
+                padding: 25px 40px;
                 border-radius: 20px;
-                font-size: 1.3rem;
+                font-size: 1.5rem;
                 font-weight: bold;
                 z-index: 10000;
                 text-align: center;
-                width: min(350px, 90vw);
-                box-sizing: border-box;
+                min-width: 350px;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.5);
                 border: 2px solid white;
                 animation: fadeInOut 3s ease forwards;
@@ -1246,12 +1408,134 @@ if (especimenes[index]) {
                 modal.style.display = 'none';
             } else {
                 modal.style.display = 'flex';
+                if (window.resetZoomModal) window.resetZoomModal();
             }
         }
 
         function cerrarZoom() {
             document.getElementById('zoomModal').style.display = 'none';
         }
+
+        // Zoom + arrastre para el modal del diagrama de referencia (glosario).
+        // Es independiente del zoom del visor de especímenes (imageContainer).
+        (function setupZoomModalPan() {
+            const wrap = document.getElementById('zoomModalImgWrap');
+            const img = document.getElementById('zoomImg');
+            const resetBtn = document.getElementById('zoomModalResetBtn');
+            if (!wrap || !img) return;
+
+            let scale = 1, panX = 0, panY = 0;
+            let isPanning = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+            const MIN_SCALE = 1, MAX_SCALE = 5;
+
+            function applyTransform() {
+                img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+                wrap.style.cursor = isPanning ? 'grabbing' : 'grab';
+                resetBtn.style.display = scale > 1 ? 'block' : 'none';
+            }
+
+            function clampPan() {
+                const rect = wrap.getBoundingClientRect();
+                const maxX = Math.max(0, (rect.width * (scale - 1)) / 2 + rect.width * 0.4);
+                const maxY = Math.max(0, (rect.height * (scale - 1)) / 2 + rect.height * 0.4);
+                panX = Math.min(maxX, Math.max(-maxX, panX));
+                panY = Math.min(maxY, Math.max(-maxY, panY));
+            }
+
+            window.resetZoomModal = function() {
+                scale = 1; panX = 0; panY = 0;
+                img.style.transition = 'transform 0.2s ease';
+                applyTransform();
+                setTimeout(() => { img.style.transition = ''; }, 200);
+            };
+
+            wrap.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const rect = wrap.getBoundingClientRect();
+                const cursorX = e.clientX - rect.left - rect.width / 2;
+                const cursorY = e.clientY - rect.top - rect.height / 2;
+
+                const prevScale = scale;
+                scale = e.deltaY < 0
+                    ? Math.min(scale + 0.2, MAX_SCALE)
+                    : Math.max(scale - 0.2, MIN_SCALE);
+
+                const scaleRatio = scale / prevScale;
+                panX = cursorX - (cursorX - panX) * scaleRatio;
+                panY = cursorY - (cursorY - panY) * scaleRatio;
+
+                if (scale === 1) { panX = 0; panY = 0; }
+                clampPan();
+                applyTransform();
+            }, { passive: false });
+
+            wrap.addEventListener('mousedown', function(e) {
+                isPanning = true;
+                startX = e.clientX; startY = e.clientY;
+                startPanX = panX; startPanY = panY;
+                applyTransform();
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', function(e) {
+                if (!isPanning) return;
+                panX = startPanX + (e.clientX - startX);
+                panY = startPanY + (e.clientY - startY);
+                clampPan();
+                applyTransform();
+            });
+            window.addEventListener('mouseup', function() {
+                isPanning = false;
+                applyTransform();
+            });
+
+            img.addEventListener('dblclick', function(e) {
+                if (scale > 1) {
+                    window.resetZoomModal();
+                } else {
+                    const rect = wrap.getBoundingClientRect();
+                    panX = -(e.clientX - rect.left - rect.width / 2);
+                    panY = -(e.clientY - rect.top - rect.height / 2);
+                    scale = 2.5;
+                    clampPan();
+                    applyTransform();
+                }
+            });
+
+            let touchStartDist = 0, touchStartScale = 1;
+            wrap.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 1) {
+                    isPanning = true;
+                    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+                    startPanX = panX; startPanY = panY;
+                } else if (e.touches.length === 2) {
+                    isPanning = false;
+                    touchStartDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    touchStartScale = scale;
+                }
+            }, { passive: true });
+            wrap.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 1 && isPanning) {
+                    panX = startPanX + (e.touches[0].clientX - startX);
+                    panY = startPanY + (e.touches[0].clientY - startY);
+                    clampPan();
+                    applyTransform();
+                } else if (e.touches.length === 2) {
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, touchStartScale * (dist / touchStartDist)));
+                    clampPan();
+                    applyTransform();
+                }
+            }, { passive: true });
+            wrap.addEventListener('touchend', function() {
+                isPanning = false;
+            });
+        })();
 
         function descargarPDFCompleto() {
     const contenido = `CLAVE TAXONÓMICA - GÉNERO Linepithema
