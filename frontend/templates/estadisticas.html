@@ -98,6 +98,7 @@
         html += seccionComparacion();
         html += seccionPorEspecimen();
         html += seccionParticipantes(filtroActual);
+        html += seccionAnalisisFactorial();
         document.getElementById('contenido').innerHTML = html;
         setTimeout(dibujarGraficos, 100);
     }
@@ -239,16 +240,30 @@
         ).join('');
         const filas=lista.map(u=>{
             const ru=resultados.filter(r=>r.usuario===u.nombre_usuario);
+            const esp1 = ru.find(r=>r.orden===1);
+            const esp2 = ru.find(r=>r.orden===2);
             const ac=ru.filter(r=>r.acerto===true).length;
-            const p=ru.length?(ac/ru.length*100).toFixed(1):0;
+            // Identificaciones: conteo real distinto por espécimen (1 y 2), ignora duplicados de un mismo orden
+            const ordenesUnicos = new Set(ru.map(r=>r.orden)).size;
+            const hayDuplicados = ru.length > ordenesUnicos;
+            const p=ordenesUnicos?(ac/ru.length*100).toFixed(1):0;
             const t=ru.reduce((s,r)=>s+(r.tiempo||0),0);
-            return `<tr><td>${u.nombre_usuario}</td><td>${u.grupo_asignado||'—'}</td><td>${ru.length}</td><td>${ac}</td>
+
+            const celdaEsp = (r) => r ? `<span class="${r.acerto?'badge-ok':''}">${r.acerto?'✅':'❌'} ${r.correcta||''}</span>` : '—';
+
+            const cambios = reflexiones.filter(x=>x.usuario===u.nombre_usuario && x.momento==='durante'
+                && /Cambiar estrategia\?\s*S[ií]/i.test(x.respuesta_raw||'')).length;
+
+            return `<tr><td>${u.nombre_usuario}</td><td>${u.grupo_asignado||'—'}</td>
+                <td>${celdaEsp(esp1)}</td><td>${celdaEsp(esp2)}</td>
+                <td>${ordenesUnicos}${hayDuplicados?` <span title="Hay ${ru.length-ordenesUnicos} registro(s) duplicado(s) para el mismo espécimen" style="color:#FFB020;">⚠️</span>`:''}</td>
+                <td>${cambios}</td>
                 <td class="${parseFloat(p)>=70?'badge-ok':''}">${p}%</td><td>${t.toFixed(1)}s</td></tr>`;
         }).join('');
         return `<div class="section"><div class="section-title">👥 8. Datos por Participante</div>
             <div class="filtro-botones">${botones}</div>
-            <div style="overflow-x:auto;"><table><thead><tr><th>Usuario</th><th>Grupo</th><th>Identificaciones</th><th>Aciertos</th><th>Precisión</th><th>Tiempo</th></tr></thead>
-            <tbody>${filas||'<tr><td colspan="6" style="text-align:center;padding:20px;">Sin datos.</td></tr>'}</tbody></table></div></div>`;
+            <div style="overflow-x:auto;"><table><thead><tr><th>Usuario</th><th>Grupo</th><th>Espécimen 1</th><th>Espécimen 2</th><th>Identificaciones</th><th>Cambios de estrategia</th><th>Precisión</th><th>Tiempo</th></tr></thead>
+            <tbody>${filas||'<tr><td colspan="8" style="text-align:center;padding:20px;">Sin datos.</td></tr>'}</tbody></table></div></div>`;
     }
 
     async function cambiarFiltro(filtro) {
@@ -329,6 +344,288 @@
         return {r:r.toFixed(3),p:p<0.001?'< 0.001':p.toFixed(4)};
     }
 
+    // ===== ÁLGEBRA MATRICIAL (para ANOVA factorial y regresión logística) =====
+    function matTranspose(A){ return A[0].map((_,j)=>A.map(row=>row[j])); }
+    function matMultiply(A,B){
+        const r=A.length, c=B[0].length, k=B.length;
+        const R=Array.from({length:r},()=>Array(c).fill(0));
+        for(let i=0;i<r;i++) for(let j=0;j<c;j++){ let s=0; for(let p=0;p<k;p++) s+=A[i][p]*B[p][j]; R[i][j]=s; }
+        return R;
+    }
+    function matInverse(M){
+        const n=M.length;
+        const A=M.map((row,i)=>row.concat(Array.from({length:n},(_,j)=>i===j?1:0)));
+        for(let i=0;i<n;i++){
+            let piv=i;
+            for(let k=i+1;k<n;k++) if(Math.abs(A[k][i])>Math.abs(A[piv][i])) piv=k;
+            if(Math.abs(A[piv][i])<1e-9) throw new Error('Matriz singular (faltan combinaciones de grupos)');
+            [A[i],A[piv]]=[A[piv],A[i]];
+            const d=A[i][i];
+            for(let j=0;j<2*n;j++) A[i][j]/=d;
+            for(let k=0;k<n;k++){
+                if(k===i) continue;
+                const f=A[k][i];
+                for(let j=0;j<2*n;j++) A[k][j]-=f*A[i][j];
+            }
+        }
+        return A.map(row=>row.slice(n));
+    }
+    function solveOLS(X,y){
+        const Xt=matTranspose(X);
+        const XtX=matMultiply(Xt,X);
+        const Xty=matMultiply(Xt,y.map(v=>[v]));
+        const XtXi=matInverse(XtX);
+        const beta=matMultiply(XtXi,Xty).map(r=>r[0]);
+        const yhat=matMultiply(X,beta.map(b=>[b])).map(r=>r[0]);
+        const sse=yhat.reduce((s,yh,i)=>s+Math.pow(y[i]-yh,2),0);
+        return {beta,sse};
+    }
+    function fitLogistic(X,y,maxIter=40){
+        const p=X[0].length;
+        let beta=Array(p).fill(0);
+        for(let iter=0; iter<maxIter; iter++){
+            const eta = X.map(row=>row.reduce((s,x,j)=>s+x*beta[j],0));
+            const pi = eta.map(e=>1/(1+Math.exp(-e)));
+            const W = pi.map(pv=>Math.max(pv*(1-pv),1e-6));
+            const Xt = matTranspose(X);
+            const XtWX = Array.from({length:p},(_,i)=>Array.from({length:p},(_,j)=>{
+                let s=0; for(let k=0;k<X.length;k++) s+=Xt[i][k]*W[k]*X[k][j]; return s;
+            }));
+            const z = eta.map((e,k)=> e + (y[k]-pi[k])/W[k]);
+            const XtWz = Array.from({length:p},(_,i)=>{
+                let s=0; for(let k=0;k<X.length;k++) s+=Xt[i][k]*W[k]*z[k]; return s;
+            });
+            const XtWXi = matInverse(XtWX);
+            const newBeta = XtWXi.map(row=>row.reduce((s,v,j)=>s+v*XtWz[j],0));
+            const delta = newBeta.reduce((s,v,i)=>s+Math.abs(v-beta[i]),0);
+            beta=newBeta;
+            if(delta<1e-6) break;
+        }
+        const eta = X.map(row=>row.reduce((s,x,j)=>s+x*beta[j],0));
+        const pi = eta.map(e=>1/(1+Math.exp(-e)));
+        const W = pi.map(pv=>Math.max(pv*(1-pv),1e-6));
+        const Xt = matTranspose(X);
+        const XtWX = Array.from({length:p},(_,i)=>Array.from({length:p},(_,j)=>{
+            let s=0; for(let k=0;k<X.length;k++) s+=Xt[i][k]*W[k]*X[k][j]; return s;
+        }));
+        const cov = matInverse(XtWX);
+        const se = cov.map((row,i)=>Math.sqrt(Math.max(row[i],0)));
+        return {beta, se};
+    }
+
+    // ===== 9. ANÁLISIS FACTORIAL 2×2×2 =====
+    function construirDatasetFactorial(){
+        const sesionUsuarioMap={};
+        resultados.forEach(r=>{ if(r.sesion_id!==undefined) sesionUsuarioMap[r.sesion_id]=r.usuario; });
+
+        return usuarios.filter(u=>u.grupo_asignado && (u.curso===1||u.curso===2)).map(u=>{
+            const grupo=u.grupo_asignado;
+            const R = grupo.startsWith('3D') ? 1 : -1;      // -1=2D, +1=3D
+            const M = grupo.includes('META') ? 1 : -1;       // -1=Sin Meta, +1=Con Meta
+            const I = u.curso===2 ? 1 : -1;                  // -1=Institución 1, +1=Institución 2
+            const sexoCode = u.genero==='Femenino' ? 1 : (u.genero==='Masculino' ? -1 : null);
+
+            const ru = resultados.filter(r=>r.usuario===u.nombre_usuario);
+            const aciertos = ru.filter(r=>r.acerto===true).length;
+            const precision = ru.length ? (aciertos/ru.length*100) : null;
+            const tiempo = ru.length ? (ru.reduce((s,r)=>s+(r.tiempo||0),0)/ru.length) : null;
+            const objetivoLogrado = ru.length===2 ? (aciertos===2?1:0) : null;
+
+            let cambioEstrategia=null;
+            if(grupo.includes('META')){
+                const refsDurante = reflexiones.filter(r=>r.usuario===u.nombre_usuario && r.momento==='durante');
+                if(refsDurante.length>0){
+                    cambioEstrategia = refsDurante.some(r=>/Cambiar estrategia\?\s*S[ií]/i.test(r.respuesta_raw||'')) ? 1 : 0;
+                }
+            }
+
+            const eu = encuestas.filter(e=>sesionUsuarioMap[e.sesion_id]===u.nombre_usuario);
+            const encSus = eu.find(e=>e.tipo==='SUS');
+            const sus = encSus ? encSus.sus_total : null;
+            const cog = eu.find(e=>e.tipo==='COGNITIVE_LOAD');
+            const cargaIntrinseca = cog ? cog.carga_intrinseca : null;
+            const cargaExtrinseca = cog ? cog.carga_extrinseca : null;
+            const cargaTotal = (cog && cog.carga_intrinseca!=null && cog.carga_extrinseca!=null && cog.carga_germana!=null)
+                ? (cog.carga_intrinseca+cog.carga_extrinseca+cog.carga_germana) : null;
+
+            return {
+                usuario:u.nombre_usuario, grupo, R, M, I, sexoCode,
+                representacion: R===1?'3D':'2D', meta: M===1?'Con Meta':'Sin Meta',
+                institucion:u.curso, sexo:u.genero,
+                precision, tiempo, objetivoLogrado, cambioEstrategia,
+                sus, cargaIntrinseca, cargaExtrinseca, cargaTotal
+            };
+        });
+    }
+
+    function anovaFactorial(dataset, dvKey){
+        const rows = dataset.filter(d=>d[dvKey]!==null && d[dvKey]!==undefined);
+        const n=rows.length;
+        if(n<10) return {error:`Datos insuficientes (n=${n}). Se necesitan más participantes.`};
+        const cols=['Intercepto','Representación (R)','Meta (M)','Institución (I)','R×M','R×I','M×I','R×M×I'];
+        const X = rows.map(r=>[1, r.R, r.M, r.I, r.R*r.M, r.R*r.I, r.M*r.I, r.R*r.M*r.I]);
+        const y = rows.map(r=>r[dvKey]);
+        let full;
+        try { full = solveOLS(X,y); } catch(e){ return {error:'Faltan combinaciones de grupos (celda vacía). No se puede calcular todavía.'}; }
+        const dfResidual = n - X[0].length;
+        if(dfResidual<1) return {error:'No hay suficientes grados de libertad. Se necesitan más participantes.'};
+        const msResidual = full.sse/dfResidual;
+        const efectos=[];
+        for(let c=1;c<X[0].length;c++){
+            const Xred = X.map(row=>row.filter((_,j)=>j!==c));
+            let red;
+            try{ red = solveOLS(Xred,y); } catch(e){ efectos.push({efecto:cols[c],ss:'—',f:'—',p:'—',sig:false}); continue; }
+            const ssEfecto = Math.max(red.sse - full.sse, 0);
+            const F = ssEfecto/msResidual;
+            const p = 1-jStat.centralF.cdf(F,1,dfResidual);
+            efectos.push({efecto:cols[c], ss:ssEfecto.toFixed(2), f:F.toFixed(3), p: p<0.001?'< 0.001':p.toFixed(4), sig: p<0.05});
+        }
+        return {n, dfResidual, efectos};
+    }
+
+    function regresionLogistica(dataset, dvKey, predictores){
+        const rows = dataset.filter(d=>(d[dvKey]===0||d[dvKey]===1) && predictores.every(p=>d[p.key]!==null && d[p.key]!==undefined));
+        const n=rows.length;
+        if(n<10) return {error:`Datos insuficientes (n=${n}).`};
+        const nUnos = rows.filter(r=>r[dvKey]===1).length;
+        if(nUnos===0||nUnos===n) return {error:'La variable no tiene variación (todos Sí o todos No). No se puede ajustar el modelo aún.'};
+        const cols=['Intercepto', ...predictores.map(p=>p.nombre)];
+        const X = rows.map(r=>[1, ...predictores.map(p=>r[p.key])]);
+        const y = rows.map(r=>r[dvKey]);
+        let fit;
+        try{ fit = fitLogistic(X,y); } catch(e){ return {error:e.message}; }
+        const filas = cols.map((nombre,i)=>{
+            const b=fit.beta[i], se=fit.se[i];
+            const z=se>0 ? b/se : 0;
+            const p=2*(1-jStat.normal.cdf(Math.abs(z),0,1));
+            const orLow=Math.exp(b-1.96*se), orHigh=Math.exp(b+1.96*se);
+            return {termino:nombre, or: i===0?'—':Math.exp(b).toFixed(3), ci: i===0?'—':`[${orLow.toFixed(2)}, ${orHigh.toFixed(2)}]`, p: p<0.001?'< 0.001':p.toFixed(4), sig:p<0.05};
+        });
+        return {n, nUnos, filas};
+    }
+
+    function seccionCorrelacionAvanzada(dataset){
+        const vars = [
+            {key:'precision', nombre:'Precisión'},
+            {key:'tiempo', nombre:'Tiempo'},
+            {key:'sus', nombre:'SUS'},
+            {key:'cargaTotal', nombre:'Carga Total'}
+        ];
+        let html = `<div class="stat-card" style="margin-top:15px;"><strong style="color:#7B61FF;">Correlaciones (Pearson) entre variables principales</strong>
+            <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th></th>`;
+        vars.forEach(v=>html+=`<th>${v.nombre}</th>`);
+        html += `</tr></thead><tbody>`;
+        vars.forEach(v1=>{
+            html += `<tr><td><strong>${v1.nombre}</strong></td>`;
+            vars.forEach(v2=>{
+                const pares = dataset.filter(d=>d[v1.key]!=null && d[v2.key]!=null);
+                if(v1.key===v2.key || pares.length<3){ html+=`<td>—</td>`; return; }
+                const r = calcularCorrelacion(pares.map(d=>d[v1.key]), pares.map(d=>d[v2.key]));
+                html += `<td>${r.r} ${parseFloat(r.p)<0.05?'*':''}</td>`;
+            });
+            html += `</tr>`;
+        });
+        html += `</tbody></table></div><div style="font-size:0.75rem;color:#A0A0B0;margin-top:6px;">* p &lt; 0.05</div></div>`;
+        return html;
+    }
+
+    function seccionAnalisisFactorial(){
+        let html = `<div class="section"><div class="section-title">🔬 9. Análisis Factorial 2×2×2 (Representación × Meta × Institución)</div>
+            <div class="stat-card" style="margin-bottom:20px;font-size:0.85rem;color:#A0A0B0;">
+                ⚠️ Vista rápida calculada en el navegador (Suma de Cuadrados Tipo III). Para el análisis definitivo de tu tesis,
+                exporta el dataset con el botón de abajo y procésalo en R o SPSS.
+            </div>
+            <button class="btn btn-secondary" style="margin-bottom:20px;" onclick="exportarDatasetFactorial()">📥 Exportar dataset (Excel) para R/SPSS</button>`;
+
+        let dataset;
+        try { dataset = construirDatasetFactorial(); } catch(e){
+            return html + `<div class="error-state">Error al construir el dataset: ${e.message}</div></div>`;
+        }
+        window._datasetFactorial = dataset;
+
+        const dvsAnova = [
+            {key:'precision', nombre:'Precisión taxonómica (%)'},
+            {key:'tiempo', nombre:'Tiempo de identificación (s)'},
+            {key:'sus', nombre:'Usabilidad (SUS)'},
+            {key:'cargaIntrinseca', nombre:'Carga cognitiva intrínseca'},
+            {key:'cargaExtrinseca', nombre:'Carga cognitiva extrínseca'},
+            {key:'cargaTotal', nombre:'Carga cognitiva total'}
+        ];
+
+        dvsAnova.forEach(dv=>{
+            const res = anovaFactorial(dataset, dv.key);
+            html += `<div class="stat-card" style="margin-bottom:15px;"><strong style="color:#00D4FF;">${dv.nombre}</strong>`;
+            if(res.error){
+                html += `<div style="margin-top:8px;color:#A0A0B0;">${res.error}</div></div>`;
+                return;
+            }
+            html += ` <span style="color:#A0A0B0;font-size:0.8rem;">(n=${res.n}, df residual=${res.dfResidual})</span>
+                <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th>Efecto</th><th>SS</th><th>F</th><th>p</th><th>Sig.</th></tr></thead><tbody>`;
+            res.efectos.forEach(e=>{
+                html += `<tr><td>${e.efecto}</td><td>${e.ss}</td><td>${e.f}</td><td>${e.p}</td><td style="color:${e.sig?'#00D4FF':'#A0A0B0'}">${e.sig?'✅':'—'}</td></tr>`;
+            });
+            html += `</tbody></table></div></div>`;
+        });
+
+        html += `<div class="stat-card" style="margin-bottom:15px;"><strong style="color:#7B61FF;">Logro del objetivo (identificó los 2 especímenes)</strong>`;
+        const predObjetivo = [
+            {key:'R', nombre:'Representación (3D)'},
+            {key:'M', nombre:'Meta (con Meta)'},
+            {key:'I', nombre:'Institución 2'},
+            {key:'sexoCode', nombre:'Sexo (Femenino)'}
+        ];
+        const resObj = regresionLogistica(dataset, 'objetivoLogrado', predObjetivo);
+        if(resObj.error){
+            html += `<div style="margin-top:8px;color:#A0A0B0;">${resObj.error}</div></div>`;
+        } else {
+            html += ` <span style="color:#A0A0B0;font-size:0.8rem;">(n=${resObj.n}, ${resObj.nUnos} lograron el objetivo)</span>
+            <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th>Predictor</th><th>OR</th><th>IC 95%</th><th>p</th><th>Sig.</th></tr></thead><tbody>`;
+            resObj.filas.forEach(f=>{
+                html += `<tr><td>${f.termino}</td><td>${f.or}</td><td>${f.ci}</td><td>${f.p}</td><td style="color:${f.sig?'#00D4FF':'#A0A0B0'}">${f.sig?'✅':'—'}</td></tr>`;
+            });
+            html += `</tbody></table></div></div>`;
+        }
+
+        html += `<div class="stat-card"><strong style="color:#7B61FF;">Cambio de estrategia (solo grupos con Meta)</strong>`;
+        const predCambio = [
+            {key:'R', nombre:'Representación (3D)'},
+            {key:'I', nombre:'Institución 2'},
+            {key:'sexoCode', nombre:'Sexo (Femenino)'}
+        ];
+        const datasetMeta = dataset.filter(d=>d.meta==='Con Meta');
+        const resCambio = regresionLogistica(datasetMeta, 'cambioEstrategia', predCambio);
+        if(resCambio.error){
+            html += `<div style="margin-top:8px;color:#A0A0B0;">${resCambio.error}</div>`;
+        } else {
+            html += ` <span style="color:#A0A0B0;font-size:0.8rem;">(n=${resCambio.n}, ${resCambio.nUnos} cambiaron de estrategia)</span>
+            <div style="overflow-x:auto;margin-top:10px;"><table><thead><tr><th>Predictor</th><th>OR</th><th>IC 95%</th><th>p</th><th>Sig.</th></tr></thead><tbody>`;
+            resCambio.filas.forEach(f=>{
+                html += `<tr><td>${f.termino}</td><td>${f.or}</td><td>${f.ci}</td><td>${f.p}</td><td style="color:${f.sig?'#00D4FF':'#A0A0B0'}">${f.sig?'✅':'—'}</td></tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+        html += `</div>`;
+
+        html += seccionCorrelacionAvanzada(dataset);
+        html += `</div>`;
+        return html;
+    }
+
+    function exportarDatasetFactorial(){
+        const dataset = window._datasetFactorial || construirDatasetFactorial();
+        const wb=XLSX.utils.book_new();
+        const filas = dataset.map(d=>({
+            Usuario:d.usuario, Grupo:d.grupo, Representacion:d.representacion, Meta:d.meta,
+            Institucion:d.institucion, Sexo:d.sexo, Precision_pct:d.precision, Tiempo_seg:d.tiempo,
+            Objetivo_Logrado:d.objetivoLogrado, Cambio_Estrategia:d.cambioEstrategia,
+            SUS:d.sus, Carga_Intrinseca:d.cargaIntrinseca, Carga_Extrinseca:d.cargaExtrinseca, Carga_Total:d.cargaTotal
+        }));
+        const ws = XLSX.utils.json_to_sheet(filas);
+        XLSX.utils.book_append_sheet(wb, ws, 'DatasetFactorial');
+        XLSX.writeFile(wb, `dataset_factorial_${new Date().toISOString().split('T')[0]}.xlsx`);
+        mostrarMensaje('✅ Dataset exportado (listo para R/SPSS)');
+    }
+
     // ===== EXPORTAR =====
     function exportarJSON() {
         const b=new Blob([JSON.stringify({usuarios,resultados,encuestas,reflexiones},null,2)],{type:'application/json'});
@@ -341,7 +638,10 @@
         const filasPart=usuarios.map(u=>{
             const ru=resultados.filter(r=>r.usuario===u.nombre_usuario);
             const ac=ru.filter(r=>r.acerto===true).length;
-            return {Usuario:u.nombre_usuario,Grupo:u.grupo_asignado||'—',Identificaciones:ru.length,Aciertos:ac,'Precisión %':ru.length?(ac/ru.length*100).toFixed(1):0,'Tiempo (s)':ru.reduce((s,r)=>s+(r.tiempo||0),0).toFixed(1)};
+            const ordenesUnicos = new Set(ru.map(r=>r.orden)).size;
+            const cambios = reflexiones.filter(x=>x.usuario===u.nombre_usuario && x.momento==='durante'
+                && /Cambiar estrategia\?\s*S[ií]/i.test(x.respuesta_raw||'')).length;
+            return {Usuario:u.nombre_usuario,Grupo:u.grupo_asignado||'—',Identificaciones:ordenesUnicos,'Cambios de estrategia':cambios,Aciertos:ac,'Precisión %':ru.length?(ac/ru.length*100).toFixed(1):0,'Tiempo (s)':ru.reduce((s,r)=>s+(r.tiempo||0),0).toFixed(1)};
         });
         XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(filasPart),'Participantes');
         XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(resultados.map(r=>({Usuario:r.usuario,Grupo:r.grupo,Especimen:r.especimen||'',Correcta:r.correcta||'',Seleccionada:r.seleccionada||'',Resultado:r.acerto?'Correcto':'Incorrecto',Tiempo:r.tiempo||0}))),'Resultados');

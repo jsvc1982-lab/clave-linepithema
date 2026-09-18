@@ -186,7 +186,7 @@
 
         .action-buttons {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 8px;
         }
 
@@ -301,18 +301,8 @@
             justify-content: center;
             padding: 15px;
             min-height: 0;
-            overflow: hidden;
             position: relative;
-            touch-action: none;
-            cursor: grab;
-        }
-
-        .image-container.zoomed {
-            cursor: grab;
-        }
-
-        .image-container.panning {
-            cursor: grabbing;
+            overflow: hidden;
         }
 
         .specimen-image {
@@ -323,40 +313,6 @@
             object-fit: contain;
             border-radius: 10px;
             border: 2px solid #00D4FF30;
-            transform-origin: 0 0;
-            will-change: transform;
-            user-select: none;
-            -webkit-user-drag: none;
-        }
-
-        .zoom-reset-btn {
-            position: absolute;
-            bottom: 12px;
-            right: 12px;
-            background: rgba(26,31,54,0.9);
-            backdrop-filter: blur(5px);
-            border: 1px solid #00D4FF40;
-            color: #00D4FF;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            cursor: pointer;
-            display: none;
-            z-index: 5;
-        }
-
-        .zoom-hint {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            background: rgba(26,31,54,0.85);
-            border: 1px solid #00D4FF30;
-            color: #8fa3bf;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.72rem;
-            pointer-events: none;
-            z-index: 5;
         }
 
         .aside {
@@ -527,11 +483,13 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(5,7,12,0.96);
             z-index: 10001;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow-y: auto;
+            padding: 30px 15px;
         }
 
         .modal-content {
@@ -541,6 +499,9 @@
             padding: 30px;
             max-width: 500px;
             width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            margin: auto;
         }
 
         .modal-content h3 {
@@ -570,7 +531,12 @@
             cursor: pointer;
         }
 
-    </style>
+    
+        .pin{position:absolute;width:22px;height:22px;border-radius:50%;background:rgba(0,212,255,0.85);border:2px solid rgba(255,255,255,0.85);transform:translate(-50%,-50%);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:.15s;}
+        .pin:hover,.pin.activo{background:#7B61FF;transform:translate(-50%,-50%) scale(1.25);box-shadow:0 0 0 4px rgba(123,97,255,0.35);z-index:20;}
+        .pin-num{font-family:Arial,sans-serif;font-size:10px;color:#0A0E17;font-weight:bold;pointer-events:none;}
+        .pin.activo .pin-num{color:#fff;}
+</style>
 </head>
 <body>
     <div id="introScreen" class="intro-overlay">
@@ -587,34 +553,47 @@
                     <strong>Pecíolo</strong> (nódulo entre tórax y abdomen) y 
                     <strong>Gáster</strong> (abdomen).
                 </p>
+        <div style="background: #FF375F15; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #FF375F;">
+            <p style="margin: 0; color: #E0E0E0;">
+                <strong style="color:#FF375F;">⚠️ IMPORTANTE — Lee antes de continuar:</strong><br>
+                Debes completar <strong>todo el estudio en una sola sesión</strong>. No cierres esta pestaña, no cierres sesión ni recargues la página antes de terminar: <strong>si sales, no podrás volver a ingresar con este usuario</strong>. Asegúrate de tener tiempo suficiente y buena conexión antes de comenzar.
+            </p>
+        </div>
             </div>
             
             <div class="diagram-container" style="position: relative;">
                 <div style="position: relative; display: inline-block; width: 100%; text-align: center;">
                     <img id="diagramaImg" src="/static/imagenes/linepithema/diagrama_hormiga.png" 
-                         alt="Diagrama de hormiga" 
-                         style="max-width:100%; max-height:350px; border-radius:15px; border:2px solid #00D4FF40; cursor: pointer;"
-                         onclick="toggleZoom()">
-                    
-                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 10px;">
-                        <button class="ctrl-btn" onclick="toggleZoom()" title="Zoom" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">🔍</button>
-                        <button class="ctrl-btn" onclick="descargarPDFCompleto()" title="Clave completa" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">📚</button>
-                        <button class="ctrl-btn" onclick="descargarGuiaRapida()" title="Guía rápida" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">📄</button>
-                        <button class="ctrl-btn" onclick="descargarGlosario()" title="Glosario" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">📖</button>
-                    </div>
-                </div>
+                     alt="Linepithema sp. - macrofotografia lateral (obrera)" 
+                     style="max-width:100%; max-height:350px; border-radius:15px; border:2px solid #00D4FF40; cursor: pointer; display:block; margin:0 auto;"
+                     onclick="toggleZoom()">
+                <div class="pin-overlay" id="pinOverlay"></div>
                 
-                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 15px; flex-wrap: wrap;">
-                    <div style="background: #121826; padding: 5px 12px; border-radius: 20px; border-left: 3px solid #00D4FF;">🔴 Cabeza</div>
-                    <div style="background: #121826; padding: 5px 12px; border-radius: 20px; border-left: 3px solid #7B61FF;">🟣 Mesosoma</div>
-                    <div style="background: #121826; padding: 5px 12px; border-radius: 20px; border-left: 3px solid #00D4FF;">🔵 Propodeo</div>
-                    <div style="background: #121826; padding: 5px 12px; border-radius: 20px; border-left: 3px solid #7B61FF;">🟢 Pecíolo</div>
-                    <div style="background: #121826; padding: 5px 12px; border-radius: 20px; border-left: 3px solid #00D4FF;">🟡 Gáster</div>
+                <div style="text-align:center; color:#00D4FF; font-size:0.85rem; margin-bottom:8px;">⬇️ Descarga la guía antes de continuar (obligatorio)</div>
+                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 10px;">
+                    <button class="ctrl-btn" onclick="toggleZoom()" title="Zoom" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">🔍</button>
+                    <button class="ctrl-btn" onclick="descargarPDFCompleto()" title="Clave completa" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">📚</button>
+                    <button class="ctrl-btn" onclick="descargarGuiaRapida()" title="Guia rapida" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">📄</button>
+                    <button class="ctrl-btn" onclick="descargarGlosario()" title="Glosario" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">📖</button>
                 </div>
             </div>
             
-            <div id="zoomModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column;">
-                <img id="zoomImg" src="/static/imagenes/linepithema/diagrama_hormiga.png" style="max-width: 90%; max-height: 80%; border-radius: 15px; border: 2px solid #00D4FF;">
+            <div style="text-align:center; color:#A0A0B0; font-size:0.8rem; margin-top:10px;">👆 Toca los puntos numerados sobre la foto para ver cada estructura</div>
+            <div id="infoParteSeleccionada" style="display:none; background:#1A1F36; border:1px solid #00D4FF; border-radius:10px; padding:12px 16px; margin-top:10px; text-align:left;">
+                <strong id="infoParteNombre" style="color:#00D4FF;"></strong>
+                <div id="infoParteDef" style="font-size:0.85rem; color:#E0E0E0; margin-top:4px;"></div>
+            </div>
+        </div>
+        
+        <div id="zoomModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column;">
+                <div style="position:relative;display:inline-block;max-width:90%;max-height:80%;">
+                <img id="zoomImg" src="/static/imagenes/linepithema/diagrama_hormiga.png" style="max-width: 100%; max-height: 80vh; display:block; border-radius: 15px; border: 2px solid #00D4FF;">
+                <div class="pin-overlay" id="zoomPinOverlay"></div>
+            </div>
+            <div id="zoomInfoParte" style="display:none; background:#1A1F36; border:1px solid #00D4FF; border-radius:10px; padding:12px 16px; margin-top:12px; max-width:90%; text-align:left;">
+                <strong id="zoomInfoNombre" style="color:#00D4FF;"></strong>
+                <div id="zoomInfoDef" style="font-size:0.85rem; color:#E0E0E0; margin-top:4px;"></div>
+            </div>
                 <div style="margin-top: 20px; display: flex; gap: 15px;">
                     <button onclick="cerrarZoom()" style="padding: 10px 20px; background: #00D4FF; border: none; border-radius: 8px; color: #0A0E17; font-weight: bold; cursor: pointer;">Cerrar</button>
                     <button onclick="descargarPDFCompleto()" style="padding: 10px 20px; background: transparent; border: 2px solid #00D4FF; border-radius: 8px; color: #00D4FF; font-weight: bold; cursor: pointer;">📥 Descargar clave</button>
@@ -632,6 +611,14 @@
                     <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Escapo</div><div style="font-size:0.85rem;">Primer segmento de la antena</div></div>
                     <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Glándula metapleural</div><div style="font-size:0.85rem;">Órgano cerca del propodeo</div></div>
                     <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Setas erectas</div><div style="font-size:0.85rem;">Pelos erguidos</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #7B61FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Pelos adpresos</div><div style="font-size:0.85rem;">Pelos pegados a la superficie</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Bula metapleural</div><div style="font-size:0.85rem;">Protuberancia de la glándula</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #7B61FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Palpos maxilares</div><div style="font-size:0.85rem;">Apéndices cerca de la boca</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Mesonoto</div><div style="font-size:0.85rem;">Parte media del tórax</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #7B61FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Pedicelo antenal</div><div style="font-size:0.85rem;">2º segmento de la antena</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Margen posterior cabeza</div><div style="font-size:0.85rem;">Borde occipital</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #7B61FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Terguito</div><div style="font-size:0.85rem;">Placa dorsal del gáster</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Surco pre-sutural</div><div style="font-size:0.85rem;">Surco posterior del clípeo</div></div>
                 </div>
             </div>
             
@@ -661,10 +648,10 @@
                         <div class="view-tab" onclick="cambiarVista('lateral')">🔍 Lateral</div>
                         <div class="view-tab" onclick="cambiarVista('dorsal')">🔍 Dorsal</div>
                     </div>
-                    <div class="image-container" id="imageContainer">
+                    <div class="image-container" id="specimenImageContainer">
                         <img id="specimenImage" class="specimen-image" src="" alt="Espécimen">
-                        <span class="zoom-hint">🖱️ Rueda: zoom · Clic y arrastra: mover</span>
-                        <button class="zoom-reset-btn" id="zoomResetBtn" onclick="resetZoomPan()">↺ Restablecer</button>
+                        <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(10,14,23,0.85); color:#A0A0B0; font-size:0.72rem; padding:5px 12px; border-radius:8px; pointer-events:none; white-space:nowrap;">🔍 Rueda / pellizca: zoom · arrastra: mover · doble clic: restablecer</div>
+                        <button onclick="resetZoomImagen()" title="Restablecer zoom" style="position:absolute; top:10px; right:10px; background:rgba(26,31,54,0.9); border:1px solid #00D4FF40; color:#00D4FF; width:36px; height:36px; border-radius:8px; cursor:pointer; font-size:1rem;">↺</button>
                     </div>
                 </div>
             </main>
@@ -761,22 +748,32 @@
        const GLOSARIO = [
     {term: "Abdomen", def: "Parte posterior del cuerpo que contiene los órganos digestivos y reproductivos. En hormigas se divide en propodeo, pecíolo y gáster."},
     {term: "Antenas", def: "Órganos sensoriales móviles ubicados en la cabeza, formados por segmentos (escapo, pedicelo y flagelo). Son fundamentales para la comunicación y percepción del entorno."},
+    {term: "Bula de la glándula metapleural", def: "Protuberancia que cubre el orificio de salida de la glándula metapleural, en la parte posterior del mesosoma. La cantidad de pelos adpresos en su porción anterior es el primer carácter de la clave."},
     {term: "Cabeza", def: "Parte anterior del cuerpo que contiene los ojos compuestos, las antenas y las mandíbulas. Su forma y estructuras asociadas son clave para la identificación."},
     {term: "Clípeo", def: "Placa esclerotizada ubicada en la parte frontal de la cabeza, sobre las mandíbulas. Puede presentar surcos o carenas que ayudan en la identificación."},
-    {term: "Escapo", def: "Primer segmento de la antena, generalmente el más largo. Su longitud relativa a la cabeza es un carácter diagnóstico importante para separar especies."},
+    {term: "Escapo", def: "Primer segmento de la antena, generalmente el más largo. Su longitud relativa a la cabeza y al pedicelo antenal es un carácter diagnóstico importante."},
+    {term: "Escotadura", def: "Muesca o hendidura en un borde del cuerpo, por ejemplo en el margen posterior de la cabeza. Su profundidad diferencia especies."},
     {term: "Gáster", def: "Abdomen propiamente dicho (después del pecíolo). Contiene los órganos digestivos y reproductivos. Su forma y pilosidad son variables entre especies."},
     {term: "Glándula metapleural", def: "Órgano secretor ubicado en la región lateral del mesosoma, cerca del propodeo. Su pubescencia (presencia/ausencia de pelos) es clave para la identificación."},
+    {term: "Impresión media", def: "Depresión longitudinal poco profunda en el centro del mesonoto. Puede estar ausente, ligeramente marcada o ser moderada a fuerte según la especie."},
     {term: "Mandíbulas", def: "Estructuras bucales endurecidas utilizadas para cortar, transportar y defender. Su forma (triangular, alargada, con dientes) es variable entre especies."},
+    {term: "Margen posterior de la cabeza", def: "Borde occipital, visto en vista dorsal. Puede ser recto, ligeramente cóncavo o profundamente cóncavo (con escotadura); carácter diagnóstico importante."},
+    {term: "Mesonoto", def: "Segunda parte del mesosoma (tórax), entre el pronoto y el propodeo. Su forma (angular, recta) y su impresión media ayudan a diferenciar especies."},
     {term: "Mesosoma", def: "Tórax, región del cuerpo donde se insertan los tres pares de patas. Comprende el pronoto, mesonoto y propodeo. Es la región central del cuerpo."},
     {term: "Ojos", def: "Órganos visuales compuestos ubicados en la cabeza. Pueden ser grandes o pequeños según la especie. Su posición y tamaño son caracteres diagnósticos."},
+    {term: "Palpos maxilares", def: "Apéndices sensoriales pares cerca de la boca, asociados a las mandíbulas. Su longitud relativa a la cabeza es un carácter diagnóstico (ej. L. neotropicum)."},
     {term: "Patas", def: "Tres pares de apéndices articulados insertados en el mesosoma. Cada pata se compone de coxa, trocánter, fémur, tibia y tarso. Su longitud relativa es importante."},
-    {term: "Pecíolo", def: "Segmento o nódulo que conecta el mesosoma con el gáster. En Linepithema es característico y puede tener forma de escama o nódulo. Es clave en la identificación."},
+    {term: "Pecíolo", def: "Segmento o nódulo que conecta el mesosoma con el gáster (la 'cintura' de la hormiga). En Linepithema es característico y puede tener forma de escama o nódulo."},
+    {term: "Pedicelo antenal", def: "Segundo segmento de la antena, entre el escapo y el flagelo. No confundir con el pecíolo del cuerpo: aquí se usa como referencia de longitud para comparar con el escapo."},
+    {term: "Pelos adpresos", def: "Pelos cortos que yacen pegados o inclinados sobre la superficie del cuerpo, a diferencia de las setas erectas que se levantan del perfil corporal."},
     {term: "Pilosidad", def: "Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante. La distribución y tipo de pelos (erectos, inclinados, adpresos) son caracteres diagnósticos."},
     {term: "Pronoto", def: "Primera parte del mesosoma (tórax). La presencia o ausencia de setas erectas en el pronoto es un carácter clave en la identificación de especies."},
-    {term: "Propodeo", def: "Parte posterior del mesosoma (primer segmento del abdomen fusionado al tórax). Su forma (redondeada o angulada) es importante para la identificación."},
+    {term: "Propodeo", def: "Parte posterior del mesosoma (primer segmento del abdomen fusionado al tórax). Su forma (redondeada, angulada, alta o baja) es importante para la identificación."},
     {term: "Pubescencia", def: "Pelos finos y cortos, generalmente inclinados, que recubren la cutícula. Se observa especialmente en la glándula metapleural y otras regiones del cuerpo."},
     {term: "Setas erectas", def: "Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies. Su presencia, cantidad y distribución son diagnósticas."},
     {term: "Surco metanotal", def: "Depresión o surco en el mesosoma que separa el mesonoto del propodeo. Puede ser impreso o no según la especie. Es visible en vista dorsal."},
+    {term: "Surco pre-sutural del clípeo", def: "Surco ubicado en la porción posterior del clípeo, antes de su sutura con la cabeza. Puede estar bien marcado, débil o ausente según la especie."},
+    {term: "Terguito", def: "Placa dorsal endurecida de un segmento del gáster. El primer terguito puede presentar o no setas, carácter que diferencia L. gallardoi de L. humile."},
     {term: "Tórax", def: "Región media del cuerpo donde se insertan las patas. En hormigas se compone de pronoto, mesonoto, metanoto y propodeo. Es sinónimo de mesosoma."}
 ];
         // ===== VARIABLES GLOBALES =====
@@ -793,6 +790,18 @@
         let tiempoInicioEspecimen = Date.now();
         let timerInterval;
         let especiesCompletadas = [false, false];
+        let caminoRecorrido = [];
+        let guiaDescargada = false;
+        let tiempoInicioPaso = Date.now();
+        let caminoCorrectoActual = null;
+        let ordenPasoActual = 0;
+        let especimenFinalizado = false;
+        let susEnviado = false;
+        let cargaEnviada = false;
+        let reflexionPreviaEnviada = false;
+        let reflexionDuranteEnviada = false;
+        let reflexionPostEnviada = false;
+        let comentarioFinalEnviado = false;
         let vistaActual = 'lateral';
 
         // ===== INICIALIZACIÓN =====
@@ -813,7 +822,13 @@
                 document.getElementById('userBadge').innerHTML = `Usuario: <span>${usuario}</span>`;
             }
             cargarGlosario();
-            document.getElementById('startBtn').addEventListener('click', iniciarConReflexion);
+            document.getElementById('startBtn').addEventListener('click', function() {
+                if (!guiaDescargada) {
+                    mostrarAvisoDescargaObligatoria();
+                    return;
+                }
+                iniciarConReflexion();
+            });
         });
 
         async function obtenerUsuarioId() {
@@ -973,6 +988,8 @@
 }
 
         async function guardarReflexionPrevia() {
+    if (reflexionPreviaEnviada) return;
+    reflexionPreviaEnviada = true;
     const nivelConocimiento = document.getElementById('reflexion1').value;
     const nivelConfianza = document.getElementById('reflexion2').value;
     const tiempoEstimado = document.getElementById('reflexion3').value;
@@ -1002,6 +1019,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
 }
 
        function mostrarReflexionDurante(preguntaNum) {
+    reflexionDuranteEnviada = false;
     return new Promise((resolve) => {
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -1080,6 +1098,8 @@ else estrategiaTexto = 'Hipotético-deductiva';
 }
 
         async function guardarReflexionDurante(preguntaNum) {
+    if (reflexionDuranteEnviada) return;
+    reflexionDuranteEnviada = true;
     const seguridad = document.getElementById('reflexionDuranteSeguridad').value;
     const cambiarEstrategia = document.querySelector('input[name="cambioEstrategia"]:checked').value;
     
@@ -1122,6 +1142,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
 }
 
         function mostrarReflexionPost() {
+    reflexionPostEnviada = false;
     return new Promise((resolve) => {
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -1187,6 +1208,8 @@ else estrategiaTexto = 'Hipotético-deductiva';
 }
 
         async function guardarReflexionPost() {
+    if (reflexionPostEnviada) return;
+    reflexionPostEnviada = true;
     const acierto = document.getElementById('reflexionPostAcierto').value;
     const dificultad = document.getElementById('reflexionPostDificultad').value;
     const esfuerzo = document.getElementById('reflexionPostEsfuerzo').value;
@@ -1234,136 +1257,9 @@ else estrategiaTexto = 'Hipotético-deductiva';
             if (especimenes.length > 0 && especimenes[indiceActual]) {
                 const especie = especimenes[indiceActual].especie;
                 document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${especie}/${vista}.jpg`;
-                resetZoomPan();
+                if (typeof resetZoomImagen === 'function') resetZoomImagen();
             }
         }
-
-        // ===== ZOOM + ARRASTRE (PAN) DEL ESPÉCIMEN =====
-        // Reemplaza el zoom anterior (solo scale centrado, sin poder mover la imagen).
-        // Ahora: la rueda del mouse hace zoom hacia donde apunta el cursor, y con el
-        // mouse presionado (o el dedo, en táctil) se puede arrastrar la imagen para
-        // ubicar la parte que se quiere ampliar.
-        (function setupSpecimenZoomPan() {
-            const container = document.getElementById('imageContainer');
-            const img = document.getElementById('specimenImage');
-            const resetBtn = document.getElementById('zoomResetBtn');
-            if (!container || !img) return;
-
-            let scale = 1, panX = 0, panY = 0;
-            let isPanning = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
-            const MIN_SCALE = 1, MAX_SCALE = 5;
-
-            function applyTransform() {
-                img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-                container.classList.toggle('zoomed', scale > 1);
-                resetBtn.style.display = scale > 1 ? 'block' : 'none';
-            }
-
-            function clampPan() {
-                const rect = container.getBoundingClientRect();
-                const maxX = Math.max(0, (rect.width * (scale - 1)) / 2 + rect.width * 0.4);
-                const maxY = Math.max(0, (rect.height * (scale - 1)) / 2 + rect.height * 0.4);
-                panX = Math.min(maxX, Math.max(-maxX, panX));
-                panY = Math.min(maxY, Math.max(-maxY, panY));
-            }
-
-            window.resetZoomPan = function() {
-                scale = 1; panX = 0; panY = 0;
-                img.style.transition = 'transform 0.2s ease';
-                applyTransform();
-                setTimeout(() => { img.style.transition = ''; }, 200);
-            };
-
-            container.addEventListener('wheel', function(e) {
-                e.preventDefault();
-                const rect = container.getBoundingClientRect();
-                const cursorX = e.clientX - rect.left - rect.width / 2;
-                const cursorY = e.clientY - rect.top - rect.height / 2;
-
-                const prevScale = scale;
-                if (e.deltaY < 0) {
-                    scale = Math.min(scale + 0.2, MAX_SCALE);
-                } else {
-                    scale = Math.max(scale - 0.2, MIN_SCALE);
-                }
-
-                const scaleRatio = scale / prevScale;
-                panX = cursorX - (cursorX - panX) * scaleRatio;
-                panY = cursorY - (cursorY - panY) * scaleRatio;
-
-                if (scale === 1) { panX = 0; panY = 0; }
-                clampPan();
-                applyTransform();
-            }, { passive: false });
-
-            container.addEventListener('mousedown', function(e) {
-                if (scale <= 1) return;
-                isPanning = true;
-                container.classList.add('panning');
-                startX = e.clientX; startY = e.clientY;
-                startPanX = panX; startPanY = panY;
-                e.preventDefault();
-            });
-            window.addEventListener('mousemove', function(e) {
-                if (!isPanning) return;
-                panX = startPanX + (e.clientX - startX);
-                panY = startPanY + (e.clientY - startY);
-                clampPan();
-                applyTransform();
-            });
-            window.addEventListener('mouseup', function() {
-                isPanning = false;
-                container.classList.remove('panning');
-            });
-
-            img.addEventListener('dblclick', function(e) {
-                if (scale > 1) {
-                    window.resetZoomPan();
-                } else {
-                    const rect = container.getBoundingClientRect();
-                    panX = -(e.clientX - rect.left - rect.width / 2);
-                    panY = -(e.clientY - rect.top - rect.height / 2);
-                    scale = 2.5;
-                    clampPan();
-                    applyTransform();
-                }
-            });
-
-            let touchStartDist = 0, touchStartScale = 1;
-            container.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 1 && scale > 1) {
-                    isPanning = true;
-                    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-                    startPanX = panX; startPanY = panY;
-                } else if (e.touches.length === 2) {
-                    isPanning = false;
-                    touchStartDist = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    touchStartScale = scale;
-                }
-            }, { passive: true });
-            container.addEventListener('touchmove', function(e) {
-                if (e.touches.length === 1 && isPanning) {
-                    panX = startPanX + (e.touches[0].clientX - startX);
-                    panY = startPanY + (e.touches[0].clientY - startY);
-                    clampPan();
-                    applyTransform();
-                } else if (e.touches.length === 2) {
-                    const dist = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, touchStartScale * (dist / touchStartDist)));
-                    clampPan();
-                    applyTransform();
-                }
-            }, { passive: true });
-            container.addEventListener('touchend', function() {
-                isPanning = false;
-            });
-        })();
 
         async function guardarResultadoBackend(especimenId, especieCorrecta, especieSeleccionada, esCorrecta, tiempo) {
             try {
@@ -1408,6 +1304,10 @@ else estrategiaTexto = 'Hipotético-deductiva';
     pasoActual = 1;
     respuestaUsuario = '';
     respuestaSeleccionada = null;
+    caminoRecorrido = [];
+    caminoCorrectoActual = caminoHaciaEspecie(especimenes[index].especie);
+    ordenPasoActual = 0;
+    especimenFinalizado = false;
     tiempoInicioEspecimen = Date.now();
     
     document.getElementById('specimenCounter').textContent = `ESPÉCIMEN ${index+1}/${especimenes.length}`;
@@ -1420,13 +1320,27 @@ if (especimenes[index]) {
         const especie = especimenes[index].especie;
         const img = document.getElementById('specimenImage');
         img.src = `/static/imagenes/linepithema/${especie}/${vistaActual}.jpg`;
-        resetZoomPan();
+        img.style.cursor = 'zoom-in';
+        img.style.transition = 'transform 0.2s ease';
+        
+        // Zoom con scroll (rueda del mouse)
+        let currentScale = 1;
+        img.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                currentScale = Math.min(currentScale + 0.1, 3);
+            } else {
+                currentScale = Math.max(currentScale - 0.1, 1);
+            }
+            img.style.transform = `scale(${currentScale})`;
+            img.style.transformOrigin = 'center center';
+        });
     }
 }
             mostrarPregunta(1);
 }
 
-        async function mostrarPregunta(numero) {
+                async function mostrarPregunta(numero) {
             const paso = CLAVE[numero];
              if (numero === 1 && pasoActual === 1) {
         mostrarFeedback('🔍 Observa el espécimen con atención y responde las preguntas', '#00D4FF');
@@ -1437,8 +1351,11 @@ if (especimenes[index]) {
                 await mostrarReflexionDurante(numero);
             }
             
+            tiempoInicioPaso = Date.now();
             pasoActual = numero;
-            let html = `<div class="current-question">Pregunta ${numero}</div><div class="question-text">${paso.pregunta}</div><div class="options-grid">`;
+            let html = `<div class="current-question">Pregunta ${numero}</div>
+                <div style="font-size:0.75rem;color:#A0A0B0;margin-bottom:10px;">📸 Esta clave no incluye imágenes de referencia por carácter. Guíate por la descripción morfológica de cada opción y por la guía que descargaste.</div>
+                <div class="question-text">${paso.pregunta}</div><div class="options-grid">`;
             paso.opciones.forEach((opcion, idx) => {
                 const letra = idx === 0 ? 'A' : 'B';
                 const selectedClass = (respuestaSeleccionada && respuestaSeleccionada.pregunta === numero && respuestaSeleccionada.opcion === idx) ? 'selected' : '';
@@ -1452,11 +1369,9 @@ if (especimenes[index]) {
                          <div class="species-info"><strong>${especie.nombre}</strong><div class="glossary-def">${especie.caracteristicas}</div><div class="glossary-def">📍 ${especie.distribucion}</div></div>`;
                 document.getElementById('specimenInfo').innerHTML = `<strong>${especie.nombre}</strong><div class="glossary-def">${especie.caracteristicas}</div><div class="glossary-def">📍 ${especie.distribucion}</div>`;
             }
-            html += `<div class="answer-section"><input type="text" class="answer-input" id="respuestaInput" placeholder="Escribe aquí la especie que identificaste..." value="${respuestaUsuario}">
+            html += `<div class="answer-section">
                      <div class="action-buttons">
                         <button class="action-btn btn-prev" onclick="anteriorPregunta()" ${pasoActual===1?'disabled':''}>← Anterior</button>
-                        <button class="action-btn btn-next" onclick="siguientePregunta()">Siguiente →</button>
-                        <button class="action-btn btn-submit" onclick="enviarRespuesta()">📤 Enviar</button>
                         <button class="action-btn btn-download" onclick="descargarGuia()">📥 Guía</button>
                         <button class="action-btn btn-exit" onclick="salirIdentificacion()">🚪 Salir</button>
                      </div></div>`;
@@ -1464,74 +1379,128 @@ if (especimenes[index]) {
         }
 
         function seleccionarOpcion(preguntaNum, opcionIdx) {
+            if (especimenFinalizado) return;
             const paso = CLAVE[preguntaNum];
             const opcion = paso.opciones[opcionIdx];
             respuestaSeleccionada = { pregunta: preguntaNum, opcion: opcionIdx };
+            caminoRecorrido = caminoRecorrido.filter(c => c.pregunta !== preguntaNum);
+            caminoRecorrido.push({ pregunta: preguntaNum, opcion: opcionIdx });
+
+            const tiempoPaso = (Date.now() - tiempoInicioPaso) / 1000;
+            ordenPasoActual++;
+            const esPasoCorrecto = !!(caminoCorrectoActual && caminoCorrectoActual.some(
+                c => c.pregunta === preguntaNum && c.opcion === opcionIdx
+            ));
+            guardarPasoBackend(preguntaNum, opcionIdx, esPasoCorrecto, !!opcion.resultado, tiempoPaso, ordenPasoActual);
+
             if (opcion.siguiente) {
                 mostrarPregunta(opcion.siguiente);
             } else if (opcion.resultado) {
-    // El estudiante debe escribir la especie manualmente
-    mostrarPregunta(preguntaNum);
-            } else {
-                mostrarPregunta(preguntaNum);
+                finalizarPorClave(opcion.resultado);
             }
         }
 
-        async function enviarRespuesta() {
-    const input = document.getElementById('respuestaInput').value.trim();
-    if (!input) { 
-        mostrarFeedback('⚠️ Escribe la especie que identificaste', '#FF375F'); 
-        return; 
-    }
-    
-    const especieCorrecta = especimenes[indiceActual].especie;
-    const nombreCorrecto = ESPECIES[especieCorrecta].nombre;
-    const esCorrecto = input.toLowerCase().includes(especieCorrecta.toLowerCase()) || 
-                       input.toLowerCase() === nombreCorrecto.toLowerCase();
-    
-    const tiempoEmpleado = (Date.now() - tiempoInicioEspecimen) / 1000;
-    
-    await guardarResultadoBackend(
-        especimenes[indiceActual].id,
-        especieCorrecta,
-        input,
-        esCorrecto,
-        tiempoEmpleado
-    );
-    
-    respuestas[indiceActual] = esCorrecto ? especieCorrecta : 'incorrecto';
-    especiesCompletadas[indiceActual] = true;
-    respuestaSeleccionada = null;
-    respuestaUsuario = '';
-    
-    const completados = respuestas.filter(r => r !== null && r !== 'pendiente').length;
-    document.getElementById('completedCount').textContent = completados;
-    guardarProgresoLocal();
-    
-    // PASO 1: Mostrar resultado (correcto/incorrecto)
-    if (esCorrecto) {
-        mostrarFeedback('✅ ¡Excelente! Has identificado correctamente la especie', '#00D4FF');
-    } else {
-        mostrarFeedback(`❌ La especie correcta era: ${nombreCorrecto}. ¡Sigue practicando!`, '#FF375F');
-    }
-    
-    // Esperar 2 segundos para que el estudiante vea el resultado
-    setTimeout(async () => {
-        // PASO 2: Mostrar reflexión post
-        await mostrarReflexionPost();
-        
-        // PASO 3: Después de la reflexión, continuar
-        if (indiceActual < especimenes.length - 1) {
-            setTimeout(() => { 
-                indiceActual++; 
-                pasoActual = 1; 
-                cargarEspecimen(indiceActual); 
-            }, 500);
-        } else {
-            setTimeout(() => mostrarResumenFinal(), 500);
+        async function guardarPasoBackend(pregunta, opcionElegida, esPasoCorrecto, esPasoFinal, tiempo, ordenPaso) {
+            try {
+                await fetch('/api/experimento/guardar_paso', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sesion_id: sesionId,
+                        especimen_id: especimenes[indiceActual].id,
+                        especimen_orden: indiceActual + 1,
+                        pregunta: pregunta,
+                        opcion_elegida: opcionElegida,
+                        es_paso_correcto: esPasoCorrecto,
+                        es_paso_final: esPasoFinal,
+                        tiempo_segundos: tiempo,
+                        orden_paso: ordenPaso
+                    })
+                });
+            } catch(e) {
+                console.error('Error guardando paso:', e);
+            }
         }
-    }, 2000);
-}
+
+        function caminoHaciaEspecie(especieObjetivo, pregunta, camino) {
+            pregunta = pregunta || 1;
+            camino = camino || [];
+            const paso = CLAVE[pregunta];
+            if (!paso) return null;
+            for (let idx = 0; idx < paso.opciones.length; idx++) {
+                const opcion = paso.opciones[idx];
+                const nuevoCamino = camino.concat([{ pregunta: pregunta, opcion: idx }]);
+                if (opcion.resultado === especieObjetivo) return nuevoCamino;
+                if (opcion.siguiente) {
+                    const resultado = caminoHaciaEspecie(especieObjetivo, opcion.siguiente, nuevoCamino);
+                    if (resultado) return resultado;
+                }
+            }
+            return null;
+        }
+
+        async function finalizarPorClave(resultadoEspecie) {
+            if (especimenFinalizado) return;
+            especimenFinalizado = true;
+            document.querySelectorAll('.option-card').forEach(el => { el.style.opacity = '0.5'; el.style.pointerEvents = 'none'; });
+            const especieCorrecta = especimenes[indiceActual].especie;
+            const nombreCorrecto = ESPECIES[especieCorrecta].nombre;
+            const esCorrecto = resultadoEspecie === especieCorrecta;
+            const tiempoEmpleado = (Date.now() - tiempoInicioEspecimen) / 1000;
+
+            await guardarResultadoBackend(
+                especimenes[indiceActual].id,
+                especieCorrecta,
+                resultadoEspecie,
+                esCorrecto,
+                tiempoEmpleado
+            );
+
+            respuestas[indiceActual] = esCorrecto ? especieCorrecta : 'incorrecto';
+            especiesCompletadas[indiceActual] = true;
+            respuestaSeleccionada = null;
+
+            const completados = respuestas.filter(r => r !== null && r !== 'pendiente').length;
+            document.getElementById('completedCount').textContent = completados;
+            guardarProgresoLocal();
+
+            if (esCorrecto) {
+                mostrarFeedback(`✅ ¡Excelente! Identificaste "${nombreCorrecto}"`, '#00D4FF');
+            } else {
+                const caminoCorrecto = caminoHaciaEspecie(especieCorrecta) || [];
+                let divergencia = null;
+                for (let i = 0; i < caminoCorrecto.length; i++) {
+                    const paso = caminoRecorrido[i];
+                    if (!paso || paso.pregunta !== caminoCorrecto[i].pregunta || paso.opcion !== caminoCorrecto[i].opcion) {
+                        divergencia = caminoCorrecto[i];
+                        break;
+                    }
+                }
+                let mensajeCaracter = '';
+                if (divergencia) {
+                    const pasoClave = CLAVE[divergencia.pregunta];
+                    const opcionCorrecta = pasoClave.opciones[divergencia.opcion];
+                    mensajeCaracter = ` Te desviaste en la Pregunta ${divergencia.pregunta}: "${pasoClave.pregunta}" — el carácter correcto era: "${opcionCorrecta.texto}" (${opcionCorrecta.desc}).`;
+                }
+                mostrarFeedback(`❌ Concluiste "${resultadoEspecie}". La especie correcta era "${nombreCorrecto}".${mensajeCaracter}`, '#FF375F');
+            }
+
+            caminoRecorrido = [];
+
+            setTimeout(async () => {
+                await mostrarReflexionPost();
+
+                if (indiceActual < especimenes.length - 1) {
+                    setTimeout(() => {
+                        indiceActual++;
+                        pasoActual = 1;
+                        cargarEspecimen(indiceActual);
+                    }, 500);
+                } else {
+                    setTimeout(() => mostrarResumenFinal(), 500);
+                }
+            }, 8500);
+        }
 
         function mostrarFeedback(mensaje, color) {
             const existing = document.querySelector('.feedback-modal');
@@ -1546,23 +1515,28 @@ if (especimenes[index]) {
                 transform: translate(-50%, -50%);
                 background: ${color};
                 color: #0A0E17;
-                padding: 25px 40px;
+                padding: 20px 25px;
                 border-radius: 20px;
-                font-size: 1.5rem;
+                font-size: 1.15rem;
                 font-weight: bold;
                 z-index: 10000;
                 text-align: center;
-                min-width: 350px;
+                width: min(480px, 92vw);
+                box-sizing: border-box;
+                max-height: 80vh;
+                overflow-y: auto;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.5);
                 border: 2px solid white;
-                animation: fadeInOut 3s ease forwards;
+                animation: fadeInOut 8s ease forwards;
             `;
             
             const icono = color.includes('00D4FF') ? '✅' : '❌';
-            feedback.innerHTML = `${icono} ${mensaje}`;
+            feedback.innerHTML = `${icono} ${mensaje}<div style="font-size:0.7rem;opacity:0.7;margin-top:8px;">(toca para cerrar)</div>`;
+            feedback.style.cursor = 'pointer';
+            feedback.onclick = () => feedback.remove();
             document.body.appendChild(feedback);
             
-            setTimeout(() => feedback.remove(), 3000);
+            setTimeout(() => feedback.remove(), 8000);
         }
 
         function mostrarResumenFinal() {
@@ -1577,21 +1551,20 @@ if (especimenes[index]) {
                         <p style="font-size:2rem; color:#00D4FF;">${aciertos}/${total}</p>
                         <p>Aciertos: <strong>${porcentaje}%</strong></p>
                     </div>
-                    <div style="display:flex; gap:15px; justify-content:center;">
-                        <button class="action-btn btn-submit" onclick="mostrarEncuestas()" style="padding:15px 30px;">📝 Continuar a encuestas</button>
-                        <button class="action-btn btn-exit" onclick="window.location.href='/dashboard?usuario=${usuario}'" style="padding:15px 30px;">🏠 Ir al dashboard</button>
-                    </div>
+                    <p style="color:#A0A0B0; font-size:0.85rem; margin-bottom:15px;">Ahora sigue una parte indispensable del estudio: 2 encuestas cortas sobre tu experiencia. Te llevamos allá en unos segundos.</p>
+                    <button class="action-btn btn-submit" onclick="mostrarEncuestas()" style="padding:15px 30px;">📝 Continuar a las encuestas ahora</button>
                 </div>`;
             clearInterval(timerInterval);
+            setTimeout(() => { if (typeof mostrarEncuestas === 'function') mostrarEncuestas(); }, 4000);
         }
 
         function anteriorPregunta() { 
-            if(pasoActual > 1) mostrarPregunta(pasoActual - 1); 
+            if (pasoActual > 1) {
+                caminoRecorrido = caminoRecorrido.filter(c => c.pregunta < pasoActual - 1);
+                mostrarPregunta(pasoActual - 1);
+            }
         }
-        
-        function siguientePregunta() { 
-            if(pasoActual < 8) mostrarPregunta(pasoActual + 1); 
-        }
+
         
         function salirIdentificacion() { 
             if(confirm('¿Salir? Se perderá el progreso.')) 
@@ -1599,6 +1572,7 @@ if (especimenes[index]) {
         }
 
         function descargarGuia() {
+            guiaDescargada = true;
             const contenido = `GUÍA DE IDENTIFICACIÓN - GÉNERO Linepithema...`;
             const blob = new Blob([contenido], {type:'text/plain'});
             const a = document.createElement('a');
@@ -1623,6 +1597,8 @@ if (especimenes[index]) {
                     <button class="action-btn btn-submit" onclick="guardarSUS()">Continuar →</button>
                 </div>
             `;
+            const sb = document.querySelector('.sidebar');
+            if (sb) sb.scrollTop = 0;
         }
 
         function generarSUS() {
@@ -1654,6 +1630,7 @@ if (especimenes[index]) {
         }
 
         function guardarSUS() {
+            if (susEnviado) return;
             const respuestasArr = [];
             for (let i = 0; i < 10; i++) {
                 const seleccion = document.querySelector(`input[name="sus_${i}"]:checked`);
@@ -1663,6 +1640,7 @@ if (especimenes[index]) {
                 }
                 respuestasArr.push(parseInt(seleccion.value));
             }
+            susEnviado = true;
             let score = 0;
             for (let i = 0; i < 10; i++) {
                 score += (i % 2 === 0) ? respuestasArr[i] - 1 : 5 - respuestasArr[i];
@@ -1686,6 +1664,8 @@ if (especimenes[index]) {
                     <button class="action-btn btn-submit" onclick="guardarCargaCognitiva()">Finalizar</button>
                 </div>
             `;
+            const sb = document.querySelector('.sidebar');
+            if (sb) sb.scrollTop = 0;
         }
 
         function generarCargaCognitiva() {
@@ -1717,6 +1697,7 @@ if (especimenes[index]) {
         }
 
         function guardarCargaCognitiva() {
+            if (cargaEnviada) return;
             const respuestasArr = [];
             for (let i = 0; i < 10; i++) {
                 const seleccion = document.querySelector(`input[name="cl_${i}"]:checked`);
@@ -1726,14 +1707,54 @@ if (especimenes[index]) {
                 }
                 respuestasArr.push(parseInt(seleccion.value));
             }
+            cargaEnviada = true;
             const intrínseca = respuestasArr.slice(0,4).reduce((a,b)=>a+b,0);
             const extrínseca = respuestasArr.slice(4,8).reduce((a,b)=>a+b,0);
             const germana = respuestasArr.slice(8,10).reduce((a,b)=>a+b,0);
             guardarEncuesta('COGNITIVE_LOAD', respuestasArr, null);
-            mostrarFeedback(`✅ Estudio completado!\n\nCarga intrínseca: ${intrínseca}/40\nCarga extrínseca: ${extrínseca}/40\nCarga germana: ${germana}/20\n\n¡Gracias!`, '#00D4FF');
+            mostrarComentarioFinal();
+        }
+
+        function mostrarComentarioFinal() {
+            document.getElementById('questionContainer').innerHTML = `
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="font-size: 2rem;">💬</div>
+                    <h2 style="color: #00D4FF;">Una última cosa</h2>
+                    <p style="color:#A0A0B0;font-size:0.9rem;">Cuéntanos lo que quieras sobre tu experiencia usando la clave: qué te gustó, qué se te dificultó, qué mejorarías. Es opcional.</p>
+                </div>
+                <textarea id="comentarioFinalTexto" rows="6" placeholder="Escribe aquí (opcional)..." style="width:100%; box-sizing:border-box; background:#1A1F36; border:1px solid #00D4FF40; border-radius:10px; color:#E0E0E0; padding:12px; font-size:0.95rem; font-family:inherit; resize:vertical;"></textarea>
+                <div class="answer-section" style="margin-top:15px;">
+                    <button class="action-btn btn-submit" onclick="guardarComentarioFinal()" style="width:100%;">✅ Finalizar y ver mis resultados</button>
+                </div>`;
+            const sb = document.querySelector('.sidebar');
+            if (sb) sb.scrollTop = 0;
+        }
+
+        async function guardarComentarioFinal() {
+            if (comentarioFinalEnviado) return;
+            comentarioFinalEnviado = true;
+            const campo = document.getElementById('comentarioFinalTexto');
+            const texto = campo ? campo.value.trim() : '';
+            if (texto) {
+                try {
+                    await fetch('/api/experimento/guardar_reflexion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sesion_id: sesionId,
+                            momento: 'comentario_final',
+                            pregunta: 'Comentario libre sobre la experiencia de uso',
+                            respuesta: texto
+                        })
+                    });
+                } catch (e) {
+                    console.error('Error guardando comentario final:', e);
+                }
+            }
+            mostrarFeedback('✅ ¡Gracias por completar el estudio!', '#00D4FF');
             setTimeout(() => {
                 window.location.href = '/dashboard?usuario=' + usuario;
-            }, 3000);
+            }, 1500);
         }
 
         async function guardarEncuesta(tipo, respuestasArr, puntaje) {
@@ -1760,14 +1781,55 @@ if (especimenes[index]) {
                 modal.style.display = 'none';
             } else {
                 modal.style.display = 'flex';
+                setTimeout(crearPinsZoom, 50);
             }
         }
+
+        function crearPinsZoom(){
+            const overlay = document.getElementById('zoomPinOverlay');
+            const img = document.getElementById('zoomImg');
+            if(!overlay || !img || !img.complete || img.naturalWidth===0) return;
+            overlay.innerHTML = '';
+            overlay.style.position = 'absolute';
+            overlay.style.top = img.offsetTop + 'px';
+            overlay.style.left = img.offsetLeft + 'px';
+            overlay.style.width = img.offsetWidth + 'px';
+            overlay.style.height = img.offsetHeight + 'px';
+            overlay.style.pointerEvents = 'none';
+            PARTES_HORMIGA.forEach((p, i) => {
+                const coords = posicionesPinesAdmin[p.id] || { px: p.px, py: p.py };
+                const pin = document.createElement('div');
+                pin.className = 'pin';
+                pin.dataset.id = p.id;
+                pin.style.left = coords.px + '%';
+                pin.style.top = coords.py + '%';
+                pin.style.pointerEvents = 'all';
+                pin.innerHTML = `<span class="pin-num">${i+1}</span>`;
+                pin.onclick = (e) => { e.stopPropagation(); mostrarInfoParteZoom(p.id); };
+                overlay.appendChild(pin);
+            });
+        }
+
+        function mostrarInfoParteZoom(id){
+            const parte = PARTES_HORMIGA.find(p => p.id === id);
+            if(!parte) return;
+            document.querySelectorAll('#zoomPinOverlay .pin').forEach(p => p.classList.toggle('activo', p.dataset.id === id));
+            document.getElementById('zoomInfoNombre').textContent = parte.label;
+            document.getElementById('zoomInfoDef').textContent = parte.def;
+            document.getElementById('zoomInfoParte').style.display = 'block';
+        }
+
+        window.addEventListener('resize', () => {
+            const modal = document.getElementById('zoomModal');
+            if (modal && modal.style.display === 'flex') crearPinsZoom();
+        });
 
         function cerrarZoom() {
             document.getElementById('zoomModal').style.display = 'none';
         }
 
        function descargarPDFCompleto() {
+            guiaDescargada = true;
     const contenido = `CLAVE TAXONÓMICA - GÉNERO Linepithema
 ========================================
 
@@ -1838,6 +1900,7 @@ Fuente: Escárraga & Guerrero (2016)`;
 }
 
         function descargarGuiaRapida() {
+            guiaDescargada = true;
     const contenido = `🔬 GUÍA RÁPIDA - IDENTIFICACIÓN DE Linepithema
 =========================================
 
@@ -1893,41 +1956,66 @@ Fuente: Escárraga & Guerrero (2016)`;
 }
 
        function descargarGlosario() {
-    const contenido = `GLOSARIO DE TÉRMINOS MORFOLÓGICOS
-================================
+    guiaDescargada = true;
+    const contenido = `GLOSARIO DE TÉRMINOS MORFOLÓGICOS - Linepithema
+=================================================
 
-Cabeza: Parte anterior del cuerpo que contiene los ojos compuestos, las antenas y las mandíbulas.
+Abdomen: Parte posterior del cuerpo que contiene los órganos digestivos y reproductivos. Se divide en propodeo, pecíolo y gáster.
 
-Mesosoma: Tórax, región del cuerpo donde se insertan las tres pares de patas.
+Antenas: Órganos sensoriales formados por escapo, pedicelo y flagelo.
 
-Propodeo: Parte posterior del tórax (primer segmento del abdomen fusionado al tórax). Su forma (redondeada o angulada) es clave para la identificación.
+Bula de la glándula metapleural: Protuberancia que cubre el orificio de la glándula metapleural. La cantidad de pelos adpresos en su porción anterior es el primer carácter de la clave.
 
-Pecíolo: Nódulo o segmento que conecta el tórax con el gáster. En Linepithema es característico.
+Cabeza: Parte anterior del cuerpo con ojos, antenas y mandíbulas.
+
+Clípeo: Placa frontal sobre las mandíbulas. Puede presentar un surco pre-sutural o ser liso.
+
+Escapo: Primer segmento de la antena, generalmente el más largo.
+
+Escotadura: Muesca o hendidura en un borde del cuerpo, por ejemplo en el margen posterior de la cabeza.
 
 Gáster: Abdomen, contiene los órganos digestivos y reproductivos.
 
-Escapo: Primer segmento de la antena, generalmente el más largo. Su longitud relativa a la cabeza es un carácter diagnóstico.
+Glándula metapleural: Órgano secretor cerca del propodeo. Su pubescencia es clave taxonómica.
 
-Setas erectas: Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies.
+Impresión media: Depresión longitudinal poco profunda en el centro del mesonoto.
 
-Pubescencia: Pelos finos y cortos, generalmente inclinados. Se observa en la glándula metapleural.
+Mandíbulas: Estructuras bucales utilizadas para cortar, transportar y defender.
 
-Clípeo: Placa frontal sobre las mandíbulas. Puede presentar un surco (surco pre-sutural) o ser liso.
+Margen posterior de la cabeza (borde occipital): Puede ser recto, cóncavo o profundamente cóncavo (con escotadura).
 
-Glándula metapleural: Órgano secretor ubicado cerca del propodeo, produce sustancias defensivas. Su pubescencia es clave taxonómica.
+Mesonoto: Segunda parte del mesosoma, entre el pronoto y el propodeo.
+
+Mesosoma: Tórax, región del cuerpo donde se insertan las tres pares de patas.
+
+Ocelos: Ojos simples en la parte superior de la cabeza. Presentes en machos y reinas, ausentes en obreras.
+
+Palpos maxilares: Apéndices sensoriales cerca de la boca. Su longitud relativa a la cabeza es diagnóstica.
+
+Pecíolo: Nódulo o segmento que conecta el mesosoma con el gáster (la "cintura" de la hormiga).
+
+Pedicelo antenal: Segundo segmento de la antena, entre el escapo y el flagelo. No confundir con el pecíolo del cuerpo.
+
+Pelos adpresos: Pelos cortos que yacen pegados a la superficie del cuerpo, a diferencia de las setas erectas.
 
 Pilosidad: Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante.
 
 Pronoto: Primera parte del tórax. La presencia/ausencia de setas es clave.
 
-Margen posterior de la cabeza: Borde occipital. Puede ser recto, cóncavo o profundamente cóncavo.
+Propodeo: Parte posterior del tórax. Su forma (redondeada, angulada, alta o baja) es clave para la identificación.
 
-Surco metanotal: Depresión entre el mesosoma y el propodeo. Puede ser impreso o no.
+Pubescencia: Pelos finos y cortos, generalmente inclinados. Se observa en la glándula metapleural.
 
-Ocelos: Ojos simples en la parte superior de la cabeza. Presentes en machos y reinas, ausentes en obreras.
+Setas erectas: Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies.
 
-Mandíbulas: Estructuras bucales utilizadas para cortar, transportar y defender.`;
-    
+Surco metanotal: Depresión entre el mesonoto y el propodeo. Puede ser impreso o no.
+
+Surco pre-sutural del clípeo: Surco en la porción posterior del clípeo, antes de su sutura con la cabeza.
+
+Terguito: Placa dorsal de un segmento del gáster. El primer terguito puede tener o no setas (clave para diferenciar L. gallardoi de L. humile).
+
+Tórax: Región media del cuerpo donde se insertan las patas (sinónimo de mesosoma).`;
+
     const blob = new Blob([contenido], {type: 'text/plain'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1990,6 +2078,182 @@ function reiniciarIdentificacion() {
         cargarEspecimen(0);
     }, 1500);
 }
-    </script>
+    
+        const PARTES_HORMIGA = [
+          {id:"cabeza", label:"Cabeza", def:"Parte anterior que contiene ojos compuestos, antenas y mandibulas.", px:28, py:54},
+          {id:"mandibulas", label:"Mandibulas", def:"Estructuras bucales para cortar, transportar y defender.", px:17, py:66},
+          {id:"clipeo", label:"Clipeo", def:"Placa frontal sobre las mandibulas. Puede presentar un surco pre-sutural o ser liso.", px:21, py:60},
+          {id:"margen", label:"Margen posterior de la cabeza", def:"Borde occipital. Puede ser recto, concavo o profundamente concavo.", px:36, py:47},
+          {id:"ocelos", label:"Ocelos", def:"Ojos simples en la parte superior de la cabeza. Presentes en machos y reinas.", px:22, py:40},
+          {id:"escapo", label:"Escapo", def:"Primer segmento de la antena, generalmente el mas largo. Caracter diagnostico.", px:21, py:33},
+          {id:"mesosoma", label:"Mesosoma", def:"Torax, region donde se insertan las tres pares de patas.", px:48, py:42},
+          {id:"pronoto", label:"Pronoto", def:"Primera parte del torax. La presencia o ausencia de setas es clave.", px:40, py:40},
+          {id:"surco", label:"Surco metanotal", def:"Depresion entre el mesosoma y el propodeo. Puede ser impreso o no.", px:53, py:38},
+          {id:"propodeo", label:"Propodeo", def:"Primer segmento del abdomen fusionado al torax. Su forma, redondeada o angulada, es clave.", px:60, py:40},
+          {id:"glandula", label:"Glandula metapleural", def:"Organo secretor cerca del propodeo, produce sustancias defensivas. Su pubescencia es clave taxonomica.", px:60, py:54},
+          {id:"peciolo", label:"Peciolo", def:"Nodulo que conecta el torax con el gaster. Caracteristico en Linepithema.", px:67, py:47},
+          {id:"gaster", label:"Gaster", def:"Abdomen, contiene los organos digestivos y reproductivos.", px:82, py:42},
+          {id:"setas", label:"Setas erectas", def:"Pelos erguidos que sobresalen del perfil. Se cuentan para diferenciar especies.", px:79, py:33},
+          {id:"pubescencia", label:"Pubescencia", def:"Pelos finos y cortos, generalmente inclinados. Se observa en la glandula metapleural.", px:57, py:57},
+          {id:"pilosidad", label:"Pilosidad", def:"Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante.", px:87, py:36}
+        ];
+
+        let posicionesPinesAdmin = {};
+
+        async function cargarPosicionesPinesYCrear() {
+            try {
+                const res = await fetch('/api/config/pines');
+                if (res.ok) posicionesPinesAdmin = await res.json();
+            } catch(e) { /* sin conexión: usa las coordenadas por defecto */ }
+            crearPinsHormiga();
+        }
+
+        function crearPinsHormiga(){
+            const overlay = document.getElementById('pinOverlay');
+            const img = document.getElementById('diagramaImg');
+            if(!overlay || !img || !img.complete || img.naturalWidth===0) return;
+            overlay.innerHTML = '';
+            overlay.style.position = 'absolute';
+            overlay.style.top = img.offsetTop + 'px'; overlay.style.left = img.offsetLeft + 'px';
+            overlay.style.width = img.offsetWidth + 'px';
+            overlay.style.height = img.offsetHeight + 'px';
+            overlay.style.pointerEvents = 'none';
+            PARTES_HORMIGA.forEach((p, i) => {
+                const coords = posicionesPinesAdmin[p.id] || { px: p.px, py: p.py };
+                const pin = document.createElement('div');
+                pin.className = 'pin';
+                pin.dataset.id = p.id;
+                pin.style.left = coords.px + '%';
+                pin.style.top = coords.py + '%';
+                pin.style.pointerEvents = 'all';
+                pin.innerHTML = `<span class="pin-num">${i+1}</span>`;
+                pin.onclick = (e) => { e.stopPropagation(); mostrarInfoParte(p.id); };
+                overlay.appendChild(pin);
+            });
+        }
+
+        function mostrarInfoParte(id){
+            const parte = PARTES_HORMIGA.find(p => p.id === id);
+            if(!parte) return;
+            document.querySelectorAll('#pinOverlay .pin').forEach(p => p.classList.toggle('activo', p.dataset.id === id));
+            const box = document.getElementById('infoParteSeleccionada');
+            document.getElementById('infoParteNombre').textContent = parte.label;
+            document.getElementById('infoParteDef').textContent = parte.def;
+            box.style.display = 'block';
+        }
+
+        window.addEventListener('resize', crearPinsHormiga);
+        document.addEventListener('DOMContentLoaded', () => {
+            const img = document.getElementById('diagramaImg');
+            if(img){
+                if(img.complete && img.naturalWidth > 0) cargarPosicionesPinesYCrear();
+                img.addEventListener('load', cargarPosicionesPinesYCrear);
+            }
+        });
+
+        function mostrarAvisoDescargaObligatoria() {
+            const existing = document.getElementById('avisoDescargaModal');
+            if (existing) existing.remove();
+            const modal = document.createElement('div');
+            modal.id = 'avisoDescargaModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,7,12,0.96);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;';
+            modal.innerHTML = `
+                <div style="background:#121826;border:2px solid #FF375F;border-radius:20px;padding:30px;max-width:450px;width:100%;text-align:center;">
+                    <div style="font-size:2.5rem;">⚠️</div>
+                    <h3 style="color:#FF375F;margin:10px 0;">Debes descargar la guía primero</h3>
+                    <p style="color:#E0E0E0;margin-bottom:20px;">Antes de comenzar, descarga la guía de identificación (📚, 📄 o 📖 arriba) y síguela al pie de la letra. Sin ella no podrás identificar correctamente las especies.</p>
+                    <button onclick="document.getElementById('avisoDescargaModal').remove()" style="padding:12px 30px;background:linear-gradient(45deg,#00D4FF,#7B61FF);border:none;border-radius:10px;color:white;font-weight:bold;cursor:pointer;">Entendido</button>
+                </div>`;
+            document.body.appendChild(modal);
+        }
+
+        let zoomEspecimenState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
+
+        function resetZoomImagen() {
+            zoomEspecimenState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
+            aplicarTransformEspecimen();
+        }
+
+        function aplicarTransformEspecimen() {
+            const img = document.getElementById('specimenImage');
+            if (!img) return;
+            img.style.transform = `translate(${zoomEspecimenState.x}px, ${zoomEspecimenState.y}px) scale(${zoomEspecimenState.scale})`;
+            img.style.cursor = zoomEspecimenState.scale > 1 ? 'grab' : 'zoom-in';
+        }
+
+        function inicializarZoomEspecimen() {
+            const container = document.getElementById('specimenImageContainer');
+            const img = document.getElementById('specimenImage');
+            if (!container || !img || img.dataset.zoomInit) return;
+            img.dataset.zoomInit = '1';
+            img.style.transformOrigin = 'center center';
+
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.2 : -0.2;
+                zoomEspecimenState.scale = Math.min(4, Math.max(1, zoomEspecimenState.scale + delta));
+                if (zoomEspecimenState.scale === 1) { zoomEspecimenState.x = 0; zoomEspecimenState.y = 0; }
+                aplicarTransformEspecimen();
+            }, { passive: false });
+
+            img.addEventListener('dblclick', () => resetZoomImagen());
+
+            img.addEventListener('mousedown', (e) => {
+                if (zoomEspecimenState.scale <= 1) return;
+                zoomEspecimenState.isDragging = true;
+                zoomEspecimenState.startX = e.clientX - zoomEspecimenState.x;
+                zoomEspecimenState.startY = e.clientY - zoomEspecimenState.y;
+                img.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (!zoomEspecimenState.isDragging) return;
+                zoomEspecimenState.x = e.clientX - zoomEspecimenState.startX;
+                zoomEspecimenState.y = e.clientY - zoomEspecimenState.startY;
+                aplicarTransformEspecimen();
+            });
+            window.addEventListener('mouseup', () => {
+                if (zoomEspecimenState.isDragging) {
+                    zoomEspecimenState.isDragging = false;
+                    img.style.cursor = zoomEspecimenState.scale > 1 ? 'grab' : 'zoom-in';
+                }
+            });
+
+            let touchStartDist = 0;
+            let touchStartScale = 1;
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    touchStartDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    touchStartScale = zoomEspecimenState.scale;
+                } else if (e.touches.length === 1 && zoomEspecimenState.scale > 1) {
+                    zoomEspecimenState.isDragging = true;
+                    zoomEspecimenState.startX = e.touches[0].clientX - zoomEspecimenState.x;
+                    zoomEspecimenState.startY = e.touches[0].clientY - zoomEspecimenState.y;
+                }
+            }, { passive: true });
+            container.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    zoomEspecimenState.scale = Math.min(4, Math.max(1, touchStartScale * (dist / touchStartDist)));
+                    if (zoomEspecimenState.scale === 1) { zoomEspecimenState.x = 0; zoomEspecimenState.y = 0; }
+                    aplicarTransformEspecimen();
+                } else if (e.touches.length === 1 && zoomEspecimenState.isDragging) {
+                    zoomEspecimenState.x = e.touches[0].clientX - zoomEspecimenState.startX;
+                    zoomEspecimenState.y = e.touches[0].clientY - zoomEspecimenState.startY;
+                    aplicarTransformEspecimen();
+                }
+            }, { passive: false });
+            container.addEventListener('touchend', () => { zoomEspecimenState.isDragging = false; });
+        }
+
+        document.addEventListener('DOMContentLoaded', inicializarZoomEspecimen);
+</script>
 </body>
 </html>

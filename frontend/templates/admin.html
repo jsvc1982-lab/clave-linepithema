@@ -45,7 +45,7 @@
         .btn-primary{background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;}
         .btn-secondary{background:#1A1F36;border:1px solid #00D4FF40;color:#00D4FF;}
         .btn-success{background:#00D4FF20;border:1px solid #00D4FF40;color:#00D4FF;}
-        .search-input{padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;font-size:0.9rem;width:250px;}
+        .search-input{padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;font-size:0.9rem;width:250px;max-width:100%;flex:1 1 200px;}
         .search-input:focus{outline:none;border-color:#00D4FF;}
         .mensaje-flotante{position:fixed;bottom:20px;right:20px;background:#00D4FF;color:#0A0E17;padding:12px 20px;border-radius:8px;font-weight:bold;z-index:1000;animation:fadeOut 3s forwards;}
         @keyframes fadeOut{0%{opacity:1;}70%{opacity:1;}100%{opacity:0;}}
@@ -54,6 +54,17 @@
         .especie-card:hover{border-color:#00D4FF80;}
         .especie-card.active{border-color:#00D4FF;background:linear-gradient(135deg,#00D4FF10,#7B61FF10);}
         @media(max-width:800px){.charts-grid{grid-template-columns:1fr;}}
+        .table-wrap table{min-width:600px;}
+        @media(max-width:480px){
+            body{padding:10px;}
+            h1{font-size:1.4rem;}
+            .card,.stat-card{padding:15px;}
+            .tab{padding:8px 12px;font-size:0.8rem;}
+            th,td{padding:8px;font-size:0.75rem;}
+            .search-input{width:100%;}
+            .toolbar,.btn-group{gap:6px;}
+            .btn{padding:8px 14px;font-size:0.85rem;}
+        }
     </style>
 </head>
 <body>
@@ -69,6 +80,7 @@
         <div class="tab"        data-tab="analisis"    onclick="cambiarTab('analisis')">📉 Análisis</div>
         <div class="tab"        data-tab="detalles"    onclick="cambiarTab('detalles')">🔍 Resultados</div>
         <div class="tab"        data-tab="reflexiones" onclick="cambiarTab('reflexiones')">🧠 Reflexiones</div>
+        <div class="tab"        data-tab="pines" onclick="cambiarTab('pines')">📍 Pines</div>
     </div>
 
     <div class="toolbar">
@@ -83,7 +95,7 @@
 </div>
 
 <script>
-    let usuarios = [], especiesConfig = { todas:[], activas:[] }, resultados = [], encuestas = [], reflexiones = [];
+    let usuarios = [], especiesConfig = { todas:[], activas:[] }, resultados = [], encuestas = [], reflexiones = [], pasos = [];
 
     document.addEventListener('DOMContentLoaded', () => {
         Promise.all([
@@ -91,9 +103,10 @@
             fetch('/api/admin/config/especies').then(r => r.json()),
             fetch('/api/admin/datos').then(r => r.json()),
             fetch('/api/admin/encuestas').then(r => r.json()),
-            fetch('/api/admin/reflexiones').then(r => r.json())
-        ]).then(([u, e, r, ec, ref]) => {
-            usuarios = u; especiesConfig = e; resultados = r; encuestas = ec; reflexiones = ref;
+            fetch('/api/admin/reflexiones').then(r => r.json()),
+            fetch('/api/admin/pasos').then(r => r.json())
+        ]).then(([u, e, r, ec, ref, ps]) => {
+            usuarios = u; especiesConfig = e; resultados = r; encuestas = ec; reflexiones = ref; pasos = ps;
             cambiarTab('usuarios');
         }).catch(err => {
             document.getElementById('tabContent').innerHTML =
@@ -119,7 +132,8 @@
             'graficos':     mostrarGraficos,
             'analisis':     mostrarAnalisisEstadistico,
             'detalles':     mostrarResultadosDetallados,
-            'reflexiones':  mostrarReflexiones
+            'reflexiones':  mostrarReflexiones,
+            'pines':        mostrarCalibrarPines
         };
         if (acciones[tab]) acciones[tab]();
     }
@@ -162,9 +176,11 @@
                     <button class="btn-sm btn-2d-meta" onclick="asignarGrupo(${u.id},'2D_META')">2D+M</button>
                     <button class="btn-sm btn-3d"      onclick="asignarGrupo(${u.id},'3D')">3D</button>
                     <button class="btn-sm btn-3d-meta" onclick="asignarGrupo(${u.id},'3D_META')">3D+M</button>
+                    <button class="btn-sm" style="background:#7B61FF;color:white;" onclick="resetearPassword(${u.id})" title="Poner clave nueva">🔑</button>
                     <button class="btn-sm btn-danger"  onclick="eliminarUsuario(${u.id})">🗑️</button>
                    </div>`
                 : `<div class="btn-group">
+                    <button class="btn-sm" style="background:#7B61FF;color:white;" onclick="resetearPassword(${u.id})" title="Poner clave nueva">🔑</button>
                     <button class="btn-sm btn-danger" onclick="eliminarUsuario(${u.id})">🗑️</button>
                    </div>`;
             return `<tr>
@@ -234,6 +250,26 @@
             renderTablaUsuarios(usuarios);
         } else {
             mostrarMensaje('❌ Error al eliminar', '#FF375F');
+        }
+    }
+
+    async function resetearPassword(id) {
+        const u = usuarios.find(u => u.id === id);
+        const nueva = prompt(`Nueva contraseña temporal para "${u?.nombre_usuario}" (mínimo 4 caracteres):`);
+        if (!nueva) return;
+        if (nueva.trim().length < 4) {
+            mostrarMensaje('❌ La contraseña debe tener al menos 4 caracteres', '#FF375F');
+            return;
+        }
+        const res = await fetch(`/api/admin/usuarios/${id}/resetear_password`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ nueva_password: nueva.trim() })
+        });
+        if (res.ok) {
+            mostrarMensaje(`✅ Contraseña de ${u?.nombre_usuario} actualizada. Comunícasela por tu cuenta.`);
+        } else {
+            const data = await res.json().catch(()=>({}));
+            mostrarMensaje(`❌ ${data.error || 'Error al resetear contraseña'}`, '#FF375F');
         }
     }
 
@@ -329,7 +365,7 @@
         const sus       = grupos.map(g=>{ const e=encuestas.filter(e=>e.grupo===g&&e.tipo==='SUS'); return e.length?Math.round(e.reduce((s,e)=>s+(e.puntaje_total||0),0)/e.length):0; });
 
         document.getElementById('tabContent').innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;">
+            <div class="charts-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">📊 Precisión por grupo</div><canvas id="chPrecision"></canvas></div>
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">⏱️ Tiempo promedio (s)</div><canvas id="chTiempo"></canvas></div>
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">📋 Puntaje SUS</div><canvas id="chSUS"></canvas></div>
@@ -398,22 +434,256 @@
 
     // ===== REFLEXIONES =====
     function mostrarReflexiones() {
-        const filas = reflexiones.map(r=>`
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        const nombresUsuarios = [...new Set(reflexiones.map(r=>r.usuario).concat(pasos.map(p=>p.usuario)))].sort();
+
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">🧠 Reflexiones y recorrido detallado por la clave</div>
+                <div class="toolbar" style="margin-bottom:15px;">
+                    <select id="filtroGrupoReflexiones" onchange="renderReflexionesFiltradas()" style="padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;">
+                        <option value="">Todos los grupos / modelos</option>
+                        ${grupos.map(g=>`<option value="${g}">${g}</option>`).join('')}
+                    </select>
+                    <select id="filtroUsuarioReflexiones" onchange="renderReflexionesFiltradas()" style="padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;">
+                        <option value="">Todos los usuarios</option>
+                        ${nombresUsuarios.map(n=>`<option value="${n}">${n}</option>`).join('')}
+                    </select>
+                    <button class="btn btn-secondary" onclick="exportarReflexionesCSV()">📥 Exportar reflexiones (CSV)</button>
+                    <button class="btn btn-secondary" onclick="exportarPasosCSV()">📥 Exportar recorrido detallado (CSV)</button>
+                </div>
+                <div id="contenidoReflexionesFiltradas"></div>
+            </div>`;
+        renderReflexionesFiltradas();
+    }
+
+    function renderReflexionesFiltradas() {
+        const grupoSel = document.getElementById('filtroGrupoReflexiones')?.value || '';
+        const usuarioSel = document.getElementById('filtroUsuarioReflexiones')?.value || '';
+
+        const reflexionesF = reflexiones.filter(r =>
+            (!grupoSel || r.grupo === grupoSel) && (!usuarioSel || r.usuario === usuarioSel)
+        );
+        const pasosF = pasos.filter(p =>
+            (!grupoSel || p.grupo === grupoSel) && (!usuarioSel || p.usuario === usuarioSel)
+        );
+
+        // ----- Bloque de reflexiones metacognitivas (pre/durante/post) -----
+        const filasReflexiones = reflexionesF.map(r=>`
             <tr>
                 <td>${r.usuario}</td><td>${r.grupo}</td><td>${r.momento||'—'}</td>
                 <td style="max-width:300px;font-size:0.82rem;">${(r.respuesta_raw||'').substring(0,120)}${(r.respuesta_raw||'').length>120?'…':''}</td>
             </tr>`).join('');
+
+        // ----- Bloque de recorrido paso a paso por la clave -----
+        // Agrupar por usuario + especimen para armar el recorrido completo
+        const grupos_pasos = {};
+        pasosF.forEach(p => {
+            const key = `${p.usuario}||${p.sesion_id}||${p.especimen_id}`;
+            if (!grupos_pasos[key]) grupos_pasos[key] = { usuario:p.usuario, grupo:p.grupo, especimen_id:p.especimen_id, pasos:[] };
+            grupos_pasos[key].pasos.push(p);
+        });
+
+        const bloquesRecorrido = Object.values(grupos_pasos).map(g => {
+            g.pasos.sort((a,b)=>a.orden_paso - b.orden_paso);
+            const tiempoTotal = g.pasos.reduce((s,p)=>s+(p.tiempo_segundos||0),0);
+            const pasosRapidos = g.pasos.filter(p=>p.tiempo_segundos < 2).length;
+            const ultimoPaso = g.pasos[g.pasos.length-1];
+            const conclusionOk = ultimoPaso ? ultimoPaso.es_paso_correcto : null;
+            const alertaConciencia = pasosRapidos >= Math.ceil(g.pasos.length/2)
+                ? '<span style="color:#FFB020;" title="La mitad o más de sus respuestas tomaron menos de 2s">⚡ Posible clic sin leer</span>'
+                : '<span style="color:#00D4FF;">✓ Ritmo razonable</span>';
+
+            const filasPaso = g.pasos.map(p => `
+                <tr>
+                    <td>Pregunta ${p.pregunta}</td>
+                    <td>Opción ${p.opcion_elegida===0?'A':'B'}</td>
+                    <td style="color:${p.es_paso_correcto?'#00D4FF':'#FF375F'};">${p.es_paso_correcto?'✅':'❌ se desvió aquí'}</td>
+                    <td>${(p.tiempo_segundos||0).toFixed(1)}s ${p.tiempo_segundos<2?'⚡':''}</td>
+                </tr>`).join('');
+
+            return `<div class="stat-card" style="margin-bottom:12px;text-align:left;">
+                <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                    <strong style="color:#00D4FF;">${g.usuario}</strong>
+                    <span class="badge">${g.grupo||'—'}</span>
+                    <span style="color:#A0A0B0;">Espécimen: ${g.especimen_id}</span>
+                    <span>Tiempo total: <strong>${tiempoTotal.toFixed(1)}s</strong></span>
+                    ${alertaConciencia}
+                </div>
+                <table style="width:100%;font-size:0.85rem;">
+                    <thead><tr style="color:#00D4FF;"><th style="text-align:left;">Paso</th><th style="text-align:left;">Eligió</th><th style="text-align:left;">Resultado</th><th style="text-align:left;">Tiempo</th></tr></thead>
+                    <tbody>${filasPaso}</tbody>
+                </table>
+            </div>`;
+        }).join('');
+
+        document.getElementById('contenidoReflexionesFiltradas').innerHTML = `
+            <div class="card-title" style="font-size:1rem;margin-top:10px;">🧭 Recorrido detallado por la clave (${Object.keys(grupos_pasos).length} espécimen(es))</div>
+            ${bloquesRecorrido || '<div style="text-align:center;padding:20px;color:#A0A0B0;">Sin recorridos registrados con este filtro.</div>'}
+
+            <div class="card-title" style="font-size:1rem;margin-top:25px;">💭 Reflexiones metacognitivas (${reflexionesF.length})</div>
+            <div class="table-wrap">
+                <table><thead><tr><th>Usuario</th><th>Grupo</th><th>Momento</th><th>Respuesta</th></tr></thead>
+                <tbody>${filasReflexiones || '<tr><td colspan="4" style="text-align:center;padding:20px;">Sin reflexiones con este filtro.</td></tr>'}</tbody></table>
+            </div>`;
+    }
+
+    function exportarPasosCSV() {
+        let csv = 'Usuario,Grupo,Sesion,Especimen,Pregunta,OpcionElegida,PasoCorrecto,PasoFinal,TiempoSegundos,OrdenPaso\n';
+        pasos.forEach(p => {
+            csv += `"${p.usuario}","${p.grupo}",${p.sesion_id},"${p.especimen_id}",${p.pregunta},${p.opcion_elegida===0?'A':'B'},${p.es_paso_correcto},${p.es_paso_final},${p.tiempo_segundos},${p.orden_paso}\n`;
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' }));
+        a.download = `recorrido_detallado_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        mostrarMensaje('✅ Recorrido detallado exportado');
+    }
+
+    // ===== CALIBRAR PINES (glosario interactivo) =====
+    const PARTES_HORMIGA_DEFAULT = [
+        {id:"cabeza", label:"Cabeza", px:28, py:54},
+        {id:"mandibulas", label:"Mandíbulas", px:17, py:66},
+        {id:"clipeo", label:"Clípeo", px:21, py:60},
+        {id:"margen", label:"Margen posterior de la cabeza", px:36, py:47},
+        {id:"ocelos", label:"Ocelos", px:22, py:40},
+        {id:"escapo", label:"Escapo", px:21, py:33},
+        {id:"mesosoma", label:"Mesosoma", px:48, py:42},
+        {id:"pronoto", label:"Pronoto", px:40, py:40},
+        {id:"surco", label:"Surco metanotal", px:53, py:38},
+        {id:"propodeo", label:"Propodeo", px:60, py:40},
+        {id:"glandula", label:"Glándula metapleural", px:60, py:54},
+        {id:"peciolo", label:"Pecíolo", px:67, py:47},
+        {id:"gaster", label:"Gáster", px:82, py:42},
+        {id:"setas", label:"Setas erectas", px:79, py:33},
+        {id:"pubescencia", label:"Pubescencia", px:57, py:57},
+        {id:"pilosidad", label:"Pilosidad", px:87, py:36}
+    ];
+    let posicionesPinesEdicion = {};
+    let pinArrastrando = null;
+
+    async function mostrarCalibrarPines() {
         document.getElementById('tabContent').innerHTML = `
             <div class="card">
-                <div class="card-title">🧠 Reflexiones metacognitivas (${reflexiones.length})</div>
-                <div style="margin-bottom:15px;">
-                    <button class="btn btn-secondary" onclick="exportarReflexionesCSV()">📥 Exportar CSV</button>
+                <div class="card-title">📍 Calibrar pines del glosario interactivo</div>
+                <p style="color:#A0A0B0;font-size:0.85rem;margin-bottom:15px;">
+                    Arrastra cada punto numerado a la posición correcta sobre la foto. Los cambios se aplican
+                    a las 4 versiones de la clave (2D, 2D+Meta, 3D, 3D+Meta) en cuanto los guardes.
+                </p>
+                <div style="margin-bottom:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-success" onclick="guardarPosicionesPines()">💾 Guardar posiciones</button>
+                    <button class="btn btn-secondary" onclick="restablecerPosicionesPines()">↺ Restablecer a valores por defecto</button>
                 </div>
-                <div class="table-wrap">
-                    <table><thead><tr><th>Usuario</th><th>Grupo</th><th>Momento</th><th>Respuesta</th></tr></thead>
-                    <tbody>${filas || '<tr><td colspan="4" style="text-align:center;padding:20px;">Sin reflexiones aún.</td></tr>'}</tbody></table>
+                <div style="position:relative;display:inline-block;max-width:100%;" id="calibradorContainer">
+                    <img id="calibradorImg" src="/static/imagenes/linepithema/diagrama_hormiga.png"
+                         style="max-width:100%;display:block;border-radius:15px;border:2px solid #00D4FF40;" draggable="false">
+                    <div id="calibradorOverlay" style="position:absolute;top:0;left:0;"></div>
                 </div>
+                <div style="margin-top:10px;font-size:0.8rem;color:#A0A0B0;" id="calibradorLeyenda"></div>
             </div>`;
+
+        let guardadas = {};
+        try {
+            const res = await fetch('/api/config/pines');
+            if (res.ok) guardadas = await res.json();
+        } catch(e) { /* usa valores por defecto */ }
+
+        posicionesPinesEdicion = {};
+        PARTES_HORMIGA_DEFAULT.forEach(p => {
+            posicionesPinesEdicion[p.id] = guardadas[p.id]
+                ? { ...guardadas[p.id] }
+                : { px: p.px, py: p.py };
+        });
+
+        const img = document.getElementById('calibradorImg');
+        if (img.complete && img.naturalWidth > 0) {
+            renderPinesCalibrador();
+        } else {
+            img.addEventListener('load', renderPinesCalibrador);
+        }
+        window.addEventListener('resize', renderPinesCalibrador);
+    }
+
+    function renderPinesCalibrador() {
+        const overlay = document.getElementById('calibradorOverlay');
+        const img = document.getElementById('calibradorImg');
+        if (!overlay || !img) return;
+        overlay.style.width = img.offsetWidth + 'px';
+        overlay.style.height = img.offsetHeight + 'px';
+        overlay.innerHTML = '';
+
+        PARTES_HORMIGA_DEFAULT.forEach((p, i) => {
+            const coords = posicionesPinesEdicion[p.id];
+            const pin = document.createElement('div');
+            pin.style.cssText = `position:absolute;width:26px;height:26px;border-radius:50%;
+                background:rgba(0,212,255,0.9);border:2px solid white;transform:translate(-50%,-50%);
+                cursor:grab;display:flex;align-items:center;justify-content:center;z-index:10;
+                box-shadow:0 2px 8px rgba(0,0,0,0.5);font-size:11px;font-weight:bold;color:#0A0E17;
+                left:${coords.px}%; top:${coords.py}%;`;
+            pin.textContent = i + 1;
+            pin.title = p.label;
+            pin.dataset.id = p.id;
+
+            pin.addEventListener('mousedown', (e) => {
+                pinArrastrando = p.id;
+                pin.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            pin.addEventListener('touchstart', (e) => {
+                pinArrastrando = p.id;
+                e.preventDefault();
+            }, { passive: false });
+
+            overlay.appendChild(pin);
+        });
+
+        const contenedor = document.getElementById('calibradorContainer');
+        contenedor.onmousemove = (e) => moverPinArrastrado(e.clientX, e.clientY);
+        contenedor.onmouseup = () => { pinArrastrando = null; };
+        contenedor.onmouseleave = () => { pinArrastrando = null; };
+        contenedor.ontouchmove = (e) => {
+            if (pinArrastrando && e.touches[0]) {
+                moverPinArrastrado(e.touches[0].clientX, e.touches[0].clientY);
+                e.preventDefault();
+            }
+        };
+        contenedor.ontouchend = () => { pinArrastrando = null; };
+
+        document.getElementById('calibradorLeyenda').innerHTML =
+            PARTES_HORMIGA_DEFAULT.map((p, i) => `<span style="margin-right:12px;">${i+1}. ${p.label}</span>`).join('');
+    }
+
+    function moverPinArrastrado(clientX, clientY) {
+        if (!pinArrastrando) return;
+        const img = document.getElementById('calibradorImg');
+        const rect = img.getBoundingClientRect();
+        let px = ((clientX - rect.left) / rect.width) * 100;
+        let py = ((clientY - rect.top) / rect.height) * 100;
+        px = Math.max(0, Math.min(100, px));
+        py = Math.max(0, Math.min(100, py));
+        posicionesPinesEdicion[pinArrastrando] = { px: Math.round(px * 10) / 10, py: Math.round(py * 10) / 10 };
+        renderPinesCalibrador();
+    }
+
+    async function guardarPosicionesPines() {
+        const res = await fetch('/api/admin/config/pines', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ posiciones: posicionesPinesEdicion })
+        });
+        if (res.ok) {
+            mostrarMensaje('✅ Posiciones guardadas. Ya se aplican en las 4 claves.');
+        } else {
+            mostrarMensaje('❌ Error al guardar posiciones', '#FF375F');
+        }
+    }
+
+    function restablecerPosicionesPines() {
+        if (!confirm('¿Restablecer todos los pines a su posición original? (no se guarda hasta que le des "Guardar posiciones")')) return;
+        PARTES_HORMIGA_DEFAULT.forEach(p => {
+            posicionesPinesEdicion[p.id] = { px: p.px, py: p.py };
+        });
+        renderPinesCalibrador();
     }
 
     // ===== EXPORTAR =====

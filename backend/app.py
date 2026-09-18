@@ -9,9 +9,9 @@ import os
 import re
 
 try:
-    from backend.models import db, Usuario, SesionExperimental, ResultadoIdentificacion, ResultadoEncuesta, ReflexionMetacognitiva, Configuracion
+    from backend.models import db, Usuario, SesionExperimental, ResultadoIdentificacion, ResultadoEncuesta, ReflexionMetacognitiva, Configuracion, PasoClave
 except ImportError:
-    from models import db, Usuario, SesionExperimental, ResultadoIdentificacion, ResultadoEncuesta, ReflexionMetacognitiva, Configuracion
+    from models import db, Usuario, SesionExperimental, ResultadoIdentificacion, ResultadoEncuesta, ReflexionMetacognitiva, Configuracion, PasoClave
 
 # ===== CONFIGURACIÓN =====
 load_dotenv()
@@ -35,10 +35,6 @@ if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 280,
-}
 
 CORS(app, supports_credentials=True, origins=os.getenv('ALLOWED_ORIGIN', 'http://127.0.0.1:5000'))
 
@@ -135,6 +131,24 @@ def get_pool_especimenes():
         pool.append({'id': f'{especie}_2', 'especie': especie})
     return pool
 
+def get_posiciones_pines():
+    """Devuelve las posiciones (px, py en %) de los pines del glosario
+    interactivo, ajustadas por el admin. Vacío si nunca se han guardado
+    (el frontend usa entonces sus coordenadas por defecto)."""
+    config = Configuracion.query.filter_by(clave='posiciones_pines').first()
+    if config:
+        return json.loads(config.valor)
+    return {}
+
+def set_posiciones_pines(posiciones):
+    config = Configuracion.query.filter_by(clave='posiciones_pines').first()
+    if config:
+        config.valor = json.dumps(posiciones)
+    else:
+        config = Configuracion(clave='posiciones_pines', valor=json.dumps(posiciones))
+        db.session.add(config)
+    db.session.commit()
+
 # ===== RUTAS HTML =====
 @app.route('/')
 def index():
@@ -176,6 +190,14 @@ def serve_clave_3d_meta():
 @app.route('/estadisticas')
 def estadisticas():
     return send_from_directory(app.template_folder, 'estadisticas.html')
+
+@app.route('/api/config/pines', methods=['GET'])
+def get_pines_publico():
+    """Ruta pública (sin autenticación): las 4 versiones de la clave la
+    consultan para saber dónde dibujar los pines sobre la foto de
+    referencia. Si el admin nunca los ha ajustado, devuelve {} y el
+    frontend usa sus coordenadas por defecto."""
+    return jsonify(get_posiciones_pines())
 
 @app.route('/admin')
 def serve_admin():
@@ -330,6 +352,34 @@ def encuestas_completadas_me():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/usuario/me/pasos', methods=['GET'])
+def get_pasos_me():
+    """Devuelve el recorrido detallado (paso a paso) del usuario con
+    sesión activa: en qué pregunta estaba, qué eligió, si acertó ese
+    paso, y cuánto tiempo tardó. Usado en el dashboard del estudiante
+    para mostrar en qué falló y con qué tiempo respondió cada paso."""
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    usuario = Usuario.query.get(session['usuario_id'])
+    if not usuario:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    pasos = []
+    for sesion_exp in usuario.sesiones:
+        for p in sesion_exp.pasos:
+            pasos.append({
+                'sesion_id': sesion_exp.id,
+                'especimen_id': p.especimen_id,
+                'especimen_orden': p.especimen_orden,
+                'pregunta': p.pregunta,
+                'opcion_elegida': p.opcion_elegida,
+                'es_paso_correcto': p.es_paso_correcto,
+                'es_paso_final': p.es_paso_final,
+                'tiempo_segundos': p.tiempo_segundos,
+                'orden_paso': p.orden_paso,
+                'timestamp': p.timestamp.isoformat() if p.timestamp else None
+            })
+    return jsonify(pasos)
 
 # Rutas legacy por compatibilidad con HTML existente (redirigen a /me)
 @app.route('/api/usuario/<nombre_usuario>', methods=['GET'])
@@ -508,6 +558,23 @@ def set_especies_config():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/config/pines', methods=['POST'])
+@admin_required
+def set_pines_admin():
+    """El admin ajusta la posición de los pines del glosario interactivo
+    arrastrándolos en el panel; esto guarda las coordenadas finales
+    (en % sobre la imagen) para que las 4 versiones de la clave las usen."""
+    try:
+        data = request.json
+        posiciones = data.get('posiciones', {})
+        for pid, coords in posiciones.items():
+            if not isinstance(coords, dict) or 'px' not in coords or 'py' not in coords:
+                return jsonify({'error': f'Formato inválido para el pin "{pid}"'}), 400
+        set_posiciones_pines(posiciones)
+        return jsonify({'mensaje': 'Posiciones de pines guardadas'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/datos', methods=['GET'])
 @admin_required
 def ver_datos():
@@ -607,6 +674,46 @@ def get_reflexiones():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/pasos', methods=['GET'])
+@admin_required
+def get_pasos_admin():
+    """Devuelve el recorrido detallado de TODOS los estudiantes por la
+    clave dicotómica: pregunta, opción, acierto del paso, tiempo y
+    orden. Admite filtros opcionales por query string:
+    ?usuario=<nombre_usuario>  y/o  ?grupo=<2D|2D_META|3D|3D_META>
+    Usado en la sección de Reflexiones del panel admin para revisar
+    si un estudiante respondió a conciencia o solo dio clic rápido."""
+    try:
+        filtro_usuario = request.args.get('usuario')
+        filtro_grupo = request.args.get('grupo')
+
+        pasos = []
+        for sesion_exp in SesionExperimental.query.all():
+            if filtro_grupo and sesion_exp.grupo != filtro_grupo:
+                continue
+            usuario = Usuario.query.get(sesion_exp.usuario_id)
+            nombre_usuario = usuario.nombre_usuario if usuario else 'desconocido'
+            if filtro_usuario and nombre_usuario != filtro_usuario:
+                continue
+            for p in sesion_exp.pasos:
+                pasos.append({
+                    'usuario': nombre_usuario,
+                    'grupo': sesion_exp.grupo,
+                    'sesion_id': sesion_exp.id,
+                    'especimen_id': p.especimen_id,
+                    'especimen_orden': p.especimen_orden,
+                    'pregunta': p.pregunta,
+                    'opcion_elegida': p.opcion_elegida,
+                    'es_paso_correcto': p.es_paso_correcto,
+                    'es_paso_final': p.es_paso_final,
+                    'tiempo_segundos': p.tiempo_segundos,
+                    'orden_paso': p.orden_paso,
+                    'timestamp': p.timestamp.isoformat() if p.timestamp else None
+                })
+        return jsonify(pasos)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/usuarios/<int:usuario_id>', methods=['DELETE'])
 @admin_required
 def eliminar_usuario(usuario_id):
@@ -615,6 +722,7 @@ def eliminar_usuario(usuario_id):
         if not usuario:
             return jsonify({'error': 'Usuario no encontrado'}), 404
         for sesion_exp in usuario.sesiones:
+            PasoClave.query.filter_by(sesion_id=sesion_exp.id).delete()
             ReflexionMetacognitiva.query.filter_by(sesion_id=sesion_exp.id).delete()
             ResultadoEncuesta.query.filter_by(sesion_id=sesion_exp.id).delete()
             ResultadoIdentificacion.query.filter_by(sesion_id=sesion_exp.id).delete()
@@ -622,6 +730,28 @@ def eliminar_usuario(usuario_id):
         db.session.delete(usuario)
         db.session.commit()
         return jsonify({'mensaje': 'Usuario eliminado correctamente'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/usuarios/<int:usuario_id>/resetear_password', methods=['POST'])
+@admin_required
+def resetear_password(usuario_id):
+    """Permite al admin poner una CLAVE NUEVA a un usuario que la olvidó.
+    Nunca revela la contraseña original (está encriptada con hash de una
+    sola vía, es imposible verla). El admin define la nueva clave en el
+    panel y se la comunica al estudiante por su cuenta."""
+    try:
+        usuario = Usuario.query.get(usuario_id)
+        if not usuario:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        data = request.json
+        nueva_password = (data or {}).get('nueva_password', '').strip()
+        if not nueva_password or len(nueva_password) < 4:
+            return jsonify({'error': 'La nueva contraseña debe tener al menos 4 caracteres'}), 400
+        usuario.contrasena_hash = generate_password_hash(nueva_password)
+        db.session.commit()
+        return jsonify({'mensaje': f'Contraseña de {usuario.nombre_usuario} actualizada correctamente'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -667,11 +797,18 @@ def iniciar_experimento():
         if not usuario:
             return jsonify({'error': 'Usuario no encontrado'}), 404
 
-        pool = get_pool_especimenes()
-        if len(pool) < 2:
-            return jsonify({'error': 'No hay suficientes especímenes activos'}), 400
+        # ===== FIX Fase 4: garantizar 2 especies DISTINTAS por sesión =====
+        especies_activas = get_especies_activas()
+        if len(especies_activas) < 2:
+            return jsonify({'error': 'No hay suficientes especies activas'}), 400
 
-        especimenes = random.sample(pool, 2)
+        especies_elegidas = random.sample(especies_activas, 2)
+        especimenes = []
+        for especie in especies_elegidas:
+            numero = random.choice([1, 2])
+            especimenes.append({'id': f'{especie}_{numero}', 'especie': especie})
+        # ===== FIN FIX =====
+
         nueva_sesion = SesionExperimental(
             usuario_id=usuario.id,
             grupo=usuario.grupo_asignado,
@@ -707,6 +844,34 @@ def guardar_resultado():
         db.session.add(resultado)
         db.session.commit()
         return jsonify({'mensaje': 'Resultado guardado'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/experimento/guardar_paso', methods=['POST'])
+def guardar_paso():
+    """Registra cada clic del estudiante navegando la clave dicotómica:
+    pregunta, opción elegida, tiempo empleado, y si coincidía con el
+    camino correcto. Usado para el detalle de en qué falló y con qué
+    tiempo/consciencia respondió (dashboards de estudiante y admin)."""
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    try:
+        data = request.json
+        paso = PasoClave(
+            sesion_id=data['sesion_id'],
+            especimen_id=data['especimen_id'],
+            especimen_orden=data.get('especimen_orden'),
+            pregunta=data['pregunta'],
+            opcion_elegida=data['opcion_elegida'],
+            es_paso_correcto=data['es_paso_correcto'],
+            es_paso_final=data.get('es_paso_final', False),
+            tiempo_segundos=data['tiempo_segundos'],
+            orden_paso=data['orden_paso']
+        )
+        db.session.add(paso)
+        db.session.commit()
+        return jsonify({'mensaje': 'Paso guardado'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

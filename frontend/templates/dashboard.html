@@ -305,10 +305,17 @@
         } catch (e) { console.error('Error cargando datos de usuario:', e); }
     }
 
+    let pasosDetalle = [];
+
     async function cargarResultados() {
         try {
             const res = await fetch('/api/usuario/me/resultados');
             resultados = res.ok ? await res.json() : [];
+
+            try {
+                const resPasos = await fetch('/api/usuario/me/pasos');
+                pasosDetalle = resPasos.ok ? await resPasos.json() : [];
+            } catch(e) { pasosDetalle = []; }
 
             const aciertos   = resultados.filter(r => r.acerto).length;
             const total      = resultados.length;
@@ -324,14 +331,21 @@
             if (total === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Aún no has realizado ninguna identificación.</td></tr>';
             } else {
-                tbody.innerHTML = resultados.map(r => `
+                tbody.innerHTML = resultados.map((r, i) => `
                     <tr>
                         <td>${r.especimen || '—'}</td>
                         <td><em>${r.correcta || '—'}</em></td>
                         <td><em>${r.seleccionada || '—'}</em></td>
                         <td><span class="${r.acerto ? 'badge-correcto' : 'badge-incorrecto'}">${r.acerto ? '✅ Correcto' : '❌ Incorrecto'}</span></td>
                         <td>${(r.tiempo || 0).toFixed(1)}s</td>
-                        <td style="font-size:0.85rem; color:#A0A0B0;">${!r.acerto ? `La correcta era: <em>${r.correcta}</em>` : '✓'}</td>
+                        <td>
+                            <button onclick="toggleDetallePasos(${i})" style="background:#1A1F36;border:1px solid #00D4FF40;color:#00D4FF;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;">🔍 Ver pasos</button>
+                        </td>
+                    </tr>
+                    <tr id="detallePasos${i}" style="display:none;">
+                        <td colspan="6" style="background:#0A0E17;padding:15px;">
+                            ${renderDetallePasos(r)}
+                        </td>
                     </tr>`).join('');
             }
 
@@ -350,6 +364,45 @@
             document.getElementById('tbodyResultados').innerHTML =
                 '<tr><td colspan="6" style="text-align:center;">Error al cargar resultados.</td></tr>';
         }
+    }
+
+    function toggleDetallePasos(i) {
+        const row = document.getElementById('detallePasos' + i);
+        if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+    }
+
+    function renderDetallePasos(resultado) {
+        const pasosEspecimen = pasosDetalle
+            .filter(p => p.especimen_id === resultado.especimen)
+            .sort((a, b) => a.orden_paso - b.orden_paso);
+
+        if (pasosEspecimen.length === 0) {
+            return '<div style="color:#A0A0B0;font-size:0.85rem;">No hay registro detallado de pasos para este espécimen.</div>';
+        }
+
+        const filas = pasosEspecimen.map(p => {
+            const rapido = p.tiempo_segundos < 2;
+            return `<tr>
+                <td>Pregunta ${p.pregunta}</td>
+                <td>Opción ${p.opcion_elegida === 0 ? 'A' : 'B'}</td>
+                <td style="color:${p.es_paso_correcto ? '#00D4FF' : '#FF375F'};">${p.es_paso_correcto ? '✅ Correcto' : '❌ Se desvió aquí'}</td>
+                <td>${p.tiempo_segundos.toFixed(1)}s ${rapido ? '<span title="Respuesta muy rápida, posible clic sin leer con atención" style="color:#FFB020;">⚡</span>' : ''}</td>
+            </tr>`;
+        }).join('');
+
+        const tiempoPromedio = pasosEspecimen.reduce((s,p) => s + p.tiempo_segundos, 0) / pasosEspecimen.length;
+        const pasosRapidos = pasosEspecimen.filter(p => p.tiempo_segundos < 2).length;
+        let notaConciencia = '';
+        if (pasosRapidos >= Math.ceil(pasosEspecimen.length / 2)) {
+            notaConciencia = '<div style="color:#FFB020;font-size:0.8rem;margin-top:8px;">⚡ Más de la mitad de tus respuestas en este espécimen tomaron menos de 2 segundos — tómate tu tiempo para leer bien cada carácter.</div>';
+        }
+
+        return `<div style="font-size:0.85rem;color:#A0A0B0;margin-bottom:8px;">Recorrido paso a paso (tiempo promedio por pregunta: ${tiempoPromedio.toFixed(1)}s):</div>
+            <table style="width:100%;font-size:0.85rem;">
+                <thead><tr style="color:#00D4FF;"><th style="text-align:left;">Paso</th><th style="text-align:left;">Elegiste</th><th style="text-align:left;">Resultado</th><th style="text-align:left;">Tiempo</th></tr></thead>
+                <tbody>${filas}</tbody>
+            </table>
+            ${notaConciencia}`;
     }
 
     function actualizarGrafico(correctos, incorrectos, porcentaje) {
