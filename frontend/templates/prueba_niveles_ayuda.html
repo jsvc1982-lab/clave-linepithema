@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prueba: Niveles de ayuda (NO cuenta como dato del estudio)</title>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        background: linear-gradient(135deg, #0A0E17 0%, #1A1F36 100%);
+        font-family: 'Segoe UI', sans-serif; color: #E0E0E0; min-height: 100vh;
+    }
+    .aviso-fijo {
+        position: sticky; top: 0; z-index: 100; background: #FF375F; color: #0A0E17;
+        text-align: center; padding: 10px; font-weight: 700; font-size: 0.85rem;
+    }
+    .contenedor { max-width: 800px; margin: 0 auto; padding: 25px 20px; }
+    .panel-intro {
+        background: #121826; border: 2px solid #00D4FF40; border-radius: 20px; padding: 30px; text-align:center;
+    }
+    .panel-intro h1 { color: #00D4FF; font-size: 1.5rem; margin-bottom: 12px; }
+    .panel-intro p { color: #A0A0B0; font-size: 0.9rem; line-height: 1.6; margin-bottom: 20px; }
+    .btn-iniciar {
+        background: linear-gradient(45deg,#00D4FF,#7B61FF); color: white; border: none;
+        padding: 14px 30px; border-radius: 12px; font-weight: 700; font-size: 1rem; cursor: pointer;
+    }
+    .tira-progreso { display:flex; gap:8px; margin-bottom: 20px; }
+    .tira-item {
+        flex:1; padding:10px; border-radius:10px; text-align:center; font-size:0.75rem; font-weight:700;
+        background:#1A1F36; border:2px solid #00D4FF20; color:#606070;
+    }
+    .tira-item.activo { border-color:#00D4FF; color:#00D4FF; background:#00D4FF10; }
+    .tira-item.hecho { border-color:#00D4FF60; color:#00D4FF80; }
+    .card { background: #121826; border: 2px solid #00D4FF40; border-radius: 20px; padding: 25px; }
+    .nivel-badge {
+        display:inline-block; padding:5px 14px; border-radius:20px; font-size:0.75rem; font-weight:700; margin-bottom:15px;
+    }
+    .nivel-badge.todas { background:#00D4FF25; color:#00D4FF; }
+    .nivel-badge.parcial { background:#FFB02025; color:#FFB020; }
+    .nivel-badge.ninguna { background:#FF375F25; color:#FF375F; }
+    .visor { height: 260px; border-radius: 14px; overflow:hidden; border:1px solid #00D4FF30; margin-bottom:18px; background:#0A0E17; }
+    .visor model-viewer { width:100%; height:100%; }
+    .pregunta-texto { font-size:1.05rem; margin-bottom: 16px; }
+    .opciones { display:grid; gap:10px; margin-bottom: 16px; }
+    .opcion {
+        background:#1A1F36; border:2px solid #1A1F36; border-radius:12px; padding:14px 16px;
+        cursor:pointer; transition:.15s;
+    }
+    .opcion:hover { border-color:#00D4FF; }
+    .opcion strong { color:#00D4FF; margin-right:8px; }
+    .opcion .desc { font-size:0.8rem; color:#A0A0B0; margin-top:4px; }
+    .ayuda-btn {
+        width:100%; padding:10px; margin-bottom:10px; border:none; border-radius:10px;
+        background: linear-gradient(45deg,#00D4FF,#7B61FF); color:white; font-weight:600; cursor:pointer;
+    }
+    .dos-imagenes { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px; }
+    .ej-card { background:#0A0E17; border-radius:10px; padding:16px; text-align:center; font-size:0.8rem; }
+    .ej-card.si { border:2px solid #00D4FF; color:#00D4FF; }
+    .ej-card.no { border:2px solid #FF375F60; color:#FF375F; }
+    .feedback {
+        position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2000;
+        padding:20px 25px; border-radius:16px; font-weight:700; text-align:center; max-width:90%;
+        box-shadow:0 10px 30px rgba(0,0,0,0.6); border:2px solid white;
+    }
+    .resumen { text-align:center; padding:20px; }
+    .resumen .num { font-size:2.5rem; color:#00D4FF; }
+</style>
+</head>
+<body>
+<div class="aviso-fijo">⚠️ MODO DE PRUEBA — nada de lo que hagas aquí se guarda ni cuenta como dato del estudio</div>
+<div class="contenedor">
+
+    <div id="pantallaIntro" class="panel-intro">
+        <h1>🧪 Prueba: 3 niveles de ayuda</h1>
+        <p>
+            Vas a identificar 3 especímenes al azar. Cada uno tendrá un nivel de ayuda distinto,
+            en un orden aleatorio (se reordena cada vez que abres esta página):<br><br>
+            <strong style="color:#00D4FF;">Todas las ayudas</strong> — botón para ver el carácter enfocado<br>
+            <strong style="color:#FFB020;">Ayuda parcial</strong> — solo 2 ejemplos genéricos (sí/no)<br>
+            <strong style="color:#FF375F;">Sin ayudas</strong> — solo la pregunta y el modelo
+        </p>
+        <button class="btn-iniciar" onclick="iniciarPrueba()">🚀 Empezar prueba</button>
+    </div>
+
+    <div id="pantallaPrueba" style="display:none;">
+        <div class="tira-progreso" id="tiraProgreso"></div>
+        <div class="card">
+            <div class="nivel-badge" id="nivelBadge"></div>
+            <div class="visor"><model-viewer id="mv" camera-controls style="background:transparent;"></model-viewer></div>
+            <div id="ayudaZona"></div>
+            <div class="pregunta-texto" id="preguntaTexto"></div>
+            <div class="opciones" id="opcionesZona"></div>
+        </div>
+    </div>
+
+    <div id="pantallaResumen" style="display:none;" class="card resumen">
+        <div style="font-size:3rem;">🏁</div>
+        <h2 style="color:#00D4FF; margin:10px 0;">Prueba terminada</h2>
+        <div class="num" id="resumenNum"></div>
+        <p style="color:#A0A0B0; margin-top:10px;">Esto NO se guardó en ninguna parte.</p>
+        <button class="btn-iniciar" style="margin-top:20px;" onclick="location.reload()">🔁 Probar otro orden</button>
+    </div>
+
+</div>
+
+<script>
+const CLAVE = {
+    1: { pregunta: "¿La porción anterior a la glándula metapleural tiene pelos adpresos en cantidad moderada a abundante?",
+        opciones: [
+            {texto: "Sí, pelos moderados a abundantes", desc: "Observar en posición dorso-oblicua", siguiente: 2},
+            {texto: "No, sin pelos o muy pocos", desc: "Porción anterior lisa o casi lisa", siguiente: 4}
+        ]},
+    2: { pregunta: "¿El pronoto tiene un par de setas erectas?",
+        opciones: [
+            {texto: "Sí, se observan claramente", desc: "Palpos maxilares largos, surco metanotal débil", resultado: "neotropicum"},
+            {texto: "No, no se observan", desc: "Palpos maxilares cortos, propodeo inclinado", siguiente: 3}
+        ]},
+    3: { pregunta: "¿Los escapos antenales son cortos?",
+        opciones: [
+            {texto: "Sí, escapos cortos", desc: "Menores que la longitud de la cabeza, mesonoto angular", resultado: "gallardoi"},
+            {texto: "No, escapos largos", desc: "Mayores o iguales a la cabeza, mesonoto recto", resultado: "humile"}
+        ]},
+    4: { pregunta: "¿El surco pre-sutural del clípeo está presente y bien marcado?",
+        opciones: [
+            {texto: "Sí, surco evidente", desc: "Clípeo con surco pre-sutural marcado", siguiente: 6},
+            {texto: "No, surco ausente o débil", desc: "Clípeo liso o surco apenas visible", siguiente: 5}
+        ]},
+    5: { pregunta: "¿El dorso de la cabeza tiene más de 5 setas erectas?",
+        opciones: [
+            {texto: "Sí, muchas setas", desc: "Cabeza con más de 5 setas, mesosoma esbelto", resultado: "iniquum"},
+            {texto: "No, pocas o ninguna", desc: "Cabeza con menos de 5 setas, mesosoma robusto", resultado: "dispertitum"}
+        ]},
+    6: { pregunta: "¿El pronoto tiene más de 10 setas erectas?",
+        opciones: [
+            {texto: "Sí, muy piloso", desc: "Cuerpo cubierto de setas erectas", resultado: "hirsutum"},
+            {texto: "No, menos de 10", desc: "Cuerpo sin muchas setas erectas", siguiente: 7}
+        ]},
+    7: { pregunta: "¿El margen posterior de la cabeza es profundamente cóncavo?",
+        opciones: [
+            {texto: "Sí, muy cóncavo", desc: "Borde occipital con escotadura profunda", resultado: "tsachila"},
+            {texto: "No, recto o ligeramente cóncavo", desc: "Borde occipital recto o apenas cóncavo", siguiente: 8}
+        ]},
+    8: { pregunta: "¿Los escapos antenales son cortos?",
+        opciones: [
+            {texto: "Sí, escapos cortos", desc: "Sobrepasan poco el margen posterior de la cabeza", resultado: "angulatum"},
+            {texto: "No, escapos largos", desc: "Sobrepasan claramente el margen posterior", resultado: "piliferum"}
+        ]}
+};
+
+const MODELOS = {
+    gallardoi:'esp1', humile:'esp2', tsachila:'esp3', piliferum:'esp4', hirsutum:'esp5',
+    angulatum:'esp6', neotropicum:'esp7', dispertitum:'esp8', iniquum:'esp9'
+};
+const TODAS_ESPECIES = Object.keys(MODELOS);
+
+let especimenesPrueba = [];
+let ordenNiveles = [];
+let indiceActual = 0;
+let pasoActual = 1;
+
+function mezclar(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function iniciarPrueba() {
+    especimenesPrueba = mezclar(TODAS_ESPECIES).slice(0, 3);
+    ordenNiveles = mezclar(['todas', 'parcial', 'ninguna']);
+    indiceActual = 0;
+    pasoActual = 1;
+    document.getElementById('pantallaIntro').style.display = 'none';
+    document.getElementById('pantallaPrueba').style.display = 'block';
+    renderTira();
+    cargarEspecimenPrueba();
+}
+
+function renderTira() {
+    const nombres = {todas:'Todas', parcial:'Parcial', ninguna:'Ninguna'};
+    document.getElementById('tiraProgreso').innerHTML = ordenNiveles.map((n, i) => {
+        let clase = '';
+        if (i < indiceActual) clase = 'hecho';
+        if (i === indiceActual) clase = 'activo';
+        return `<div class="tira-item ${clase}">${i+1}. ${nombres[n]}</div>`;
+    }).join('');
+}
+
+function cargarEspecimenPrueba() {
+    pasoActual = 1;
+    const mv = document.getElementById('mv');
+    mv.src = `/static/modelos3d/${MODELOS[especimenesPrueba[indiceActual]]}.glb`;
+    mv.cameraOrbit = '0deg 75deg 1.5m';
+    renderTira();
+    renderPreguntaPrueba();
+}
+
+function renderPreguntaPrueba() {
+    const nivel = ordenNiveles[indiceActual];
+    const badge = document.getElementById('nivelBadge');
+    const nombres = {todas:'✅ Todas las ayudas', parcial:'🟡 Ayuda parcial', ninguna:'🔴 Sin ayudas'};
+    badge.textContent = nombres[nivel];
+    badge.className = 'nivel-badge ' + nivel;
+
+    const ayudaZona = document.getElementById('ayudaZona');
+    if (nivel === 'todas') {
+        ayudaZona.innerHTML = `<button class="ayuda-btn" onclick="verCaracterPrueba()">🔍 Ver este carácter en el modelo</button>`;
+    } else if (nivel === 'parcial') {
+        ayudaZona.innerHTML = `
+            <div class="dos-imagenes">
+                <div class="ej-card si">✅ Ejemplo genérico<br>(el carácter SÍ está presente)</div>
+                <div class="ej-card no">❌ Ejemplo genérico<br>(el carácter NO está presente)</div>
+            </div>
+            <div style="font-size:0.75rem;color:#A0A0B0;text-align:center;margin-bottom:10px;">
+                Nota: estos son ejemplos ilustrativos genéricos, no fotos de las 9 especies.
+            </div>`;
+    } else {
+        ayudaZona.innerHTML = '';
+    }
+
+    const paso = CLAVE[pasoActual];
+    document.getElementById('preguntaTexto').textContent = `Pregunta ${pasoActual}: ${paso.pregunta}`;
+    document.getElementById('opcionesZona').innerHTML = paso.opciones.map((op, idx) => `
+        <div class="opcion" onclick="elegirOpcionPrueba(${idx})">
+            <div><strong>${idx===0?'A':'B'}</strong>${op.texto}</div>
+            <div class="desc">${op.desc}</div>
+        </div>`).join('');
+}
+
+function verCaracterPrueba() {
+    const mv = document.getElementById('mv');
+    mv.cameraOrbit = (Math.random()*360).toFixed(0) + 'deg 70deg 1m';
+}
+
+function elegirOpcionPrueba(idx) {
+    const paso = CLAVE[pasoActual];
+    const opcion = paso.opciones[idx];
+    if (opcion.siguiente) {
+        pasoActual = opcion.siguiente;
+        renderPreguntaPrueba();
+    } else if (opcion.resultado) {
+        const correcta = especimenesPrueba[indiceActual];
+        const esCorrecto = opcion.resultado === correcta;
+        mostrarFeedbackPrueba(esCorrecto, opcion.resultado, correcta);
+    }
+}
+
+function mostrarFeedbackPrueba(esCorrecto, elegido, correcta) {
+    const fb = document.createElement('div');
+    fb.className = 'feedback';
+    fb.style.background = esCorrecto ? '#00D4FF' : '#FF375F';
+    fb.style.color = '#0A0E17';
+    fb.innerHTML = esCorrecto
+        ? `✅ ¡Correcto! Era ${correcta}`
+        : `❌ Dijiste ${elegido}, era ${correcta}`;
+    document.body.appendChild(fb);
+    setTimeout(() => {
+        fb.remove();
+        indiceActual++;
+        if (indiceActual < especimenesPrueba.length) {
+            cargarEspecimenPrueba();
+        } else {
+            terminarPrueba();
+        }
+    }, 2000);
+}
+
+function terminarPrueba() {
+    document.getElementById('pantallaPrueba').style.display = 'none';
+    document.getElementById('pantallaResumen').style.display = 'block';
+    document.getElementById('resumenNum').textContent = 'Prueba de sensación completada';
+}
+</script>
+</body>
+</html>

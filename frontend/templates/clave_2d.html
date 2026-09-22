@@ -1,0 +1,2003 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.0.8/dist/medium-zoom.min.js"></script>
+    <title>Clave 2D - Linepithema</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #0A0E17;
+            color: #E0E0E0;
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 350px 1fr 300px;
+            grid-template-rows: 80px 1fr 100px;
+            grid-template-areas: 
+                "header header header"
+                "sidebar main aside"
+                "footer footer footer";
+            height: 100vh;
+            gap: 1px;
+            background: linear-gradient(45deg, #00D4FF20, #7B61FF20);
+        }
+
+        @media screen and (max-width: 900px) {
+            .app-container {
+                grid-template-columns: 250px 1fr 220px;
+            }
+        }
+
+        @media screen and (max-width: 700px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto auto;
+                grid-template-areas: 
+                    "header"
+                    "sidebar"
+                    "main"
+                    "aside"
+                    "footer";
+                overflow-y: auto;
+                height: auto;
+            }
+            body {
+                overflow-y: auto;
+                height: auto;
+            }
+        }
+
+        .header {
+            grid-area: header;
+            background: #121826;
+            border-bottom: 1px solid #00D4FF40;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo h1 {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .user-badge {
+            background: #1A1F36;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #00D4FF40;
+        }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: #121826;
+            border-right: 1px solid #00D4FF30;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .progress-section {
+            margin-bottom: 25px;
+        }
+
+        .progress-bar-container {
+            background: #1A1F36;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00D4FF, #7B61FF);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .question-container {
+            background: #1A1F36;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #00D4FF30;
+        }
+
+        .specimen-counter {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: #0A0E17;
+            padding: 5px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .current-question {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #00D4FF;
+            font-weight: 600;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .option-card {
+            background: #121826;
+            border: 2px solid #1A1F36;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .option-card:hover {
+            border-color: #00D4FF60;
+            transform: translateX(3px);
+        }
+
+        .option-card.selected {
+            border-color: #00D4FF;
+            background: linear-gradient(135deg, #00D4FF10, #7B61FF10);
+        }
+
+        .option-letter {
+            display: inline-block;
+            width: 26px;
+            height: 26px;
+            background: #00D4FF20;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 26px;
+            margin-right: 8px;
+            font-weight: bold;
+            color: #00D4FF;
+        }
+
+        .char-desc {
+            font-size: 0.85rem;
+            color: #A0A0B0;
+            margin-left: 34px;
+            margin-top: 3px;
+        }
+
+        .answer-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #00D4FF30;
+        }
+
+        .answer-input {
+            width: 100%;
+            padding: 10px;
+            background: #121826;
+            border: 2px solid #1A1F36;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-prev {
+            background: transparent;
+            border: 2px solid #00D4FF;
+            color: #00D4FF;
+        }
+
+        .btn-next {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: white;
+        }
+
+        .btn-submit {
+            background: linear-gradient(45deg, #7B61FF, #00D4FF);
+            color: white;
+        }
+
+        .btn-download {
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            color: white;
+        }
+
+        .btn-exit {
+            background: transparent;
+            border: 2px solid #FF375F;
+            color: #FF375F;
+        }
+
+        .result-message {
+            background: #1A1F36;
+            border-left: 4px solid;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-size: 0.95rem;
+        }
+
+        .result-correct {
+            border-color: #00D4FF;
+            color: #00D4FF;
+        }
+
+        .result-incorrect {
+            border-color: #FF375F;
+            color: #FF375F;
+        }
+
+        .species-info {
+            background: #121826;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid #00D4FF40;
+        }
+
+        .main-content {
+            grid-area: main;
+            background: #0A0E17;
+            padding: 20px;
+            min-height: 0;
+        }
+
+        .viewer-container {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0A0E17, #121826);
+            border-radius: 20px;
+            border: 1px solid #00D4FF30;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .view-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 15px 15px 0 15px;
+            flex-wrap: wrap;
+        }
+
+        .view-tab {
+            padding: 8px 16px;
+            background: #1A1F36;
+            border: 1px solid #00D4FF40;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .view-tab.active {
+            background: linear-gradient(45deg, #00D4FF20, #7B61FF20);
+            border-color: #00D4FF;
+            color: #00D4FF;
+        }
+
+        .image-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .specimen-image {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 10px;
+            border: 2px solid #00D4FF30;
+        }
+
+        .aside {
+            grid-area: aside;
+            background: #121826;
+            border-left: 1px solid #00D4FF30;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            color: #00D4FF;
+            border-bottom: 1px solid #00D4FF30;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+
+        .glossary-item {
+            background: #1A1F36;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #00D4FF;
+        }
+
+        .glossary-term {
+            font-weight: bold;
+            color: #00D4FF;
+        }
+
+        .glossary-def {
+            font-size: 0.85rem;
+            color: #A0A0B0;
+        }
+
+        .footer {
+            grid-area: footer;
+            background: #121826;
+            border-top: 1px solid #00D4FF30;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10,14,23,0.98);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .intro-card {
+            background: linear-gradient(135deg, #121826, #1A1F36);
+            max-width: 900px;
+            width: 100%;
+            margin: auto;
+            border-radius: 25px;
+            border: 2px solid #00D4FF;
+            padding: 30px;
+        }
+
+        .intro-title {
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .diagram-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .diagram-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 15px;
+            border: 2px solid #00D4FF40;
+        }
+
+        .parts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin: 25px 0;
+        }
+
+        .part-card {
+            background: #121826;
+            padding: 12px;
+            border-radius: 10px;
+            border-left: 4px solid #00D4FF;
+        }
+
+        .part-name {
+            font-weight: bold;
+            color: #00D4FF;
+        }
+
+        .start-btn {
+            display: block;
+            width: min(300px, 90%);
+            margin: 30px auto 0;
+            padding: 15px;
+            background: linear-gradient(45deg, #00D4FF, #7B61FF);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: clamp(1rem, 4vw, 1.3rem);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+            @keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+}
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .mensaje-flotante {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #00D4FF;
+            color: #0A0E17;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            z-index: 10000;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: fadeOut 2s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; display: none; }
+        }
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+    
+        .pin{position:absolute;width:22px;height:22px;border-radius:50%;background:rgba(0,212,255,0.85);border:2px solid rgba(255,255,255,0.85);transform:translate(-50%,-50%);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.5);transition:.15s;}
+        .pin:hover,.pin.activo{background:#7B61FF;transform:translate(-50%,-50%) scale(1.25);box-shadow:0 0 0 4px rgba(123,97,255,0.35);z-index:20;}
+        .pin-num{font-family:Arial,sans-serif;font-size:10px;color:#0A0E17;font-weight:bold;pointer-events:none;}
+        .pin.activo .pin-num{color:#fff;}
+</style>
+</head>
+
+    </style>
+</head>
+<body>
+    <!-- ===== REEMPLAZA TODO EL CONTENIDO DE #introScreen ===== -->
+<div id="introScreen" class="intro-overlay">
+    <div class="intro-card" style="max-width: 1000px;">
+        <h1 class="intro-title">🔬 Morfología de Linepithema</h1>
+        
+        <!-- Texto explicativo -->
+        <div style="background: #00D4FF10; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #00D4FF;">
+            <p style="margin: 0; color: #E0E0E0;">
+                <strong>🔍 ¿Qué estás observando?</strong><br>
+                En esta clave taxonómica aprenderás a identificar las partes del cuerpo de las hormigas del género <em>Linepithema</em>:
+                <strong>Cabeza</strong> (con ojos, antenas y mandíbulas), 
+                <strong>Mesosoma</strong> (tórax, donde se insertan las patas), 
+                <strong>Propodeo</strong> (parte posterior del tórax, clave para identificación),
+                <strong>Pecíolo</strong> (nódulo entre tórax y abdomen) y 
+                <strong>Gáster</strong> (abdomen).
+            </p>
+        <div style="background: #FF375F15; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #FF375F;">
+            <p style="margin: 0; color: #E0E0E0;">
+                <strong style="color:#FF375F;">⚠️ IMPORTANTE — Lee antes de continuar:</strong><br>
+                Debes completar <strong>todo el estudio en una sola sesión</strong>. No cierres esta pestaña, no cierres sesión ni recargues la página antes de terminar: <strong>si sales, no podrás volver a ingresar con este usuario</strong>. Asegúrate de tener tiempo suficiente y buena conexión antes de comenzar.
+            </p>
+        </div>
+        </div>
+        
+        <!-- Contenedor de la imagen con zoom y botones -->
+        <div class="diagram-container" style="position: relative;">
+            <div style="position: relative; display: inline-block; width: 100%; text-align: center;">
+                <img id="diagramaImg" src="/static/imagenes/linepithema/diagrama_hormiga.png" 
+                     alt="Linepithema sp. - macrofotografia lateral (obrera)" 
+                     style="max-width:100%; max-height:350px; border-radius:15px; border:2px solid #00D4FF40; cursor: pointer; display:block; margin:0 auto;"
+                     onclick="toggleZoom()">
+                <div class="pin-overlay" id="pinOverlay"></div>
+                
+                <div style="position: absolute; top: 10px; right: 10px;">
+                    <button class="ctrl-btn" onclick="toggleZoom()" title="Zoom" style="background: rgba(26,31,54,0.9); backdrop-filter: blur(5px); border: 1px solid #00D4FF40; color: #00D4FF; width: 40px; height: 40px; border-radius: 8px; cursor: pointer;">🔍</button>
+                </div>
+            </div>
+
+            <div style="text-align:center; color:#00D4FF; font-size:0.85rem; margin:10px 0;">⬇️ Descarga la guía antes de continuar (obligatorio)</div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:10px;">
+                <button onclick="descargarPDFCompleto()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:1px solid #00D4FF40;color:#00D4FF;padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;">📚 Clave completa</button>
+                <button onclick="descargarGuiaRapida()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:1px solid #00D4FF40;color:#00D4FF;padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;">📄 Guía rápida</button>
+                <button onclick="descargarGlosario()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:1px solid #00D4FF40;color:#00D4FF;padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;">📖 Glosario</button>
+                <button onclick="descargarImagenReferencia()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:1px solid #00D4FF40;color:#00D4FF;padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;">🖼️ Foto de referencia</button>
+            </div>
+            
+            <div style="text-align:center; color:#A0A0B0; font-size:0.8rem; margin-top:10px;">👆 Toca los puntos numerados sobre la foto para ver cada estructura</div>
+            <div id="infoParteSeleccionada" style="display:none; background:#1A1F36; border:1px solid #00D4FF; border-radius:10px; padding:12px 16px; margin-top:10px; text-align:left;">
+                <strong id="infoParteNombre" style="color:#00D4FF;"></strong>
+                <div id="infoParteDef" style="font-size:0.85rem; color:#E0E0E0; margin-top:4px;"></div>
+            </div>
+        </div>
+        
+    <div id="orientacionScreen" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:650px; max-height:85vh; overflow-y:auto;">
+            <h2 style="color:#00D4FF;text-align:center;margin-bottom:6px;">🎓 Antes de comenzar</h2>
+            <p id="orientacionSubtitulo" style="color:#A0A0B0;text-align:center;font-size:0.85rem;margin-bottom:15px;"></p>
+            <div style="height:220px;border-radius:12px;overflow:hidden;border:1px solid #00D4FF30;margin-bottom:15px;background:#0A0E17;">
+                <img id="imgOrientacion" style="width:100%;height:100%;object-fit:cover;transition:transform 0.4s ease;">
+            </div>
+            <div id="orientacionTexto" style="font-size:1rem;margin-bottom:15px;"></div>
+            <div id="orientacionAyuda" style="margin-bottom:15px;"></div>
+            <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;" id="orientacionTira"></div>
+            <div style="display:flex;gap:10px;">
+                <button class="action-btn btn-prev" onclick="orientacionAnterior()">← Anterior</button>
+                <button class="action-btn btn-submit" onclick="orientacionSiguiente()" id="orientacionBtnSig">Siguiente →</button>
+            </div>
+        </div>
+    </div>
+
+        <div id="zoomModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column;">
+            <div style="position:relative;display:inline-block;max-width:90%;max-height:80%;">
+                <img id="zoomImg" src="/static/imagenes/linepithema/diagrama_hormiga.png" style="max-width: 100%; max-height: 80vh; display:block; border-radius: 15px; border: 2px solid #00D4FF;">
+                <div class="pin-overlay" id="zoomPinOverlay"></div>
+            </div>
+            <div id="zoomInfoParte" style="display:none; background:#1A1F36; border:1px solid #00D4FF; border-radius:10px; padding:12px 16px; margin-top:12px; max-width:90%; text-align:left;">
+                <strong id="zoomInfoNombre" style="color:#00D4FF;"></strong>
+                <div id="zoomInfoDef" style="font-size:0.85rem; color:#E0E0E0; margin-top:4px;"></div>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 15px;">
+                <button onclick="cerrarZoom()" style="padding: 10px 20px; background: #00D4FF; border: none; border-radius: 8px; color: #0A0E17; font-weight: bold; cursor: pointer;">Cerrar</button>
+                <button onclick="descargarPDFCompleto()" style="padding: 10px 20px; background: transparent; border: 2px solid #00D4FF; border-radius: 8px; color: #00D4FF; font-weight: bold; cursor: pointer;">📥 Descargar clave</button>
+            </div>
+        </div>
+        
+        <!-- Glosario compacto -->
+        <div style="background: #1A1F36; padding: 20px; border-radius: 15px; margin: 25px 0;">
+            <h3 style="color: #00D4FF; margin-bottom: 15px;">📖 Glosario de términos</h3>
+            <div class="parts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Cabeza</div><div style="font-size:0.85rem;">Parte anterior con ojos, antenas y mandíbulas</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Mesosoma</div><div style="font-size:0.85rem;">Tórax, donde se insertan las patas</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Propodeo</div><div style="font-size:0.85rem;">Parte posterior del tórax, forma clave</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Pecíolo</div><div style="font-size:0.85rem;">Nódulo entre tórax y abdomen</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Gáster</div><div style="font-size:0.85rem;">Abdomen</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Escapo</div><div style="font-size:0.85rem;">Primer segmento de la antena</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Glándula metapleural</div><div style="font-size:0.85rem;">Órgano cerca del propodeo</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Setas erectas</div><div style="font-size:0.85rem;">Pelos erguidos</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #7B61FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Pelos adpresos</div><div style="font-size:0.85rem;">Pelos pegados a la superficie</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Bula metapleural</div><div style="font-size:0.85rem;">Protuberancia de la glándula</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #7B61FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Palpos maxilares</div><div style="font-size:0.85rem;">Apéndices cerca de la boca</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Mesonoto</div><div style="font-size:0.85rem;">Parte media del tórax</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #7B61FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Pedicelo antenal</div><div style="font-size:0.85rem;">2º segmento de la antena</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Margen posterior cabeza</div><div style="font-size:0.85rem;">Borde occipital</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #7B61FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Terguito</div><div style="font-size:0.85rem;">Placa dorsal del gáster</div></div>
+                <div class="part-card" style="background: #121826; padding: 12px; border-radius: 10px; border-left: 4px solid #00D4FF;"><div class="part-name" style="font-weight: bold; color: #00D4FF;">Surco pre-sutural</div><div style="font-size:0.85rem;">Surco posterior del clípeo</div></div>
+            </div>
+        </div>
+        
+        <button class="start-btn" id="startBtn">🚀 Comenzar identificación</button>
+        </div>
+</div>
+
+    <div id="mainApp" style="display: none;">
+        <div class="app-container">
+            <header class="header">
+                <div class="logo"><h1>🔬 CLAVE 2D - GRUPO CONTROL</h1></div>
+                <div class="user-badge" id="userBadge">Usuario: <span>Cargando...</span></div>
+            </header>
+
+            <aside class="sidebar">
+                <div class="progress-section">
+                    <div class="specimen-counter" id="specimenCounter">ESPÉCIMEN 1/2</div>
+                    <div class="progress-bar-container"><div class="progress-bar" id="progressBar"></div></div>
+                </div>
+                <div class="question-container" id="questionContainer"></div>
+            </aside>
+
+            <main class="main-content">
+                <div class="viewer-container">
+                    <div class="view-tabs">
+                        <div class="view-tab active" onclick="cambiarVista('cabeza')">🔍 Cabeza</div>
+                        <div class="view-tab" onclick="cambiarVista('lateral')">🔍 Lateral</div>
+                        <div class="view-tab" onclick="cambiarVista('dorsal')">🔍 Dorsal</div>
+                    </div>
+                    <div class="image-container" id="specimenImageContainer">
+                        <img id="specimenImage" class="specimen-image" src="" alt="Espécimen">
+                        <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(10,14,23,0.85); color:#A0A0B0; font-size:0.72rem; padding:5px 12px; border-radius:8px; pointer-events:none; white-space:nowrap;">🔍 Rueda / pellizca: zoom · arrastra: mover · doble clic: restablecer</div>
+                        <button onclick="resetZoomImagen()" title="Restablecer zoom" style="position:absolute; top:10px; right:10px; background:rgba(26,31,54,0.9); border:1px solid #00D4FF40; color:#00D4FF; width:36px; height:36px; border-radius:8px; cursor:pointer; font-size:1rem;">↺</button>
+                    </div>
+                </div>
+            </main>
+
+            <aside class="aside">
+                <div class="section-title">📖 Glosario</div>
+                <div id="glossaryContainer"></div>
+                <div class="section-title" style="margin-top: 20px;">📊 Info espécimen</div>
+                <div id="specimenInfo" class="species-info">
+                    <div>Completa la identificación para ver información</div>
+                </div>
+            </aside>
+
+            <footer class="footer">
+                <div>⏱️ Tiempo: <span id="timer">00:00</span></div>
+                <div>🔬 Completados: <span id="completedCount">0</span>/2</div>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURACIÓN DE LA CLAVE =====
+       const CLAVE = {
+    1: {
+        pregunta: "¿La porción anterior a la glándula metapleural tiene pelos adpresos en cantidad moderada a abundante?",
+        opciones: [
+            {texto: "Sí, pelos moderados a abundantes", desc: "Observar en posición dorso-oblicua", siguiente: 2},
+            {texto: "No, sin pelos o muy pocos", desc: "Porción anterior lisa o casi lisa", siguiente: 4}
+        ]
+    },
+    2: {
+        pregunta: "¿El pronoto tiene un par de setas erectas?",
+        opciones: [
+            {texto: "Sí, se observan claramente", desc: "Palpos maxilares largos, surco metanotal débil", resultado: "neotropicum"},
+            {texto: "No, no se observan", desc: "Palpos maxilares cortos, propodeo inclinado", siguiente: 3}
+        ]
+    },
+    3: {
+        pregunta: "¿Los escapos antenales son cortos?",
+        opciones: [
+            {texto: "Sí, escapos cortos", desc: "Menores que la longitud de la cabeza, mesonoto angular", resultado: "gallardoi"},
+            {texto: "No, escapos largos", desc: "Mayores o iguales a la cabeza, mesonoto recto", resultado: "humile"}
+        ]
+    },
+    4: {
+        pregunta: "¿El surco pre-sutural del clípeo está presente y bien marcado?",
+        opciones: [
+            {texto: "Sí, surco evidente", desc: "Clípeo con surco pre-sutural marcado", siguiente: 6},
+            {texto: "No, surco ausente o débil", desc: "Clípeo liso o surco apenas visible", siguiente: 5}
+        ]
+    },
+    5: {
+        pregunta: "¿El dorso de la cabeza tiene más de 5 setas erectas?",
+        opciones: [
+            {texto: "Sí, muchas setas", desc: "Cabeza con más de 5 setas, mesosoma esbelto", resultado: "iniquum"},
+            {texto: "No, pocas o ninguna", desc: "Cabeza con menos de 5 setas, mesosoma robusto", resultado: "dispertitum"}
+        ]
+    },
+    6: {
+        pregunta: "¿El pronoto tiene más de 10 setas erectas?",
+        opciones: [
+            {texto: "Sí, muy piloso", desc: "Cuerpo cubierto de setas erectas", resultado: "hirsutum"},
+            {texto: "No, menos de 10", desc: "Cuerpo sin muchas setas erectas", siguiente: 7}
+        ]
+    },
+    7: {
+        pregunta: "¿El margen posterior de la cabeza es profundamente cóncavo?",
+        opciones: [
+            {texto: "Sí, muy cóncavo", desc: "Borde occipital con escotadura profunda", resultado: "tsachila"},
+            {texto: "No, recto o ligeramente cóncavo", desc: "Borde occipital recto o apenas cóncavo", siguiente: 8}
+        ]
+    },
+    8: {
+        pregunta: "¿Los escapos antenales son cortos?",
+        opciones: [
+            {texto: "Sí, escapos cortos", desc: "Sobrepasan poco el margen posterior de la cabeza", resultado: "angulatum"},
+            {texto: "No, escapos largos", desc: "Sobrepasan claramente el margen posterior", resultado: "piliferum"}
+        ]
+    }
+};
+
+        const ESPECIES = {
+    'neotropicum': {nombre: 'Linepithema neotropicum', caracteristicas: 'Pronoto con par de setas erectas, palpos maxilares largos', distribucion: 'Región Andina, 260-2600m'},
+    'gallardoi': {nombre: 'Linepithema gallardoi', caracteristicas: 'Escapos cortos, mesonoto angular, pronoto con setas', distribucion: 'Alta montaña, >1000m'},
+    'humile': {nombre: 'Linepithema humile', caracteristicas: 'Escapos largos, mesonoto recto, sin setas en pronoto', distribucion: 'Armenia, Quindío'},
+    'iniquum': {nombre: 'Linepithema iniquum', caracteristicas: 'Cabeza con >5 setas erectas, mesosoma esbelto, superficie brillante', distribucion: 'Arborícola, 940-2000m'},
+    'dispertitum': {nombre: 'Linepithema dispertitum', caracteristicas: 'Cabeza con <5 setas, mesosoma robusto, superficie opaca', distribucion: 'Alta montaña, >2500m'},
+    'hirsutum': {nombre: 'Linepithema hirsutum', caracteristicas: 'Pronoto con >10 setas erectas, cuerpo muy piloso', distribucion: 'Nariño, 640m'},
+    'tsachila': {nombre: 'Linepithema tsachila', caracteristicas: 'Margen posterior de cabeza cóncavo, pronoto con 2-8 setas', distribucion: 'Pacífico, 286-1800m'},
+    'angulatum': {nombre: 'Linepithema angulatum', caracteristicas: 'Escapos cortos, propodeo alto y angulado', distribucion: 'Andes, 10-2430m'},
+    'piliferum': {nombre: 'Linepithema piliferum', caracteristicas: 'Escapos largos, propodeo redondeado', distribucion: 'Cordilleras, 1500-2800m'}
+};
+
+       const GLOSARIO = [
+    {term: "Abdomen", def: "Parte posterior del cuerpo que contiene los órganos digestivos y reproductivos. En hormigas se divide en propodeo, pecíolo y gáster."},
+    {term: "Antenas", def: "Órganos sensoriales móviles ubicados en la cabeza, formados por segmentos (escapo, pedicelo y flagelo). Son fundamentales para la comunicación y percepción del entorno."},
+    {term: "Bula de la glándula metapleural", def: "Protuberancia que cubre el orificio de salida de la glándula metapleural, en la parte posterior del mesosoma. La cantidad de pelos adpresos en su porción anterior es el primer carácter de la clave."},
+    {term: "Cabeza", def: "Parte anterior del cuerpo que contiene los ojos compuestos, las antenas y las mandíbulas. Su forma y estructuras asociadas son clave para la identificación."},
+    {term: "Clípeo", def: "Placa esclerotizada ubicada en la parte frontal de la cabeza, sobre las mandíbulas. Puede presentar surcos o carenas que ayudan en la identificación."},
+    {term: "Escapo", def: "Primer segmento de la antena, generalmente el más largo. Su longitud relativa a la cabeza y al pedicelo antenal es un carácter diagnóstico importante."},
+    {term: "Escotadura", def: "Muesca o hendidura en un borde del cuerpo, por ejemplo en el margen posterior de la cabeza. Su profundidad diferencia especies."},
+    {term: "Gáster", def: "Abdomen propiamente dicho (después del pecíolo). Contiene los órganos digestivos y reproductivos. Su forma y pilosidad son variables entre especies."},
+    {term: "Glándula metapleural", def: "Órgano secretor ubicado en la región lateral del mesosoma, cerca del propodeo. Su pubescencia (presencia/ausencia de pelos) es clave para la identificación."},
+    {term: "Impresión media", def: "Depresión longitudinal poco profunda en el centro del mesonoto. Puede estar ausente, ligeramente marcada o ser moderada a fuerte según la especie."},
+    {term: "Mandíbulas", def: "Estructuras bucales endurecidas utilizadas para cortar, transportar y defender. Su forma (triangular, alargada, con dientes) es variable entre especies."},
+    {term: "Margen posterior de la cabeza", def: "Borde occipital, visto en vista dorsal. Puede ser recto, ligeramente cóncavo o profundamente cóncavo (con escotadura); carácter diagnóstico importante."},
+    {term: "Mesonoto", def: "Segunda parte del mesosoma (tórax), entre el pronoto y el propodeo. Su forma (angular, recta) y su impresión media ayudan a diferenciar especies."},
+    {term: "Mesosoma", def: "Tórax, región del cuerpo donde se insertan los tres pares de patas. Comprende el pronoto, mesonoto y propodeo. Es la región central del cuerpo."},
+    {term: "Ojos", def: "Órganos visuales compuestos ubicados en la cabeza. Pueden ser grandes o pequeños según la especie. Su posición y tamaño son caracteres diagnósticos."},
+    {term: "Palpos maxilares", def: "Apéndices sensoriales pares cerca de la boca, asociados a las mandíbulas. Su longitud relativa a la cabeza es un carácter diagnóstico (ej. L. neotropicum)."},
+    {term: "Patas", def: "Tres pares de apéndices articulados insertados en el mesosoma. Cada pata se compone de coxa, trocánter, fémur, tibia y tarso. Su longitud relativa es importante."},
+    {term: "Pecíolo", def: "Segmento o nódulo que conecta el mesosoma con el gáster (la 'cintura' de la hormiga). En Linepithema es característico y puede tener forma de escama o nódulo."},
+    {term: "Pedicelo antenal", def: "Segundo segmento de la antena, entre el escapo y el flagelo. No confundir con el pecíolo del cuerpo: aquí se usa como referencia de longitud para comparar con el escapo."},
+    {term: "Pelos adpresos", def: "Pelos cortos que yacen pegados o inclinados sobre la superficie del cuerpo, a diferencia de las setas erectas que se levantan del perfil corporal."},
+    {term: "Pilosidad", def: "Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante. La distribución y tipo de pelos (erectos, inclinados, adpresos) son caracteres diagnósticos."},
+    {term: "Pronoto", def: "Primera parte del mesosoma (tórax). La presencia o ausencia de setas erectas en el pronoto es un carácter clave en la identificación de especies."},
+    {term: "Propodeo", def: "Parte posterior del mesosoma (primer segmento del abdomen fusionado al tórax). Su forma (redondeada, angulada, alta o baja) es importante para la identificación."},
+    {term: "Pubescencia", def: "Pelos finos y cortos, generalmente inclinados, que recubren la cutícula. Se observa especialmente en la glándula metapleural y otras regiones del cuerpo."},
+    {term: "Setas erectas", def: "Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies. Su presencia, cantidad y distribución son diagnósticas."},
+    {term: "Surco metanotal", def: "Depresión o surco en el mesosoma que separa el mesonoto del propodeo. Puede ser impreso o no según la especie. Es visible en vista dorsal."},
+    {term: "Surco pre-sutural del clípeo", def: "Surco ubicado en la porción posterior del clípeo, antes de su sutura con la cabeza. Puede estar bien marcado, débil o ausente según la especie."},
+    {term: "Terguito", def: "Placa dorsal endurecida de un segmento del gáster. El primer terguito puede presentar o no setas, carácter que diferencia L. gallardoi de L. humile."},
+    {term: "Tórax", def: "Región media del cuerpo donde se insertan las patas. En hormigas se compone de pronoto, mesonoto, metanoto y propodeo. Es sinónimo de mesosoma."}
+];
+
+        // ===== VARIABLES GLOBALES =====
+        let usuario = null;
+        let usuarioId = null;
+        let sesionId = null;
+        let especimenes = [];
+        let indiceActual = 0;
+        let pasoActual = 1;
+        let respuestas = [];
+        let respuestaUsuario = '';
+        let respuestaSeleccionada = null;
+        let tiempoInicio = Date.now();
+        let tiempoInicioEspecimen = Date.now();
+        let timerInterval;
+        let especiesCompletadas = [false, false];
+        let caminoRecorrido = [];
+        let guiaDescargada = false;
+        let tiempoInicioPaso = Date.now();
+        let caminoCorrectoActual = null;
+        let ordenPasoActual = 0;
+        let especimenFinalizado = false;
+        let susEnviado = false;
+        let cargaEnviada = false;
+        let reflexionPreviaEnviada = false;
+        let reflexionDuranteEnviada = false;
+        let reflexionPostEnviada = false;
+        let comentarioFinalEnviado = false;
+        let zoomCaracteresConfig = {};
+        fetch('/api/config/zoom_caracteres').then(r => r.json()).then(d => { zoomCaracteresConfig = d; }).catch(() => {});
+        let vistaActual = 'lateral';
+
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            usuario = urlParams.get('usuario');
+            
+            // Obtener usuarioId desde sesión
+            usuarioId = await obtenerUsuarioId();
+            if (!usuarioId) {
+                mostrarFeedback('⚠️ Sesión no válida. Por favor inicia sesión nuevamente.', '#FF375F');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
+                return;
+            }
+            
+            if (usuario) {
+                document.getElementById('userBadge').innerHTML = `Usuario: <span>${usuario}</span>`;
+            }
+            cargarGlosario();
+            document.getElementById('startBtn').addEventListener('click', function() {
+                if (!guiaDescargada) {
+                    mostrarAvisoDescargaObligatoria();
+                    return;
+                }
+                mostrarOrientacionFase1();
+            });
+        });
+
+        async function obtenerUsuarioId() {
+            try {
+                const response = await fetch('/api/verificar_sesion');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.id;
+                }
+            } catch(e) {
+                console.error('Error obteniendo sesión:', e);
+            }
+            return null;
+        }
+
+        function cargarGlosario() {
+            const container = document.getElementById('glossaryContainer');
+            container.innerHTML = GLOSARIO.map(g => `
+                <div class="glossary-item">
+                    <div class="glossary-term">${g.term}</div>
+                    <div class="glossary-def">${g.def}</div>
+                </div>
+            `).join('');
+        }
+
+        // ===== FUNCIONES PRINCIPALES =====
+        async function iniciarIdentificacion() {
+            document.getElementById('introScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/experimento/iniciar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ usuario_id: usuarioId })
+                });
+                if (!response.ok) throw new Error('Error al iniciar');
+                const data = await response.json();
+                sesionId = data.sesion_id;
+                especimenes = data.especimenes.slice(0, 2);
+            } catch (error) {
+                console.error('Error iniciando sesión:', error);
+                mostrarFeedback('❌ Error al iniciar la sesión experimental', '#FF375F');
+                return;
+            }
+            
+            respuestas = new Array(especimenes.length).fill(null);
+            especiesCompletadas = new Array(especimenes.length).fill(false);  // ← NUEVA LÍNEA 1
+
+// Intentar cargar progreso guardado
+if (cargarProgresoLocal()) {  // ← NUEVA LÍNEA 2
+    const primeraNoCompletada = especiesCompletadas.findIndex(c => c === false);  // ← NUEVA LÍNEA 3
+    if (primeraNoCompletada !== -1) {  // ← NUEVA LÍNEA 4
+        indiceActual = primeraNoCompletada;  // ← NUEVA LÍNEA 5
+        mostrarFeedback('🔄 Cargando progreso anterior...', '#00D4FF');  // ← NUEVA LÍNEA 6
+    } else {  // ← NUEVA LÍNEA 7
+        setTimeout(() => mostrarResumenFinal(), 500);  // ← NUEVA LÍNEA 8
+        return;  // ← NUEVA LÍNEA 9
+    }  // ← NUEVA LÍNEA 10
+}  // ← NUEVA LÍNEA 11
+            tiempoInicio = Date.now();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(actualizarTimer, 1000);
+            cargarEspecimen(indiceActual);
+        }
+
+        function actualizarTimer() {
+            const t = Math.floor((Date.now() - tiempoInicio) / 1000);
+            const m = Math.floor(t / 60);
+            const s = t % 60;
+            document.getElementById('timer').textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }
+
+        function cambiarVista(vista) {
+            vistaActual = vista;
+            document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            if (especimenes.length > 0 && especimenes[indiceActual]) {
+                const especie = especimenes[indiceActual].especie;
+                document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${especie}/${vista}.jpg`;
+                if (typeof resetZoomImagen === 'function') resetZoomImagen();
+            }
+        }
+
+        function cargarEspecimen(index) {
+             pasoActual = 1; 
+    // Verificar si esta especie ya fue completada
+    if (especiesCompletadas[index]) {
+        mostrarFeedback('⚠️ Esta especie ya fue identificada anteriormente', '#FFAA00');
+        if (index + 1 < especimenes.length) {
+            setTimeout(() => cargarEspecimen(index + 1), 1500);
+        }
+        return;
+    }
+    
+    if (respuestas[indiceActual] && respuestas[indiceActual] !== 'pendiente') {
+        console.log('⚠️ Esta especie ya fue identificada');
+        return;
+    }
+    
+    indiceActual = index;
+    pasoActual = 1;
+    respuestaUsuario = '';
+    respuestaSeleccionada = null;
+    caminoRecorrido = [];
+    caminoCorrectoActual = caminoHaciaEspecie(especimenes[index].especie);
+    ordenPasoActual = 0;
+    especimenFinalizado = false;
+    tiempoInicioEspecimen = Date.now();
+    
+    document.getElementById('specimenCounter').textContent = `ESPÉCIMEN ${index+1}/${especimenes.length}`;
+    document.getElementById('progressBar').style.width = `${((index+1)/especimenes.length)*100}%`;
+    
+if (especimenes[index]) {
+    if (typeof loadSketchfabModel === 'function') {
+        loadSketchfabModel(especimenes[index].especie);
+    } else {
+        const especie = especimenes[index].especie;
+        const img = document.getElementById('specimenImage');
+        img.src = `/static/imagenes/linepithema/${especie}/${vistaActual}.jpg`;
+        img.style.cursor = 'zoom-in';
+        img.style.transition = 'transform 0.2s ease';
+        
+        // Zoom con scroll (rueda del mouse)
+        let currentScale = 1;
+        img.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                currentScale = Math.min(currentScale + 0.1, 3);
+            } else {
+                currentScale = Math.max(currentScale - 0.1, 1);
+            }
+            img.style.transform = `scale(${currentScale})`;
+            img.style.transformOrigin = 'center center';
+        });
+    }
+}          
+
+
+    mostrarPregunta(1);
+}
+        
+
+                function mostrarPregunta(numero) {
+            const paso = CLAVE[numero];
+             if (numero === 1 && pasoActual === 1) {
+        mostrarFeedback('🔍 Observa el espécimen con atención y responde las preguntas', '#00D4FF');
+    }
+            if (!paso) return;
+            tiempoInicioPaso = Date.now();
+            pasoActual = numero;
+            let html = `<div class="current-question">Pregunta ${numero}</div>`;
+            if (caminoRecorrido.length > 0) {
+                const partes = caminoRecorrido.map(c => `P${c.pregunta}:${c.opcion===0?'A':'B'}`);
+                html += `<div style="font-size:0.75rem;color:#7B61FF;margin-bottom:10px;background:#1A1F36;padding:8px 12px;border-radius:8px;">🧭 Tu camino: ${partes.join(' → ')} → <strong>Pregunta ${numero}</strong></div>`;
+            }
+            html += `<div style="font-size:0.75rem;color:#A0A0B0;margin-bottom:10px;">📸 Esta clave no incluye imágenes de referencia por carácter. Guíate por la descripción morfológica de cada opción y por la guía que descargaste.</div>
+                <div class="question-text">${paso.pregunta}</div>`;
+            html += `<button class="action-btn" onclick="verCaracterEnfocado(${numero})" style="background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;margin-bottom:10px;padding:10px;width:100%;border:none;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Ver este carácter en el espécimen</button>`;
+            html += `<div class="options-grid">`;
+            paso.opciones.forEach((opcion, idx) => {
+                const letra = idx === 0 ? 'A' : 'B';
+                const selectedClass = (respuestaSeleccionada && respuestaSeleccionada.pregunta === numero && respuestaSeleccionada.opcion === idx) ? 'selected' : '';
+                html += `<div class="option-card ${selectedClass}" onclick="seleccionarOpcion(${numero}, ${idx})"><span class="option-letter">${letra}</span><strong>${opcion.texto}</strong><div class="char-desc">${opcion.desc}</div></div>`;
+            });
+            html += `</div>`;
+            
+            if (respuestas[indiceActual] && respuestas[indiceActual] !== 'pendiente') {
+                const esCorrecto = respuestas[indiceActual] === especimenes[indiceActual].especie;
+                const especie = ESPECIES[especimenes[indiceActual].especie];
+                html += `<div class="result-message ${esCorrecto ? 'result-correct' : 'result-incorrect'}">${esCorrecto ? '✅ ¡Correcto!' : `❌ Incorrecto. La especie correcta es: <strong>${especie.nombre}</strong>`}</div>
+                         <div class="species-info"><strong>${especie.nombre}</strong><div class="glossary-def">${especie.caracteristicas}</div><div class="glossary-def">📍 ${especie.distribucion}</div></div>`;
+                document.getElementById('specimenInfo').innerHTML = `<strong>${especie.nombre}</strong><div class="glossary-def">${especie.caracteristicas}</div><div class="glossary-def">📍 ${especie.distribucion}</div>`;
+            }
+            html += `<div class="answer-section">
+                     <div class="action-buttons">
+                        <button class="action-btn btn-prev" onclick="anteriorPregunta()" ${pasoActual===1?'disabled':''}>← Anterior</button>
+                        <button class="action-btn btn-download" onclick="descargarGuia()">📥 Guía</button>
+                        <button class="action-btn btn-exit" onclick="salirIdentificacion()">🚪 Salir</button>
+                     </div></div>`;
+            document.getElementById('questionContainer').innerHTML = html;
+        }
+
+        function seleccionarOpcion(preguntaNum, opcionIdx) {
+            if (especimenFinalizado) return;
+            const paso = CLAVE[preguntaNum];
+            const opcion = paso.opciones[opcionIdx];
+            respuestaSeleccionada = { pregunta: preguntaNum, opcion: opcionIdx };
+            caminoRecorrido = caminoRecorrido.filter(c => c.pregunta !== preguntaNum);
+            caminoRecorrido.push({ pregunta: preguntaNum, opcion: opcionIdx });
+
+            const tiempoPaso = (Date.now() - tiempoInicioPaso) / 1000;
+            ordenPasoActual++;
+            const esPasoCorrecto = !!(caminoCorrectoActual && caminoCorrectoActual.some(
+                c => c.pregunta === preguntaNum && c.opcion === opcionIdx
+            ));
+            guardarPasoBackend(preguntaNum, opcionIdx, esPasoCorrecto, !!opcion.resultado, tiempoPaso, ordenPasoActual);
+
+            if (opcion.siguiente) {
+                mostrarPregunta(opcion.siguiente);
+            } else if (opcion.resultado) {
+                finalizarPorClave(opcion.resultado);
+            }
+        }
+
+        async function guardarPasoBackend(pregunta, opcionElegida, esPasoCorrecto, esPasoFinal, tiempo, ordenPaso) {
+            try {
+                await fetch('/api/experimento/guardar_paso', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sesion_id: sesionId,
+                        especimen_id: especimenes[indiceActual].id,
+                        especimen_orden: indiceActual + 1,
+                        pregunta: pregunta,
+                        opcion_elegida: opcionElegida,
+                        es_paso_correcto: esPasoCorrecto,
+                        es_paso_final: esPasoFinal,
+                        tiempo_segundos: tiempo,
+                        orden_paso: ordenPaso
+                    })
+                });
+            } catch(e) {
+                console.error('Error guardando paso:', e);
+            }
+        }
+
+        function caminoHaciaEspecie(especieObjetivo, pregunta, camino) {
+            pregunta = pregunta || 1;
+            camino = camino || [];
+            const paso = CLAVE[pregunta];
+            if (!paso) return null;
+            for (let idx = 0; idx < paso.opciones.length; idx++) {
+                const opcion = paso.opciones[idx];
+                const nuevoCamino = camino.concat([{ pregunta: pregunta, opcion: idx }]);
+                if (opcion.resultado === especieObjetivo) return nuevoCamino;
+                if (opcion.siguiente) {
+                    const resultado = caminoHaciaEspecie(especieObjetivo, opcion.siguiente, nuevoCamino);
+                    if (resultado) return resultado;
+                }
+            }
+            return null;
+        }
+
+        async function guardarResultadoBackend(especimenId, especieCorrecta, especieSeleccionada, esCorrecta, tiempo) {
+            try {
+                const response = await fetch('/api/experimento/guardar_resultado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sesion_id: sesionId,
+                        especimen_id: especimenId,
+                        especie_correcta: especieCorrecta,
+                        especie_seleccionada: especieSeleccionada,
+                        es_correcta: esCorrecta,
+                        tiempo_segundos: tiempo,
+                        orden: indiceActual + 1
+                    })
+                });
+                if (!response.ok) {
+                    console.error('Error guardando resultado');
+                }
+            } catch(e) {
+                console.error('Error:', e);
+            }
+        }
+
+        function finalizarPorClave(resultadoEspecie) {
+            if (especimenFinalizado) return;
+            especimenFinalizado = true;
+            document.querySelectorAll('.option-card').forEach(el => { el.style.opacity = '0.5'; el.style.pointerEvents = 'none'; });
+            const especieCorrecta = especimenes[indiceActual].especie;
+            const nombreCorrecto = ESPECIES[especieCorrecta].nombre;
+            const esCorrecto = resultadoEspecie === especieCorrecta;
+            const tiempoEmpleado = (Date.now() - tiempoInicioEspecimen) / 1000;
+
+            guardarResultadoBackend(
+                especimenes[indiceActual].id,
+                especieCorrecta,
+                resultadoEspecie,
+                esCorrecto,
+                tiempoEmpleado
+            );
+
+            respuestas[indiceActual] = esCorrecto ? especieCorrecta : 'incorrecto';
+            especiesCompletadas[indiceActual] = true;
+            const completados = respuestas.filter(r => r !== null && r !== 'pendiente').length;
+            document.getElementById('completedCount').textContent = completados;
+            guardarProgresoLocal();
+
+            if (esCorrecto) {
+                mostrarFeedback(`✅ ¡Correcto! Identificaste "${nombreCorrecto}"`, '#00D4FF');
+            } else {
+                const caminoCorrecto = caminoHaciaEspecie(especieCorrecta) || [];
+                let divergencia = null;
+                for (let i = 0; i < caminoCorrecto.length; i++) {
+                    const paso = caminoRecorrido[i];
+                    if (!paso || paso.pregunta !== caminoCorrecto[i].pregunta || paso.opcion !== caminoCorrecto[i].opcion) {
+                        divergencia = caminoCorrecto[i];
+                        break;
+                    }
+                }
+                let mensajeCaracter = '';
+                if (divergencia) {
+                    const pasoClave = CLAVE[divergencia.pregunta];
+                    const opcionCorrecta = pasoClave.opciones[divergencia.opcion];
+                    mensajeCaracter = ` Te desviaste en la Pregunta ${divergencia.pregunta}: "${pasoClave.pregunta}" — el carácter correcto era: "${opcionCorrecta.texto}" (${opcionCorrecta.desc}).`;
+                }
+                mostrarFeedback(`❌ Concluiste "${resultadoEspecie}". La especie correcta era "${nombreCorrecto}".${mensajeCaracter}`, '#FF375F');
+            }
+
+            caminoRecorrido = [];
+            respuestaSeleccionada = null;
+
+            if (indiceActual < especimenes.length - 1) {
+                setTimeout(() => {
+                    indiceActual++;
+                    pasoActual = 1;
+                    cargarEspecimen(indiceActual);
+                }, 8500);
+            } else {
+                setTimeout(() => mostrarResumenFinal(), 4500);
+            }
+        }
+
+        function mostrarFeedback(mensaje, color) {
+            const existing = document.querySelector('.feedback-modal');
+            if (existing) existing.remove();
+            
+            const feedback = document.createElement('div');
+            feedback.className = 'feedback-modal';
+            feedback.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: ${color};
+                color: #0A0E17;
+                padding: 20px 25px;
+                border-radius: 20px;
+                font-size: 1.15rem;
+                font-weight: bold;
+                z-index: 10000;
+                text-align: center;
+                width: min(480px, 92vw);
+                box-sizing: border-box;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                border: 2px solid white;
+                animation: fadeInOut 8s ease forwards;
+            `;
+            
+            const icono = color.includes('00D4FF') ? '✅' : '❌';
+            feedback.innerHTML = `${icono} ${mensaje}<div style="font-size:0.7rem;opacity:0.7;margin-top:8px;">(toca para cerrar)</div>`;
+            feedback.style.cursor = 'pointer';
+            feedback.onclick = () => feedback.remove();
+            document.body.appendChild(feedback);
+            
+            setTimeout(() => feedback.remove(), 8000);
+        }
+        
+        function mostrarResumenFinal() {
+            const aciertos = respuestas.filter(r => r !== null && r !== 'incorrecto').length;
+            const total = especimenes.length;
+            const porcentaje = Math.round((aciertos/total)*100);
+            document.getElementById('questionContainer').innerHTML = `
+                <div style="text-align:center; padding:30px;">
+                    <div style="font-size:4rem;">🏆</div>
+                    <h2 style="color:#00D4FF;">¡Identificación completada!</h2>
+                    <div style="background:#0A0E17; padding:25px; border-radius:15px; margin:20px 0;">
+                        <p style="font-size:2rem; color:#00D4FF;">${aciertos}/${total}</p>
+                        <p>Aciertos: <strong>${porcentaje}%</strong></p>
+                    </div>
+                    <p style="color:#A0A0B0; font-size:0.85rem; margin-bottom:15px;">Ahora sigue una parte indispensable del estudio: 2 encuestas cortas sobre tu experiencia. Te llevamos allá en unos segundos.</p>
+                    <button class="action-btn btn-submit" onclick="mostrarEncuestas()" style="padding:15px 30px;">📝 Continuar a las encuestas ahora</button>
+                </div>`;
+            clearInterval(timerInterval);
+            setTimeout(() => { if (typeof mostrarEncuestas === 'function') mostrarEncuestas(); }, 4000);
+        }
+
+        function anteriorPregunta() { 
+            if (pasoActual > 1) {
+                caminoRecorrido = caminoRecorrido.filter(c => c.pregunta < pasoActual - 1);
+                mostrarPregunta(pasoActual - 1);
+            }
+        }
+        
+        function salirIdentificacion() { 
+            if(confirm('¿Salir? Se perderá el progreso.')) 
+                window.location.href = '/dashboard?usuario=' + usuario; 
+        }
+
+function descargarImagenReferencia() {
+            guiaDescargada = true;
+            const a = document.createElement('a');
+            a.href = '/static/imagenes/linepithema/diagrama_hormiga.png';
+            a.download = 'foto_referencia_linepithema.jpg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function descargarGuia() {
+            guiaDescargada = true;
+            const contenido = `GUÍA DE IDENTIFICACIÓN - GÉNERO Linepithema\n\nCARACTERES TAXONÓMICOS CLAVE:\n\n1. GLÁNDULA METAPLEURAL (pubescencia)\n   ● Con pubescencia: L. neotropicum, L. gallardoi, L. humile\n   ● Sin pubescencia: L. iniquum, L. dispertitum, L. hirsutum, L. tsachila, L. angulatum, L. piliferum\n\n2. SETAS ERECTAS EN PRONOTO\n   ● Par visible: L. neotropicum\n   ● Sin par: resto de especies con pubescencia\n\n3. ESCAPOS ANTENALES (longitud)\n   ● Cortos: L. gallardoi, L. angulatum\n   ● Largos: L. humile, L. piliferum\n\n4. SURCO PRE-SUTURAL DEL CLÍPEO\n   ● Marcado: L. hirsutum, L. tsachila, L. angulatum, L. piliferum\n   ● Ausente/débil: L. iniquum, L. dispertitum\n\n5. SETAS EN CABEZA\n   ● Más de 5: L. iniquum\n   ● Menos de 5: L. dispertitum\n\n6. SETAS EN PRONOTO (>10)\n   ● Sí: L. hirsutum\n   ● No: L. tsachila, L. angulatum, L. piliferum\n\n7. MARGEN POSTERIOR DE CABEZA\n   ● Profundamente cóncavo: L. tsachila\n   ● Recto/ligeramente cóncavo: L. angulatum, L. piliferum\n\nDISTRIBUCIÓN EN COLOMBIA:\n● L. neotropicum: Región Andina, 260-2600m\n● L. gallardoi: Alta montaña, >1000m\n● L. humile: Armenia, Quindío\n● L. iniquum: Arborícola, 940-2000m\n● L. dispertitum: Serranía del Perijá, >2500m\n● L. hirsutum: Nariño, 640m\n● L. tsachila: Pacífico, 286-1800m\n● L. angulatum: Andes, 10-2430m\n● L. piliferum: Cordilleras, 1500-2800m\n\nFuente: Escárraga & Guerrero (2016)`;
+            const blob = new Blob([contenido], {type:'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'guia_linepithema.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // ===== ENCUESTAS (SUS + Carga Cognitiva) =====
+        function mostrarEncuestas() {
+            document.getElementById('questionContainer').innerHTML = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 2rem;">📝</div>
+                    <h2 style="color: #00D4FF;">Encuesta 1/2: Escala SUS</h2>
+                    <p>Califica tu experiencia (1=Totalmente en desacuerdo, 5=Totalmente de acuerdo)</p>
+                </div>
+                <div class="options-grid" id="susQuestions">
+                    ${generarSUS()}
+                </div>
+                <div class="answer-section">
+                    <button class="action-btn btn-submit" onclick="guardarSUS()">Continuar →</button>
+                </div>
+            `;
+            const sb = document.querySelector('.sidebar');
+            if (sb) sb.scrollTop = 0;
+        }
+
+        function generarSUS() {
+            const items = [
+                "Creo que me gustaría usar este sistema frecuentemente",
+                "Encontré el sistema innecesariamente complejo",
+                "Pensé que el sistema era fácil de usar",
+                "Creo que necesitaría ayuda técnica para usar este sistema",
+                "Las funciones del sistema estaban bien integradas",
+                "Pensé que había demasiada inconsistencia en el sistema",
+                "La mayoría aprendería a usar este sistema rápidamente",
+                "Encontré el sistema muy engorroso de usar",
+                "Me sentí muy seguro usando el sistema",
+                "Necesité aprender muchas cosas antes de usar el sistema"
+            ];
+            return items.map((item, i) => `
+                <div class="option-card" style="flex-direction: column; align-items: stretch; padding: 20px;">
+                    <div style="margin-bottom: 15px; font-weight: bold;">${i+1}. ${item}</div>
+                    <div style="display: flex; gap: 15px; justify-content: space-between;">
+                        ${[1,2,3,4,5].map(num => `
+                            <label style="flex:1; text-align:center;">
+                                <input type="radio" name="sus_${i}" value="${num}" required><br>
+                                <span style="font-size:0.8rem;">${num}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function guardarSUS() {
+            if (susEnviado) return;
+            const respuestasArr = [];
+            for (let i = 0; i < 10; i++) {
+                const seleccion = document.querySelector(`input[name="sus_${i}"]:checked`);
+                if (!seleccion) { 
+                    mostrarFeedback('⚠️ Responde todas las preguntas', '#FF375F');
+                    return; 
+                }
+                respuestasArr.push(parseInt(seleccion.value));
+            }
+            susEnviado = true;
+            let score = 0;
+            for (let i = 0; i < 10; i++) {
+                score += (i % 2 === 0) ? respuestasArr[i] - 1 : 5 - respuestasArr[i];
+            }
+            score = score * 2.5;
+            guardarEncuesta('SUS', respuestasArr, score);
+            mostrarCargaCognitiva();
+        }
+
+        function mostrarCargaCognitiva() {
+            document.getElementById('questionContainer').innerHTML = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 2rem;">🧠</div>
+                    <h2 style="color: #00D4FF;">Encuesta 2/2: Carga Cognitiva</h2>
+                    <p>Indica tu nivel de acuerdo (0=Nada, 10=Completamente)</p>
+                </div>
+                <div class="options-grid" id="clQuestions">
+                    ${generarCargaCognitiva()}
+                </div>
+                <div class="answer-section">
+                    <button class="action-btn btn-submit" onclick="guardarCargaCognitiva()">Finalizar</button>
+                </div>
+            `;
+            const sb = document.querySelector('.sidebar');
+            if (sb) sb.scrollTop = 0;
+        }
+
+        function generarCargaCognitiva() {
+            const items = [
+                {texto: "El contenido de la tarea era complejo", tipo: "intrínseca"},
+                {texto: "Se requería mucha concentración", tipo: "intrínseca"},
+                {texto: "Las diferencias entre especies eran sutiles", tipo: "intrínseca"},
+                {texto: "Tuve que procesar mucha información", tipo: "intrínseca"},
+                {texto: "La presentación de la información era confusa", tipo: "extrínseca"},
+                {texto: "Tuve dificultades con la herramienta", tipo: "extrínseca"},
+                {texto: "La organización no era intuitiva", tipo: "extrínseca"},
+                {texto: "La interfaz interfería con mi proceso", tipo: "extrínseca"},
+                {texto: "Pude concentrarme en la identificación", tipo: "germana"},
+                {texto: "La herramienta facilitó mi aprendizaje", tipo: "germana"}
+            ];
+            return items.map((item, i) => `
+                <div class="option-card" style="flex-direction: column; align-items: stretch; padding: 20px;">
+                    <div style="margin-bottom: 15px; font-weight: bold;">${i+1}. ${item.texto}</div>
+                    <div style="display: flex; gap: 5px; justify-content: space-between; flex-wrap: wrap;">
+                        ${[0,1,2,3,4,5,6,7,8,9,10].map(num => `
+                            <label style="text-align:center; min-width:30px;">
+                                <input type="radio" name="cl_${i}" value="${num}" required><br>
+                                <span style="font-size:0.7rem;">${num}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function guardarCargaCognitiva() {
+            if (cargaEnviada) return;
+            const respuestasArr = [];
+            for (let i = 0; i < 10; i++) {
+                const seleccion = document.querySelector(`input[name="cl_${i}"]:checked`);
+                if (!seleccion) { 
+                    mostrarFeedback('⚠️ Responde todas las preguntas', '#FF375F');
+                    return; 
+                }
+                respuestasArr.push(parseInt(seleccion.value));
+            }
+            cargaEnviada = true;
+            const intrínseca = respuestasArr.slice(0,4).reduce((a,b)=>a+b,0);
+            const extrínseca = respuestasArr.slice(4,8).reduce((a,b)=>a+b,0);
+            const germana = respuestasArr.slice(8,10).reduce((a,b)=>a+b,0);
+            guardarEncuesta('COGNITIVE_LOAD', respuestasArr, null);
+            mostrarComentarioFinal();
+        }
+
+        function mostrarComentarioFinal() {
+            document.getElementById('questionContainer').innerHTML = `
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div style="font-size: 2rem;">💬</div>
+                    <h2 style="color: #00D4FF;">Una última cosa</h2>
+                    <p style="color:#A0A0B0;font-size:0.9rem;">Cuéntanos lo que quieras sobre tu experiencia usando la clave: qué te gustó, qué se te dificultó, qué mejorarías. Es opcional.</p>
+                </div>
+                <textarea id="comentarioFinalTexto" rows="6" placeholder="Escribe aquí (opcional)..." style="width:100%; box-sizing:border-box; background:#1A1F36; border:1px solid #00D4FF40; border-radius:10px; color:#E0E0E0; padding:12px; font-size:0.95rem; font-family:inherit; resize:vertical;"></textarea>
+                <div class="answer-section" style="margin-top:15px;">
+                    <button class="action-btn btn-submit" onclick="guardarComentarioFinal()" style="width:100%;">✅ Finalizar y ver mis resultados</button>
+                </div>`;
+            const sb = document.querySelector('.sidebar');
+            if (sb) sb.scrollTop = 0;
+        }
+
+        async function guardarComentarioFinal() {
+            if (comentarioFinalEnviado) return;
+            comentarioFinalEnviado = true;
+            const campo = document.getElementById('comentarioFinalTexto');
+            const texto = campo ? campo.value.trim() : '';
+            if (texto) {
+                try {
+                    await fetch('/api/experimento/guardar_reflexion', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sesion_id: sesionId,
+                            momento: 'comentario_final',
+                            pregunta: 'Comentario libre sobre la experiencia de uso',
+                            respuesta: texto
+                        })
+                    });
+                } catch (e) {
+                    console.error('Error guardando comentario final:', e);
+                }
+            }
+            mostrarFeedback('✅ ¡Gracias por completar el estudio!', '#00D4FF');
+            setTimeout(() => {
+                window.location.href = '/dashboard?usuario=' + usuario;
+            }, 1500);
+        }
+
+        async function guardarEncuesta(tipo, respuestasArr, puntaje) {
+            try {
+                await fetch('/api/experimento/guardar_encuesta', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        sesion_id: sesionId, 
+                        tipo, 
+                        respuestas: respuestasArr, 
+                        puntaje_total: puntaje 
+                    })
+                });
+            } catch(e) { 
+                console.error('Error guardando encuesta:', e); 
+            }
+        }
+
+        // ===== ZOOM Y DESCARGA DE DOCUMENTOS =====
+        function toggleZoom() {
+            const modal = document.getElementById('zoomModal');
+            if (modal.style.display === 'flex') {
+                modal.style.display = 'none';
+            } else {
+                modal.style.display = 'flex';
+                setTimeout(crearPinsZoom, 50);
+            }
+        }
+
+        function crearPinsZoom(){
+            const overlay = document.getElementById('zoomPinOverlay');
+            const img = document.getElementById('zoomImg');
+            if(!overlay || !img || !img.complete || img.naturalWidth===0) return;
+            overlay.innerHTML = '';
+            overlay.style.position = 'absolute';
+            overlay.style.top = img.offsetTop + 'px';
+            overlay.style.left = img.offsetLeft + 'px';
+            overlay.style.width = img.offsetWidth + 'px';
+            overlay.style.height = img.offsetHeight + 'px';
+            overlay.style.pointerEvents = 'none';
+            PARTES_HORMIGA.forEach((p, i) => {
+                const coords = posicionesPinesAdmin[p.id] || { px: p.px, py: p.py };
+                const pin = document.createElement('div');
+                pin.className = 'pin';
+                pin.dataset.id = p.id;
+                pin.style.left = coords.px + '%';
+                pin.style.top = coords.py + '%';
+                pin.style.pointerEvents = 'all';
+                pin.innerHTML = `<span class="pin-num">${i+1}</span>`;
+                pin.onclick = (e) => { e.stopPropagation(); mostrarInfoParteZoom(p.id); };
+                overlay.appendChild(pin);
+            });
+        }
+
+        function mostrarInfoParteZoom(id){
+            const parte = PARTES_HORMIGA.find(p => p.id === id);
+            if(!parte) return;
+            document.querySelectorAll('#zoomPinOverlay .pin').forEach(p => p.classList.toggle('activo', p.dataset.id === id));
+            document.getElementById('zoomInfoNombre').textContent = parte.label;
+            document.getElementById('zoomInfoDef').textContent = parte.def;
+            document.getElementById('zoomInfoParte').style.display = 'block';
+        }
+
+        window.addEventListener('resize', () => {
+            const modal = document.getElementById('zoomModal');
+            if (modal && modal.style.display === 'flex') crearPinsZoom();
+        });
+
+        function cerrarZoom() {
+            document.getElementById('zoomModal').style.display = 'none';
+        }
+
+        function descargarPDFCompleto() {
+            guiaDescargada = true;
+    const contenido = `CLAVE TAXONÓMICA - GÉNERO Linepithema
+========================================
+
+PREGUNTAS DE LA CLAVE:
+(cada pregunta trae una "traducción" en lenguaje simple para ubicar el carácter)
+
+1. ¿La porción anterior a la glándula metapleural tiene pelos (pubescencia)?
+   En simple: mira justo antes del "bulto" brillante en la parte trasera del tórax. ¿Se ve peludo ahí, o liso?
+   ● Sí, pelos moderados a abundantes → Ir a pregunta 2
+   ● No, sin pelos o muy pocos → Ir a pregunta 4
+
+2. ¿El pronoto tiene un par de setas erectas?
+   En simple: el pronoto es la primera parte del tórax, justo detrás de la cabeza. ¿Ves 2 pelos largos y parados ahí?
+   ● Sí → L. neotropicum
+   ● No → Ir a pregunta 3
+
+3. ¿Los escapos antenales son cortos (menores que la longitud de la cabeza)?
+   En simple: el escapo es el primer segmento (el más largo) de la antena. Compáralo con el tamaño de la cabeza.
+   ● Sí → L. gallardoi
+   ● No → L. humile
+
+4. ¿El clípeo tiene un surco pre-sutural bien marcado?
+   En simple: el clípeo es la placa justo arriba de las mandíbulas. Busca una línea o surco marcado ahí.
+   ● Sí → Ir a pregunta 6
+   ● No → Ir a pregunta 5
+
+5. ¿El dorso de la cabeza tiene más de 5 setas erectas?
+   En simple: cuenta los pelos largos y parados en la parte de arriba de la cabeza, vista desde arriba.
+   ● Sí → L. iniquum
+   ● No → L. dispertitum
+
+6. ¿El pronoto tiene más de 10 setas erectas?
+   En simple: mismo lugar que la pregunta 2, pero ahora cuenta si hay más de 10 pelos parados ahí.
+   ● Sí → L. hirsutum
+   ● No → Ir a pregunta 7
+
+7. ¿El margen posterior de la cabeza es profundamente cóncavo?
+   En simple: mira el borde de atrás de la cabeza, visto desde arriba. ¿Tiene una curva profunda hacia adentro, o es recto?
+   ● Sí → L. tsachila
+   ● No → Ir a pregunta 8
+
+8. ¿Los escapos antenales son cortos (sobrepasan poco el margen posterior)?
+   En simple: mira cuánto sobresale la antena más allá de la cabeza. Si sobresale poco, es "corta".
+   ● Sí → L. angulatum
+   ● No → L. piliferum
+
+CARACTERÍSTICAS DE LAS ESPECIES:
+- L. neotropicum: Pubescencia metapleural, pronoto con par de setas
+- L. gallardoi: Pubescencia metapleural, escapos cortos
+- L. humile: Pubescencia metapleural, escapos largos
+- L. iniquum: Sin pubescencia, cabeza con >5 setas
+- L. dispertitum: Sin pubescencia, cabeza con <5 setas
+- L. hirsutum: Sin pubescencia, pronoto muy piloso (>10 setas)
+- L. tsachila: Sin pubescencia, cabeza cóncava
+- L. angulatum: Sin pubescencia, escapos cortos
+- L. piliferum: Sin pubescencia, escapos largos
+
+DISTRIBUCIÓN EN COLOMBIA:
+- L. neotropicum: Región Andina, 260-2600m
+- L. gallardoi: Alta montaña, >1000m
+- L. humile: Armenia, Quindío
+- L. iniquum: Arborícola, 940-2000m
+- L. dispertitum: Serranía del Perijá, >2500m
+- L. hirsutum: Nariño, 640m
+- L. tsachila: Pacífico, 286-1800m
+- L. angulatum: Andes, 10-2430m
+- L. piliferum: Cordilleras, 1500-2800m
+
+Fuente: Escárraga & Guerrero (2016)`;
+    
+    const blob = new Blob([contenido], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'clave_taxonomica_linepithema.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+        }
+
+        function descargarGuiaRapida() {
+            guiaDescargada = true;
+    const contenido = `🔬 GUÍA RÁPIDA - IDENTIFICACIÓN DE Linepithema
+=========================================
+
+PASO 1: ¿Glándula metapleural con pelos?
+  ● SÍ → Ir a PASO 2
+  ● NO → Ir a PASO 4
+
+PASO 2: ¿Pronoto con un par de setas?
+  ● SÍ → Linepithema neotropicum
+  ● NO → Ir a PASO 3
+
+PASO 3: ¿Escapos antenales cortos?
+  ● SÍ → Linepithema gallardoi
+  ● NO → Linepithema humile
+
+PASO 4: ¿Clípeo con surco marcado?
+  ● SÍ → Ir a PASO 6
+  ● NO → Ir a PASO 5
+
+PASO 5: ¿Cabeza con más de 5 setas?
+  ● SÍ → Linepithema iniquum
+  ● NO → Linepithema dispertitum
+
+PASO 6: ¿Pronoto con más de 10 setas?
+  ● SÍ → Linepithema hirsutum
+  ● NO → Ir a PASO 7
+
+PASO 7: ¿Cabeza profundamente cóncava?
+  ● SÍ → Linepithema tsachila
+  ● NO → Ir a PASO 8
+
+PASO 8: ¿Escapos antenales cortos?
+  ● SÍ → Linepithema angulatum
+  ● NO → Linepithema piliferum
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📖 GLOSARIO RÁPIDO:
+• Glándula metapleural: cerca del propodeo, clave taxonómica
+• Setas erectas: pelos erguidos
+• Escapo: primer segmento de la antena
+• Clípeo: placa frontal sobre mandíbulas
+• Propodeo: parte posterior del tórax
+
+Fuente: Escárraga & Guerrero (2016)`;
+    
+    const blob = new Blob([contenido], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'guia_rapida_linepithema.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+        function descargarGlosario() {
+    guiaDescargada = true;
+    const contenido = `GLOSARIO DE TÉRMINOS MORFOLÓGICOS - Linepithema
+=================================================
+
+Abdomen: Parte posterior del cuerpo que contiene los órganos digestivos y reproductivos. Se divide en propodeo, pecíolo y gáster.
+
+Antenas: Órganos sensoriales formados por escapo, pedicelo y flagelo.
+
+Bula de la glándula metapleural: Protuberancia que cubre el orificio de la glándula metapleural. La cantidad de pelos adpresos en su porción anterior es el primer carácter de la clave.
+
+Cabeza: Parte anterior del cuerpo con ojos, antenas y mandíbulas.
+
+Clípeo: Placa frontal sobre las mandíbulas. Puede presentar un surco pre-sutural o ser liso.
+
+Escapo: Primer segmento de la antena, generalmente el más largo.
+
+Escotadura: Muesca o hendidura en un borde del cuerpo, por ejemplo en el margen posterior de la cabeza.
+
+Gáster: Abdomen, contiene los órganos digestivos y reproductivos.
+
+Glándula metapleural: Órgano secretor cerca del propodeo. Su pubescencia es clave taxonómica.
+
+Impresión media: Depresión longitudinal poco profunda en el centro del mesonoto.
+
+Mandíbulas: Estructuras bucales utilizadas para cortar, transportar y defender.
+
+Margen posterior de la cabeza (borde occipital): Puede ser recto, cóncavo o profundamente cóncavo (con escotadura).
+
+Mesonoto: Segunda parte del mesosoma, entre el pronoto y el propodeo.
+
+Mesosoma: Tórax, región del cuerpo donde se insertan las tres pares de patas.
+
+Ocelos: Ojos simples en la parte superior de la cabeza. Presentes en machos y reinas, ausentes en obreras.
+
+Palpos maxilares: Apéndices sensoriales cerca de la boca. Su longitud relativa a la cabeza es diagnóstica.
+
+Pecíolo: Nódulo o segmento que conecta el mesosoma con el gáster (la "cintura" de la hormiga).
+
+Pedicelo antenal: Segundo segmento de la antena, entre el escapo y el flagelo. No confundir con el pecíolo del cuerpo.
+
+Pelos adpresos: Pelos cortos que yacen pegados a la superficie del cuerpo, a diferencia de las setas erectas.
+
+Pilosidad: Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante.
+
+Pronoto: Primera parte del tórax. La presencia/ausencia de setas es clave.
+
+Propodeo: Parte posterior del tórax. Su forma (redondeada, angulada, alta o baja) es clave para la identificación.
+
+Pubescencia: Pelos finos y cortos, generalmente inclinados. Se observa en la glándula metapleural.
+
+Setas erectas: Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies.
+
+Surco metanotal: Depresión entre el mesonoto y el propodeo. Puede ser impreso o no.
+
+Surco pre-sutural del clípeo: Surco en la porción posterior del clípeo, antes de su sutura con la cabeza.
+
+Terguito: Placa dorsal de un segmento del gáster. El primer terguito puede tener o no setas (clave para diferenciar L. gallardoi de L. humile).
+
+Tórax: Región media del cuerpo donde se insertan las patas (sinónimo de mesosoma).`;
+
+    const blob = new Blob([contenido], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'glosario_linepithema.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+        // ===== PERSISTENCIA DE PROGRESO =====
+function guardarProgresoLocal() {
+    if (!usuarioId) return;
+    const progreso = {
+        especiesCompletadas: especiesCompletadas,
+        respuestas: respuestas,
+        timestamp: Date.now()
+    };
+    localStorage.setItem(`progreso_${usuarioId}`, JSON.stringify(progreso));
+}
+
+function cargarProgresoLocal() {
+    if (!usuarioId) return false;
+    const guardado = localStorage.getItem(`progreso_${usuarioId}`);
+    if (guardado) {
+        const progreso = JSON.parse(guardado);
+        if (Date.now() - progreso.timestamp < 24 * 60 * 60 * 1000) {
+            especiesCompletadas = progreso.especiesCompletadas;
+            respuestas = progreso.respuestas;
+            const completados = respuestas.filter(r => r !== null && r !== 'pendiente').length;
+            document.getElementById('completedCount').textContent = completados;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Guardar progreso antes de cerrar/recargar
+window.addEventListener('beforeunload', function() {
+    if (sesionId && especiesCompletadas.some(c => c === true)) {
+        guardarProgresoLocal();
+    }
+});
+
+    
+        const PARTES_HORMIGA = [
+          {id:"cabeza", label:"Cabeza", def:"Parte anterior que contiene ojos compuestos, antenas y mandibulas.", px:28, py:54},
+          {id:"mandibulas", label:"Mandibulas", def:"Estructuras bucales para cortar, transportar y defender.", px:17, py:66},
+          {id:"clipeo", label:"Clipeo", def:"Placa frontal sobre las mandibulas. Puede presentar un surco pre-sutural o ser liso.", px:21, py:60},
+          {id:"margen", label:"Margen posterior de la cabeza", def:"Borde occipital. Puede ser recto, concavo o profundamente concavo.", px:36, py:47},
+          {id:"ocelos", label:"Ocelos", def:"Ojos simples en la parte superior de la cabeza. Presentes en machos y reinas.", px:22, py:40},
+          {id:"escapo", label:"Escapo", def:"Primer segmento de la antena, generalmente el mas largo. Caracter diagnostico.", px:21, py:33},
+          {id:"mesosoma", label:"Mesosoma", def:"Torax, region donde se insertan las tres pares de patas.", px:48, py:42},
+          {id:"pronoto", label:"Pronoto", def:"Primera parte del torax. La presencia o ausencia de setas es clave.", px:40, py:40},
+          {id:"surco", label:"Surco metanotal", def:"Depresion entre el mesosoma y el propodeo. Puede ser impreso o no.", px:53, py:38},
+          {id:"propodeo", label:"Propodeo", def:"Primer segmento del abdomen fusionado al torax. Su forma, redondeada o angulada, es clave.", px:60, py:40},
+          {id:"glandula", label:"Glandula metapleural", def:"Organo secretor cerca del propodeo, produce sustancias defensivas. Su pubescencia es clave taxonomica.", px:60, py:54},
+          {id:"peciolo", label:"Peciolo", def:"Nodulo que conecta el torax con el gaster. Caracteristico en Linepithema.", px:67, py:47},
+          {id:"gaster", label:"Gaster", def:"Abdomen, contiene los organos digestivos y reproductivos.", px:82, py:42},
+          {id:"setas", label:"Setas erectas", def:"Pelos erguidos que sobresalen del perfil. Se cuentan para diferenciar especies.", px:79, py:33},
+          {id:"pubescencia", label:"Pubescencia", def:"Pelos finos y cortos, generalmente inclinados. Se observa en la glandula metapleural.", px:57, py:57},
+          {id:"pilosidad", label:"Pilosidad", def:"Conjunto de pelos en el cuerpo. Puede ser escasa, moderada o abundante.", px:87, py:36}
+        ];
+
+        let posicionesPinesAdmin = {};
+
+        async function cargarPosicionesPinesYCrear() {
+            try {
+                const res = await fetch('/api/config/pines');
+                if (res.ok) posicionesPinesAdmin = await res.json();
+            } catch(e) { /* sin conexión: usa las coordenadas por defecto */ }
+            crearPinsHormiga();
+        }
+
+        function crearPinsHormiga(){
+            const overlay = document.getElementById('pinOverlay');
+            const img = document.getElementById('diagramaImg');
+            if(!overlay || !img || !img.complete || img.naturalWidth===0) return;
+            overlay.innerHTML = '';
+            overlay.style.position = 'absolute';
+            overlay.style.top = img.offsetTop + 'px'; overlay.style.left = img.offsetLeft + 'px';
+            overlay.style.width = img.offsetWidth + 'px';
+            overlay.style.height = img.offsetHeight + 'px';
+            overlay.style.pointerEvents = 'none';
+            PARTES_HORMIGA.forEach((p, i) => {
+                const coords = posicionesPinesAdmin[p.id] || { px: p.px, py: p.py };
+                const pin = document.createElement('div');
+                pin.className = 'pin';
+                pin.dataset.id = p.id;
+                pin.style.left = coords.px + '%';
+                pin.style.top = coords.py + '%';
+                pin.style.pointerEvents = 'all';
+                pin.innerHTML = `<span class="pin-num">${i+1}</span>`;
+                pin.onclick = (e) => { e.stopPropagation(); mostrarInfoParte(p.id); };
+                overlay.appendChild(pin);
+            });
+        }
+
+        function mostrarInfoParte(id){
+            const parte = PARTES_HORMIGA.find(p => p.id === id);
+            if(!parte) return;
+            document.querySelectorAll('#pinOverlay .pin').forEach(p => p.classList.toggle('activo', p.dataset.id === id));
+            const box = document.getElementById('infoParteSeleccionada');
+            document.getElementById('infoParteNombre').textContent = parte.label;
+            document.getElementById('infoParteDef').textContent = parte.def;
+            box.style.display = 'block';
+        }
+
+        window.addEventListener('resize', crearPinsHormiga);
+        document.addEventListener('DOMContentLoaded', () => {
+            const img = document.getElementById('diagramaImg');
+            if(img){
+                if(img.complete && img.naturalWidth > 0) cargarPosicionesPinesYCrear();
+                img.addEventListener('load', cargarPosicionesPinesYCrear);
+            }
+        });
+
+        function mostrarAvisoDescargaObligatoria() {
+            const existing = document.getElementById('avisoDescargaModal');
+            if (existing) existing.remove();
+            const modal = document.createElement('div');
+            modal.id = 'avisoDescargaModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,7,12,0.96);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;';
+            modal.innerHTML = `
+                <div style="background:#121826;border:2px solid #FF375F;border-radius:20px;padding:30px;max-width:450px;width:100%;text-align:center;">
+                    <div style="font-size:2.5rem;">⚠️</div>
+                    <h3 style="color:#FF375F;margin:10px 0;">Debes descargar la guía primero</h3>
+                    <p style="color:#E0E0E0;margin-bottom:20px;">Antes de comenzar, descarga la guía de identificación (📚, 📄 o 📖 arriba) y síguela al pie de la letra. Sin ella no podrás identificar correctamente las especies.</p>
+                    <button onclick="document.getElementById('avisoDescargaModal').remove()" style="padding:12px 30px;background:linear-gradient(45deg,#00D4FF,#7B61FF);border:none;border-radius:10px;color:white;font-weight:bold;cursor:pointer;">Entendido</button>
+                </div>`;
+            document.body.appendChild(modal);
+        }
+
+        let zoomEspecimenState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
+
+function verCaracterEnfocado(preguntaNum) {
+            const cfg = zoomCaracteresConfig[preguntaNum] && zoomCaracteresConfig[preguntaNum]['2d'];
+            const img = document.getElementById('specimenImage');
+            if (!img) return;
+            const objetivo = cfg || { x: 50, y: 50, scale: 2.2 };
+            const scale = objetivo.scale || 2.2;
+            const targetX = (objetivo.x / 100 * img.offsetWidth) - img.offsetWidth / 2;
+            const targetY = (objetivo.y / 100 * img.offsetHeight) - img.offsetHeight / 2;
+            zoomEspecimenState.scale = scale;
+            zoomEspecimenState.x = -targetX * scale;
+            zoomEspecimenState.y = -targetY * scale;
+            img.style.transition = 'transform 0.5s ease';
+            aplicarTransformEspecimen();
+            setTimeout(() => { img.style.transition = ''; }, 550);
+            if (!cfg) {
+                mostrarFeedback('🔍 Encuadre aproximado (aún no calibrado por el admin para esta pregunta). Usa el zoom manual si necesitas ajustar.', '#7B61FF');
+            }
+        }
+
+        function resetZoomImagen() {
+            zoomEspecimenState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
+            aplicarTransformEspecimen();
+        }
+
+        function aplicarTransformEspecimen() {
+            const img = document.getElementById('specimenImage');
+            if (!img) return;
+            img.style.transform = `translate(${zoomEspecimenState.x}px, ${zoomEspecimenState.y}px) scale(${zoomEspecimenState.scale})`;
+            img.style.cursor = zoomEspecimenState.scale > 1 ? 'grab' : 'zoom-in';
+        }
+
+        function inicializarZoomEspecimen() {
+            const container = document.getElementById('specimenImageContainer');
+            const img = document.getElementById('specimenImage');
+            if (!container || !img || img.dataset.zoomInit) return;
+            img.dataset.zoomInit = '1';
+            img.style.transformOrigin = 'center center';
+
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.2 : -0.2;
+                zoomEspecimenState.scale = Math.min(4, Math.max(1, zoomEspecimenState.scale + delta));
+                if (zoomEspecimenState.scale === 1) { zoomEspecimenState.x = 0; zoomEspecimenState.y = 0; }
+                aplicarTransformEspecimen();
+            }, { passive: false });
+
+            img.addEventListener('dblclick', () => resetZoomImagen());
+
+            img.addEventListener('mousedown', (e) => {
+                if (zoomEspecimenState.scale <= 1) return;
+                zoomEspecimenState.isDragging = true;
+                zoomEspecimenState.startX = e.clientX - zoomEspecimenState.x;
+                zoomEspecimenState.startY = e.clientY - zoomEspecimenState.y;
+                img.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (!zoomEspecimenState.isDragging) return;
+                zoomEspecimenState.x = e.clientX - zoomEspecimenState.startX;
+                zoomEspecimenState.y = e.clientY - zoomEspecimenState.startY;
+                aplicarTransformEspecimen();
+            });
+            window.addEventListener('mouseup', () => {
+                if (zoomEspecimenState.isDragging) {
+                    zoomEspecimenState.isDragging = false;
+                    img.style.cursor = zoomEspecimenState.scale > 1 ? 'grab' : 'zoom-in';
+                }
+            });
+
+            let touchStartDist = 0;
+            let touchStartScale = 1;
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    touchStartDist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    touchStartScale = zoomEspecimenState.scale;
+                } else if (e.touches.length === 1 && zoomEspecimenState.scale > 1) {
+                    zoomEspecimenState.isDragging = true;
+                    zoomEspecimenState.startX = e.touches[0].clientX - zoomEspecimenState.x;
+                    zoomEspecimenState.startY = e.touches[0].clientY - zoomEspecimenState.y;
+                }
+            }, { passive: true });
+            container.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const dist = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    zoomEspecimenState.scale = Math.min(4, Math.max(1, touchStartScale * (dist / touchStartDist)));
+                    if (zoomEspecimenState.scale === 1) { zoomEspecimenState.x = 0; zoomEspecimenState.y = 0; }
+                    aplicarTransformEspecimen();
+                } else if (e.touches.length === 1 && zoomEspecimenState.isDragging) {
+                    zoomEspecimenState.x = e.touches[0].clientX - zoomEspecimenState.startX;
+                    zoomEspecimenState.y = e.touches[0].clientY - zoomEspecimenState.startY;
+                    aplicarTransformEspecimen();
+                }
+            }, { passive: false });
+            container.addEventListener('touchend', () => { zoomEspecimenState.isDragging = false; });
+        }
+
+        document.addEventListener('DOMContentLoaded', inicializarZoomEspecimen);
+        const CARACTERES_ORIENTACION = [1,2,3,4,5,6,7,8];
+        const ESPECIES_ORIENTACION_2D = ['humile','angulatum','piliferum','gallardoi'];
+        let orientacionFase = 1;
+        let orientacionIndice = 0;
+
+        function mostrarOrientacionFase1() {
+            document.getElementById('introScreen').style.display = 'none';
+            document.getElementById('orientacionScreen').style.display = 'flex';
+            orientacionFase = 1;
+            orientacionIndice = 0;
+            renderOrientacion();
+        }
+
+        function renderOrientacion() {
+            const numPregunta = CARACTERES_ORIENTACION[orientacionIndice];
+            const paso = CLAVE[numPregunta];
+            document.getElementById('orientacionSubtitulo').textContent = orientacionFase === 1
+                ? `Fase 1 de 2 — observa cada carácter (${orientacionIndice+1}/8)`
+                : `Fase 2 de 2 — repaso rápido (${orientacionIndice+1}/8)`;
+            document.getElementById('orientacionTexto').textContent = paso.pregunta;
+
+            const img = document.getElementById('imgOrientacion');
+            const especieFoto = ESPECIES_ORIENTACION_2D[orientacionIndice % ESPECIES_ORIENTACION_2D.length];
+            img.src = `/static/imagenes/linepithema/${especieFoto}/lateral.jpg`;
+            img.style.transform = 'scale(1)';
+            img.dataset.zoomed = '0';
+
+            const ayudaZona = document.getElementById('orientacionAyuda');
+            if (orientacionFase === 1) {
+                ayudaZona.innerHTML = `<button class="action-btn" onclick="rotarOrientacion()" style="background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;width:100%;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Acercar y observar</button>`;
+            } else {
+                ayudaZona.innerHTML = `<div style="font-size:0.8rem;color:#A0A0B0;text-align:center;">Repaso rápido — intenta recordar dónde mirar antes de seguir.</div>`;
+            }
+
+            renderTiraOrientacion();
+            const btnSig = document.getElementById('orientacionBtnSig');
+            const esUltimo = orientacionIndice === CARACTERES_ORIENTACION.length - 1;
+            btnSig.textContent = esUltimo
+                ? (orientacionFase === 1 ? 'Ir al repaso →' : '✅ Comenzar identificación')
+                : 'Siguiente →';
+        }
+
+        function renderTiraOrientacion() {
+            document.getElementById('orientacionTira').innerHTML = CARACTERES_ORIENTACION.map((n, i) => {
+                const visto = i <= orientacionIndice;
+                const activo = i === orientacionIndice;
+                return `<div style="flex:1;min-width:24px;height:6px;border-radius:3px;background:${activo?'#00D4FF':(visto?'#00D4FF60':'#1A1F36')};"></div>`;
+            }).join('');
+        }
+
+        function rotarOrientacion() {
+            const img = document.getElementById('imgOrientacion');
+            const zoomed = img.dataset.zoomed === '1';
+            img.style.transform = zoomed ? 'scale(1)' : 'scale(2.2)';
+            img.dataset.zoomed = zoomed ? '0' : '1';
+        }
+
+        function orientacionAnterior() {
+            if (orientacionIndice > 0) { orientacionIndice--; renderOrientacion(); }
+        }
+
+        function orientacionSiguiente() {
+            if (orientacionIndice < CARACTERES_ORIENTACION.length - 1) {
+                orientacionIndice++;
+                renderOrientacion();
+            } else if (orientacionFase === 1) {
+                orientacionFase = 2;
+                orientacionIndice = 0;
+                renderOrientacion();
+            } else {
+                document.getElementById('orientacionScreen').style.display = 'none';
+                iniciarIdentificacion();
+            }
+        }
+
+</script>
+</body>
+</html>
