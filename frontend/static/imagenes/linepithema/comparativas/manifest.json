@@ -1,7 +1,8 @@
 {
  "descripcion": "Cantidad de fotos 2D comparativas por rasgo y especie. Archivos: {rasgo}_{esp}_{n}.jpg",
  "alias": {
-  "p7b": "p5c"
+  "p7b": "p5c",
+  "p7a": "p5a"
  },
  "rasgos": {
   "p1a": {
