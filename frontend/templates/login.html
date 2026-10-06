@@ -138,8 +138,8 @@
         <div class="subtitle">Iniciar sesión para comenzar</div>
 
         <div class="form-group">
-            <label>👤 Nombre de usuario</label>
-            <input type="text" id="usuario" placeholder="Ej: estudiante_biologia"
+            <label>👤 Nombre completo o correo institucional</label>
+            <input type="text" id="usuario" placeholder="Tu nombre completo o tu correo institucional"
                    autocomplete="username" required>
         </div>
         <div class="form-group">
@@ -188,7 +188,7 @@
             const contrasena = document.getElementById('contrasena').value;
             const btn = document.getElementById('loginBtn');
 
-            if (!usuario) { mostrarError('Ingresa tu nombre de usuario'); return; }
+            if (!usuario) { mostrarError('Ingresa tu nombre completo o tu correo institucional'); return; }
             if (!contrasena) { mostrarError('Ingresa tu contraseña'); return; }
 
             btn.innerHTML = '<span class="loading"></span> Ingresando...';
@@ -204,8 +204,7 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    mostrarExito('✅ ' + data.mensaje);
-                    setTimeout(() => redirigirSegunGrupo(data.grupo), 1200);
+                    mostrarBienvenida(data);
                 } else {
                     mostrarError('❌ ' + (data.error || 'Credenciales inválidas'));
                     btn.innerHTML = 'Ingresar';
@@ -218,6 +217,57 @@
                 btn.innerHTML = 'Ingresar';
                 btn.disabled = false;
             }
+        }
+
+
+        // ===== Bienvenida: saluda por su nombre y explica qué se hará en la plataforma =====
+        function escaparHtml(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        async function mostrarBienvenida(data) {
+            let estado = { codigo: 'sin_iniciar', puede_iniciar: true, reanudar_encuestas: false };
+            try { const r = await fetch('/api/experimento/estado'); if (r.ok) estado = await r.json(); } catch (e) { /* se muestra la bienvenida general */ }
+
+            const grupo = data.grupo || '';
+            const es3d = grupo.startsWith('3D'), conMeta = grupo.endsWith('_META');
+            const material = grupo ? (es3d ? 'modelos 3D' : 'fotografías 2D') : 'fotografías o modelos 3D';
+            const nombre = escaparHtml(data.usuario || '');
+
+            let titulo = `¡Hola, ${nombre}!`, cuerpo = '', destino = '/dashboard', boton = 'Continuar';
+            const aviso = `<div style="background:#FFB02018;border:2px solid #FFB020;border-radius:12px;padding:14px;margin:16px 0;font-size:0.9rem;line-height:1.5;">
+                <strong style="color:#FFB020;">⚠️ Importante:</strong> el ejercicio solo se puede realizar <strong>una vez</strong>.
+                No cierres ni recargues la ventana: si la cierras, no podrás volver a ingresar a las descargas ni repetirlo.</div>`;
+
+            if (!data.grupo && data.rol !== 'pruebas') {
+                cuerpo = `<p style="line-height:1.6;">Tu cuenta todavía no tiene un grupo asignado. Cuando el investigador te lo asigne podrás comenzar. Mientras tanto puedes revisar tu panel.</p>`;
+            } else if (estado.reanudar_encuestas) {
+                cuerpo = `<p style="line-height:1.6;">Ya terminaste las dos identificaciones. Solo te faltan las <strong>encuestas finales</strong>; con ellas podrás ver tus resultados y descargar tu certificado.</p>`;
+                destino = '/clave_' + grupo.toLowerCase(); boton = 'Ir a las encuestas';
+            } else if (!estado.puede_iniciar) {
+                cuerpo = `<p style="line-height:1.6;">Tu ejercicio ya quedó registrado y solo puede hacerse una vez. Puedes revisar tus resultados${estado.codigo === 'completado' ? ' y descargar tu certificado' : ''} en tu panel.</p>
+                          ${estado.codigo === 'abandonado' ? '<p style="color:#FFB020;line-height:1.6;">Si cerraste la ventana antes de terminar, avisa al investigador para que revise tu caso.</p>' : ''}`;
+                boton = 'Ir a mi panel';
+            } else {
+                destino = grupo ? '/clave_' + grupo.toLowerCase() : '/dashboard';
+                const pasos = [
+                    `<strong>Descargar tres materiales de apoyo</strong>: la clave original, el glosario con ${es3d ? 'capturas del modelo 3D' : 'fotografías'} y la imagen de los pines. Son obligatorios para continuar.`,
+                    `<strong>Orientación breve</strong>: repasarás cada carácter de la clave con ejemplos.`,
+                    `<strong>Identificar 2 especímenes</strong> con la clave, usando ${material}.`,
+                    conMeta ? `<strong>Reflexionar sobre tu estrategia</strong> con preguntas cortas antes, durante y después de cada identificación.` : '',
+                    `<strong>Responder dos encuestas cortas</strong> y dejar un comentario libre.`,
+                    `<strong>Ver tus resultados</strong> y descargar tu certificado.`
+                ].filter(Boolean);
+                cuerpo = `<p style="line-height:1.6;">Bienvenido/a a la plataforma de identificación de hormigas del género <em>Linepithema</em>. Esto es lo que vamos a hacer:</p>
+                    <ol style="line-height:1.6;padding-left:20px;font-size:0.92rem;">${pasos.map(p => `<li style="margin-bottom:6px;">${p}</li>`).join('')}</ol>${aviso}`;
+                boton = 'Entendido, comenzar';
+            }
+
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(5,7,12,0.97);overflow-y:auto;padding:20px 12px;display:flex;justify-content:center;align-items:flex-start;';
+            ov.innerHTML = `<div style="background:#121826;border:2px solid #00D4FF60;border-radius:20px;padding:26px;max-width:560px;width:100%;color:#E0E0E0;margin:auto;box-sizing:border-box;">
+                <h2 style="color:#00D4FF;margin:0 0 10px;">${titulo}</h2>${cuerpo}
+                <button id="btnBienvenida" style="width:100%;padding:14px;margin-top:6px;border:none;border-radius:12px;background:linear-gradient(45deg,#00D4FF,#7B61FF);color:#fff;font-weight:700;font-size:1.02rem;cursor:pointer;">${boton}</button></div>`;
+            document.body.appendChild(ov);
+            document.getElementById('btnBienvenida').onclick = () => { window.location.href = destino; };
         }
 
         function redirigirSegunGrupo(grupo) {

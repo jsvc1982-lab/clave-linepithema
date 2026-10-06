@@ -90,7 +90,7 @@
             <div class="splash-title">Clave Taxonómica Linepithema</div>
             <div class="splash-subtitle">Macrofotografía y fotogrametría para la identificación<br>de hormigas del género Linepithema</div>
             <div class="splash-progress"><div class="splash-progress-bar"></div></div>
-            <div class="splash-university">🎓 Universidad Pedagógica Nacional<br>📧 jsvc1982@gmail.com</div>
+            <div class="splash-university">🎓 Universidad Pedagógica Nacional<br>📧 tesislinepithema@gmail.com</div>
         </div>
     </div>
 
@@ -100,64 +100,75 @@
             <h1>🔬 Clave Taxonómica Linepithema</h1>
             <div class="subtitle">Registro de participantes — Estudio sobre identificación del género <em>Linepithema</em></div>
 
-            <div class="info-tabs">
-                <button class="info-tab active" onclick="mostrarInfo(event,'manual')">📖 Manual de uso</button>
-                <button class="info-tab" onclick="mostrarInfo(event,'consentimiento')">📝 Consentimiento</button>
-            </div>
-
-            <div id="manualContent" class="info-content">
-                <div class="info-section">
-                    <h3>🎯 Objetivo del estudio</h3>
-                    <p>Identificar 2 especies del género <em>Linepithema</em> utilizando una clave dicotómica interactiva.</p>
-                    <h3 style="margin-top:20px;">📝 Instrucciones paso a paso</h3>
-                    <div class="instruction-step"><span class="step-number">1</span><span>Observa el espécimen (imagen o modelo 3D)</span></div>
-                    <div class="instruction-step"><span class="step-number">2</span><span>Responde las preguntas seleccionando A o B</span></div>
-                    <div class="instruction-step"><span class="step-number">3</span><span>Al final, escribe el nombre de la especie</span></div>
-                    <div class="instruction-step"><span class="step-number">4</span><span>Recibirás retroalimentación inmediata</span></div>
-                    <div class="instruction-step"><span class="step-number">5</span><span>Repite para el segundo espécimen</span></div>
-                    <div class="instruction-step"><span class="step-number">6</span><span>Completa las dos encuestas finales</span></div>
+            <!-- PASO 1: consentimiento, visible desde el inicio -->
+            <div id="pasoConsentimiento">
+                <div style="background:linear-gradient(45deg,#00D4FF20,#7B61FF20);border:1px solid #00D4FF60;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-weight:700;color:#00D4FF;">
+                    Paso 1 de 2 · Lee el consentimiento y pulsa el botón verde para continuar
                 </div>
-            </div>
 
-            <div id="consentimientoContent" class="info-content" style="display:none;">
-                <div class="info-section">
-                    <h3>📄 Consentimiento Informado</h3>
-                    <div style="text-align:center; margin-bottom:15px;">
-                        <button class="btn-download" onclick="descargarConsentimiento()">📥 Descargar consentimiento</button>
-                    </div>
-                    <div class="consent-box">
-                        <p><strong>UNIVERSIDAD PEDAGÓGICA NACIONAL</strong><br>FACULTAD DE CIENCIA Y TECNOLOGÍA</p><br>
-                        <p><strong>Título:</strong> Macrofotografía y fotogrametría para la identificación de Linepithema</p>
-                        <p><strong>Investigador:</strong> John Steve Vanegas Canchón</p><br>
-                        <p>Declaro que he sido informado sobre los objetivos del estudio, comprendo que mi participación es voluntaria y autorizo el uso anónimo de mis datos para fines académicos.</p>
-                    </div>
-                    <div class="consent-check">
-                        <input type="checkbox" id="aceptoConsentimiento">
-                        <label for="aceptoConsentimiento" style="color:#E0E0E0; font-weight:normal;">Acepto los términos del consentimiento informado</label>
-                    </div>
+                <div id="textoConsentimiento" class="consent-box" style="max-height:360px;overflow-y:auto;line-height:1.55;font-size:0.92rem;">
+                    <p><strong>UNIVERSIDAD PEDAGÓGICA NACIONAL</strong><br>FACULTAD DE CIENCIA Y TECNOLOGÍA</p>
+                    <p style="margin-top:10px;"><strong>Título:</strong> Macrofotografía y fotogrametría para la identificación de <em>Linepithema</em><br>
+                       <strong>Investigador:</strong> John Steve Vanegas Canchón</p>
+
+                    <p style="margin-top:14px;"><strong>¿En qué consiste tu participación?</strong><br>
+                       Identificarás 2 especímenes de hormigas del género <em>Linepithema</em> con una clave dicotómica, usando fotografías o modelos 3D según el grupo que se te asigne. Antes descargarás tres materiales de apoyo y harás una orientación breve; al final responderás dos encuestas cortas y podrás dejar un comentario. Algunos grupos responderán además preguntas breves de reflexión sobre su estrategia.</p>
+
+                    <p style="margin-top:12px;"><strong>¿Qué datos se guardan?</strong><br>
+                       Tu <strong>nombre completo</strong> y tu <strong>correo institucional</strong>, tu tipo de participante y semestre, tu género si decides indicarlo, tus respuestas sobre experiencia previa y el resultado de una prueba breve de rotación mental. Durante el ejercicio se guardan tus respuestas, aciertos, tiempos y el recorrido que sigues por la clave, además de tus encuestas, reflexiones y comentario final.</p>
+
+                    <p style="margin-top:12px;"><strong>¿Para qué se usan?</strong><br>
+                       Tu nombre y tu correo sirven para identificar tu participación y emitir tu certificado. Los resultados se usan solo con fines académicos y se analizan y presentan de forma anónima.</p>
+
+                    <p style="margin-top:12px;background:#FFB02018;border-left:4px solid #FFB020;padding:10px 12px;border-radius:6px;"><strong>El ejercicio solo se puede realizar una vez.</strong><br>
+                       No cierres ni recargues la ventana mientras dure: si la cierras, no podrás volver a ingresar ni repetirlo. Si ocurre por error, avisa al investigador. Puedes dejar de participar cuando quieras, pero no podrás retomar el ejercicio.</p>
+
+                    <p style="margin-top:12px;"><strong>Declaración.</strong><br>
+                       Declaro que he sido informado/a sobre los objetivos del estudio y sobre los datos que se guardan, que mi participación es voluntaria y que autorizo el uso de mis datos para los fines académicos descritos.</p>
                 </div>
+
+                <details style="margin-top:14px;background:#1A1F36;border:1px solid #00D4FF30;border-radius:10px;padding:10px 14px;">
+                    <summary style="cursor:pointer;color:#00D4FF;font-weight:600;">📖 Ver cómo funciona el ejercicio (instrucciones)</summary>
+                    <div class="info-section" style="margin-top:10px;">
+                        <div class="instruction-step"><span class="step-number">1</span><span>Descarga los tres materiales de apoyo y haz la orientación breve</span></div>
+                        <div class="instruction-step"><span class="step-number">2</span><span>Observa el espécimen (imagen o modelo 3D)</span></div>
+                        <div class="instruction-step"><span class="step-number">3</span><span>Recorre la clave eligiendo la opción A o B en cada pareado</span></div>
+                        <div class="instruction-step"><span class="step-number">4</span><span>Al llegar al final de la clave, queda registrada la especie a la que llegaste</span></div>
+                        <div class="instruction-step"><span class="step-number">5</span><span>Recibirás retroalimentación inmediata y repetirás con un segundo espécimen</span></div>
+                        <div class="instruction-step"><span class="step-number">6</span><span>Completa las dos encuestas finales</span></div>
+                    </div>
+                </details>
+
+                <button type="button" id="btnAceptoConsentimiento" onclick="aceptarConsentimiento()"
+                        style="width:100%;min-height:58px;margin-top:18px;padding:16px;border:none;border-radius:14px;background:linear-gradient(45deg,#30D158,#00D4FF);color:#04210F;font-weight:800;font-size:1.1rem;cursor:pointer;box-shadow:0 4px 18px rgba(48,209,88,0.35);">
+                    ✅ Acepto participar y continuar
+                </button>
+                <div style="text-align:center;margin-top:10px;">
+                    <button type="button" class="btn-download" style="margin:0;padding:8px 16px;font-size:0.85rem;background:#1A1F36;border:1px solid #00D4FF40;color:#00D4FF;" onclick="descargarConsentimiento()">📥 Descargar copia del consentimiento</button>
+                </div>
+                <p style="text-align:center;color:#A0A0B0;font-size:0.8rem;margin-top:10px;">Si no deseas participar, simplemente cierra esta página: no se guardará ningún dato.</p>
             </div>
 
-            <div id="formularioRegistro" style="opacity:0.5; pointer-events:none;">
-                <div style="background:#1A1F36; border-left:4px solid #FF375F; padding:15px; border-radius:8px; margin-bottom:25px; font-size:0.9rem;">
-                    ⚠️ Debes aceptar el consentimiento informado para poder registrarte.
+            <!-- PASO 2: formulario (aparece al aceptar) -->
+            <div id="formularioRegistro" style="display:none;">
+                <div id="bannerConsentimiento" style="background:#30D15818;border:1px solid #30D158;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span style="color:#30D158;font-weight:700;">✅ Consentimiento aceptado · Paso 2 de 2: completa tus datos</span>
+                    <button type="button" onclick="verConsentimientoDeNuevo()" style="background:transparent;border:1px solid #30D158;color:#30D158;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:0.8rem;">Ver consentimiento</button>
                 </div>
 
                 <form id="registerForm">
                     <div class="form-grid">
-                        <div class="form-group full-width">
-                            <label>👤 Nombre de usuario *</label>
-                            <input type="text" id="usuario" required minlength="4" placeholder="Mínimo 4 caracteres">
-                        </div>
-                        <div class="form-group full-width">
-                            <label>📧 Correo electrónico *</label>
-                            <input type="email" id="correo" required placeholder="tu@correo.com">
-                        </div>
-                        <div class="form-group full-width">
-                            <label>🔑 Contraseña *</label>
-                            <input type="password" id="contrasena" required minlength="6" placeholder="Mínimo 6 caracteres">
-                        </div>
                         <div class="form-group">
+                            <label>🧑‍🎓 Tipo de participante *</label>
+                            <select id="rol" required>
+                                <option value="">Seleccione...</option>
+                                <option value="estudiante">Estudiante</option>
+                                <option value="docente">Docente</option>
+                                <option value="validador">Validador</option>
+                                <option value="pruebas">Pruebas</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="grupoSemestre">
                             <label>📚 Semestre *</label>
                             <select id="semestre" required>
                                 <option value="">Seleccione...</option>
@@ -167,13 +178,19 @@
                                 <option value="7">7°</option><option value="8">8°</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>👥 Curso *</label>
-                            <select id="curso" required>
-                                <option value="">Seleccione...</option>
-                                <option value="1">Curso 1</option>
-                                <option value="2">Curso 2</option>
-                            </select>
+                        <div class="form-group full-width">
+                            <label>👤 Nombre completo *</label>
+                            <input type="text" id="usuario" required minlength="5" maxlength="50" autocomplete="name" placeholder="Nombres y apellidos">
+                            <small style="color:#A0A0B0;font-size:0.75rem;display:block;margin-top:4px;">Escribe tu nombre y apellido completos. Con este nombre iniciarás sesión y saldrá en tu certificado.</small>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>📧 Correo institucional *</label>
+                            <input type="email" id="correo" required autocomplete="email" placeholder="tucorreo@pedagogica.edu.co">
+                            <small id="ayudaCorreo" style="color:#A0A0B0;font-size:0.75rem;display:block;margin-top:4px;">Elige primero tu tipo de participante: de eso depende qué correo se acepta.</small>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>🔑 Contraseña *</label>
+                            <input type="password" id="contrasena" required minlength="6" placeholder="Mínimo 6 caracteres">
                         </div>
                         <div class="form-group">
                             <label>⚥ Género</label>
@@ -190,11 +207,23 @@
                         <label>🔬 Experiencia previa en taxonomía</label>
                         <div class="range-container">
                             <input type="range" id="experiencia" min="1" max="5" value="3" step="1"
-                                   oninput="document.getElementById('experienciaValue').textContent=this.value">
+                                   oninput="marcarTocado('experiencia', this.value)">
                             <div class="scale-info">
                                 <span>Muy baja</span>
-                                <span class="scale-value" id="experienciaValue">3</span>
+                                <span class="scale-value" id="experienciaValue">— sin responder —</span>
                                 <span>Muy alta</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>🐜 Conocimiento previo del género <em>Linepithema</em></label>
+                        <div class="range-container">
+                            <input type="range" id="conocimiento_genero" min="1" max="5" value="1" step="1"
+                                   oninput="marcarTocado('conocimiento_genero', this.value)">
+                            <div class="scale-info">
+                                <span>Ninguno</span>
+                                <span class="scale-value" id="conocimiento_generoValue">— sin responder —</span>
+                                <span>Mucho</span>
                             </div>
                         </div>
                     </div>
@@ -202,10 +231,10 @@
                         <label>🧠 Habilidad espacial (rotar mentalmente objetos 3D)</label>
                         <div class="range-container">
                             <input type="range" id="habilidad_espacial" min="1" max="20" value="12" step="1"
-                                   oninput="document.getElementById('habilidadValue').textContent=this.value">
+                                   oninput="marcarTocado('habilidad_espacial', this.value)">
                             <div class="scale-info">
                                 <span>Muy baja</span>
-                                <span class="scale-value" id="habilidadValue">12</span>
+                                <span class="scale-value" id="habilidad_espacialValue">— sin responder —</span>
                                 <span>Muy alta</span>
                             </div>
                         </div>
@@ -214,10 +243,10 @@
                         <label>🖥️ Familiaridad con tecnologías 3D</label>
                         <div class="range-container">
                             <input type="range" id="familiaridad_3d" min="1" max="5" value="3" step="1"
-                                   oninput="document.getElementById('familiaridadValue').textContent=this.value">
+                                   oninput="marcarTocado('familiaridad_3d', this.value)">
                             <div class="scale-info">
                                 <span>Muy baja</span>
-                                <span class="scale-value" id="familiaridadValue">3</span>
+                                <span class="scale-value" id="familiaridad_3dValue">— sin responder —</span>
                                 <span>Muy alta</span>
                             </div>
                         </div>
@@ -226,7 +255,7 @@
                     <div id="errorMessage" class="error-message"></div>
                     <div id="successMessage" class="success-message"></div>
 
-                    <button type="submit" id="submitBtn" disabled>📝 Completar registro</button>
+                    <button type="submit" id="submitBtn">📝 Completar registro</button>
                 </form>
             </div>
 
@@ -235,6 +264,355 @@
     </div>
 
     <script>
+// ===== Prueba de rotación mental de elaboración propia =====
+// Inspirada en el paradigma de figuras de cubos (Shepard-Metzler / Vandenberg-Kuse). Las figuras se
+// GENERAN por código (no se reproducen imágenes de ningún instrumento publicado). Cada ítem muestra una
+// figura de referencia y 4 opciones: 2 son la misma figura rotada y 2 no (imagen en espejo o forma distinta).
+// La corrección de cada ítem se verifica matemáticamente al generarlo.
+const RotMental = (function () {
+    function mulberry32(a) {
+        return function () {
+            a |= 0; a = a + 0x6D2B79F5 | 0;
+            let t = Math.imul(a ^ a >>> 15, 1 | a);
+            t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+    }
+
+    // ---- las 24 rotaciones propias del cubo (la primera es la identidad) ----
+    const ROT = (function () {
+        const mul = (A, B) => A.map(r => [0, 1, 2].map(j => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
+        const key = M => M.map(r => r.join(',')).join(';');
+        const gens = [[[1, 0, 0], [0, 0, -1], [0, 1, 0]], [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]];
+        const I = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+        const mats = [I], seen = new Set([key(I)]);
+        let frontier = [I];
+        while (frontier.length) {
+            const next = [];
+            for (const M of frontier) for (const G of gens) {
+                const N = mul(G, M), k = key(N);
+                if (!seen.has(k)) { seen.add(k); mats.push(N); next.push(N); }
+            }
+            frontier = next;
+        }
+        return mats;
+    })();
+
+    const rot = (cells, M) => cells.map(v => [0, 1, 2].map(i => M[i][0] * v[0] + M[i][1] * v[1] + M[i][2] * v[2]));
+    const espejo = cells => cells.map(([x, y, z]) => [-x, y, z]);
+    const canon = cells => {
+        const mn = [0, 1, 2].map(i => Math.min(...cells.map(c => c[i])));
+        return cells.map(c => c.map((v, i) => v - mn[i]).join(',')).sort().join(';');
+    };
+    // ¿B es la misma figura que A, solo girada?
+    const mismaFigura = (A, B) => { const cb = canon(B); return ROT.some(M => canon(rot(A, M)) === cb); };
+
+    // ---- figura: cadena de 10 cubos con 3 giros en los 3 ejes y sin simetría de espejo ----
+    function crearFigura(rng, N) {
+        for (let intento = 0; intento < 2000; intento++) {
+            const cells = [[0, 0, 0]], ocup = new Set(['0,0,0']);
+            let pos = [0, 0, 0], eje = -1, ejesUsados = new Set(), giros = 0, ok = true;
+            while (cells.length < N && ok) {
+                let nuevoEje;
+                do { nuevoEje = Math.floor(rng() * 3); } while (nuevoEje === eje);
+                const signo = rng() < 0.5 ? -1 : 1;
+                const largo = 2 + Math.floor(rng() * 2);
+                for (let k = 0; k < largo && cells.length < N; k++) {
+                    const p = pos.slice(); p[nuevoEje] += signo;
+                    const kk = p.join(',');
+                    if (ocup.has(kk)) { ok = false; break; }
+                    ocup.add(kk); cells.push(p); pos = p;
+                }
+                if (eje !== -1) giros++;
+                eje = nuevoEje; ejesUsados.add(nuevoEje);
+            }
+            if (!ok || cells.length < N || ejesUsados.size < 3 || giros < 3) continue;
+            if (mismaFigura(cells, espejo(cells))) continue;   // debe ser quiral
+            return cells;
+        }
+        throw new Error('no se pudo crear la figura');
+    }
+
+    // ---- distractor "de otra forma": mueve un cubo extremo a otra posición libre ----
+    function otraForma(cells, rng) {
+        const vecinos = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+        const keyOf = c => c.join(',');
+        for (let intento = 0; intento < 300; intento++) {
+            const extremo = rng() < 0.5 ? 0 : cells.length - 1;
+            const resto = cells.filter((_, i) => i !== extremo);
+            const ocup = new Set(resto.map(keyOf));
+            const candidatos = [];
+            resto.forEach(c => vecinos.forEach(d => {
+                const p = [c[0] + d[0], c[1] + d[1], c[2] + d[2]];
+                if (!ocup.has(keyOf(p)) && keyOf(p) !== keyOf(cells[extremo])) candidatos.push(p);
+            }));
+            if (!candidatos.length) continue;
+            const nueva = candidatos[Math.floor(rng() * candidatos.length)];
+            const alt = resto.concat([nueva]);
+            if (!mismaFigura(cells, alt)) return alt;
+        }
+        return null;
+    }
+
+    function barajar(arr, rng) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+        return a;
+    }
+
+    // ---- un ítem completo, determinista según la semilla ----
+    function crearItem(semilla) {
+        const rng = mulberry32(semilla);
+        const figura = crearFigura(rng, 10);
+        const noIdentidad = ROT.slice(1);
+        const [r1, r2] = barajar(noIdentidad, rng).slice(0, 2);
+        const correctas = [rot(figura, r1), rot(figura, r2)];
+        const tipos = [['espejo', 'espejo'], ['espejo', 'forma'], ['forma', 'forma']][Math.floor(rng() * 3)];
+        const incorrectas = [];
+        for (const tipo of tipos) {
+            for (let t = 0; t < 50; t++) {
+                const base = tipo === 'espejo' ? espejo(figura) : otraForma(figura, rng);
+                if (!base) continue;
+                const cand = rot(base, ROT[Math.floor(rng() * 24)]);
+                if (mismaFigura(figura, cand)) continue;
+                if (incorrectas.some(o => mismaFigura(o, cand))) continue;
+                incorrectas.push(cand); break;
+            }
+        }
+        if (incorrectas.length < 2) return crearItem(semilla + 7919);
+        let opciones = correctas.map(c => ({ cells: c, correcta: true })).concat(incorrectas.map(c => ({ cells: c, correcta: false })));
+        opciones = barajar(opciones, rng);
+        return { figura, opciones };
+    }
+
+    // ---- dibujo en SVG (proyección ortogonal, caras visibles: arriba, frente, derecha) ----
+    function figuraSVG(cells, px) {
+        const a = 30 * Math.PI / 180, b = -38 * Math.PI / 180;
+        const cb = Math.cos(b), sb = Math.sin(b), ca = Math.cos(a), sa = Math.sin(a);
+        const proy = ([x, y, z]) => {
+            const x1 = x * cb + z * sb, z1 = -x * sb + z * cb;
+            const y2 = y * ca - z1 * sa, z2 = y * sa + z1 * ca;
+            return [x1, -y2, z2];
+        };
+        const U = 15;
+        const caras = [   // [color, vértices relativos al centro del cubo]
+            ['#F4F7FB', [[-.5, .5, -.5], [.5, .5, -.5], [.5, .5, .5], [-.5, .5, .5]]],      // arriba
+            ['#C7D2E4', [[-.5, -.5, .5], [.5, -.5, .5], [.5, .5, .5], [-.5, .5, .5]]],      // frente
+            ['#9FAECA', [[.5, -.5, -.5], [.5, -.5, .5], [.5, .5, .5], [.5, .5, -.5]]]       // derecha
+        ];
+        const ordenados = cells.slice().sort((p, q) => proy(p)[2] - proy(q)[2]);
+        let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+        cells.forEach(c => caras.forEach(([_, vs]) => vs.forEach(v => {
+            const [sx, sy] = proy([c[0] + v[0], c[1] + v[1], c[2] + v[2]]);
+            minX = Math.min(minX, sx); maxX = Math.max(maxX, sx); minY = Math.min(minY, sy); maxY = Math.max(maxY, sy);
+        })));
+        const ox = 70 - U * (minX + maxX) / 2, oy = 70 - U * (minY + maxY) / 2;
+        let g = '';
+        ordenados.forEach(c => caras.forEach(([color, vs]) => {
+            const pts = vs.map(v => {
+                const [sx, sy] = proy([c[0] + v[0], c[1] + v[1], c[2] + v[2]]);
+                return (ox + U * sx).toFixed(1) + ',' + (oy + U * sy).toFixed(1);
+            }).join(' ');
+            g += '<polygon points="' + pts + '" fill="' + color + '" stroke="#1A2238" stroke-width="0.8" stroke-linejoin="round"/>';
+        }));
+        return '<svg viewBox="0 0 140 140" width="' + (px || '100%') + '" xmlns="http://www.w3.org/2000/svg">' + g + '</svg>';
+    }
+
+    return { crearItem, figuraSVG, mismaFigura, espejo, ROT };
+})();
+if (typeof module !== 'undefined') module.exports = RotMental;
+
+        // ===== Prueba de rotación mental: pantalla, tiempo y puntaje =====
+        const ROT_SEMILLA_PRACTICA = 11;
+        const ROT_SEMILLAS = [23, 37, 41, 58, 62, 77, 85, 91, 104, 118, 127, 133];   // 12 ítems fijos, iguales para todos
+        const ROT_DURACION_S = 180;                                                   // 3 minutos para los 12 ítems
+        let puntajeRotacion = null;
+
+        // 1 punto por ítem solo si se marcan EXACTAMENTE las dos figuras correctas
+        function puntuarRotacion(items, respuestas) {
+            let puntos = 0;
+            items.forEach((it, i) => {
+                const sel = respuestas[i];
+                if (!sel || sel.size !== 2) return;
+                if ([...sel].every(k => it.opciones[k].correcta)) puntos++;
+            });
+            return puntos;
+        }
+
+        function ejecutarPruebaRotacion() {
+            return new Promise(resolve => {
+                const items = ROT_SEMILLAS.map(s => RotMental.crearItem(s));
+                const practica = RotMental.crearItem(ROT_SEMILLA_PRACTICA);
+                const respuestas = items.map(() => new Set());
+                let actual = 0, sel = new Set(), temporizador = null, fin = null, terminado = false, revelada = false;
+
+                const ov = document.createElement('div');
+                ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(5,7,12,0.97);overflow-y:auto;padding:16px 10px;display:flex;justify-content:center;align-items:flex-start;';
+                const caja = document.createElement('div');
+                caja.style.cssText = 'background:#121826;border:2px solid #00D4FF60;border-radius:18px;padding:20px;max-width:620px;width:100%;color:#E0E0E0;margin:auto;box-sizing:border-box;';
+                ov.appendChild(caja);
+                document.body.appendChild(ov);
+
+                const btn = (id, txt, extra) => `<button id="${id}" style="width:100%;padding:13px;margin-top:14px;border:none;border-radius:10px;background:linear-gradient(45deg,#00D4FF,#7B61FF);color:#fff;font-weight:700;font-size:1rem;cursor:pointer;${extra || ''}">${txt}</button>`;
+
+                function cuadricula(item, mostrarSolucion) {
+                    const celdas = item.opciones.map((o, k) => {
+                        let borde = '#2A3350', fondo = '#1A1F36', marca = '';
+                        if (sel.has(k)) { borde = '#00D4FF'; fondo = '#00D4FF18'; }
+                        if (mostrarSolucion) {
+                            if (o.correcta) { borde = '#30D158'; fondo = '#30D15822'; marca = ' ✔'; }
+                            else if (sel.has(k)) { borde = '#FF375F'; fondo = '#FF375F22'; marca = ' ✘'; }
+                        }
+                        return `<div data-k="${k}" style="cursor:pointer;border:3px solid ${borde};background:${fondo};border-radius:12px;padding:6px;text-align:center;">
+                                    <div style="font-weight:700;color:#00D4FF;margin-bottom:2px;">${'ABCD'[k]}${marca}</div>
+                                    ${RotMental.figuraSVG(o.cells, '100%')}
+                                </div>`;
+                    }).join('');
+                    return `<div style="text-align:center;margin:6px 0 4px;color:#A0A0B0;font-size:0.85rem;">Figura de referencia</div>
+                            <div style="max-width:210px;margin:0 auto 12px;background:#2A3350;border-radius:12px;padding:4px;">${RotMental.figuraSVG(item.figura, '100%')}</div>
+                            <div style="text-align:center;color:#A0A0B0;font-size:0.85rem;margin-bottom:6px;">¿Cuáles dos son la misma figura, girada?</div>
+                            <div id="rotCuadricula" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${celdas}</div>`;
+                }
+
+                function alternar(k, item, mostrarSolucion) {
+                    if (revelada) return;
+                    if (sel.has(k)) sel.delete(k);
+                    else if (sel.size < 2) sel.add(k);
+                    else { const n = document.getElementById('rotNota'); if (n) n.textContent = 'Solo puedes marcar 2 figuras. Quita una para cambiarla.'; return; }
+                    document.getElementById('rotCuadricula').outerHTML = cuadricula(item, mostrarSolucion).match(/<div id="rotCuadricula"[\s\S]*$/)[0];
+                    const n = document.getElementById('rotNota'); if (n) n.textContent = `Marcadas: ${sel.size} de 2`;
+                }
+
+                function pantallaIntro() {
+                    caja.innerHTML = `<h2 style="color:#00D4FF;text-align:center;margin:0 0 10px;">🧩 Prueba breve de rotación mental</h2>
+                        <p style="line-height:1.55;font-size:0.95rem;">En cada ítem verás una <strong>figura de referencia</strong> y cuatro figuras (A–D). Dos de las cuatro son <strong>la misma figura</strong> de referencia, solo girada en el espacio. Las otras dos no lo son: son su imagen en espejo o tienen una forma distinta. Marca las dos que sí son la misma figura.</p>
+                        <ul style="line-height:1.6;font-size:0.92rem;padding-left:20px;">
+                            <li>Son <strong>12 ítems</strong> y tienes <strong>3 minutos</strong> en total.</li>
+                            <li>Antes harás un ejemplo de práctica, sin tiempo.</li>
+                            <li>Una imagen en espejo nunca coincide con la referencia, por más que la gires.</li>
+                            <li>Si no estás seguro/a, marca lo que creas más probable y sigue.</li>
+                        </ul>${btn('rotIr', 'Empezar práctica')}`;
+                    document.getElementById('rotIr').onclick = pantallaPractica;
+                }
+
+                function pantallaPractica() {
+                    sel = new Set(); revelada = false;
+                    caja.innerHTML = `<div style="text-align:center;color:#FFB020;font-weight:700;margin-bottom:6px;">Ejemplo de práctica (sin tiempo)</div>
+                        ${cuadricula(practica, false)}
+                        <div id="rotNota" style="text-align:center;color:#A0A0B0;font-size:0.85rem;margin-top:8px;min-height:1.2em;">Marcadas: 0 de 2</div>
+                        ${btn('rotComprobar', 'Comprobar')}`;
+                    caja.onclick = e => { const c = e.target.closest('[data-k]'); if (c) alternar(parseInt(c.dataset.k), practica, false); };
+                    document.getElementById('rotComprobar').onclick = () => {
+                        if (sel.size !== 2) { document.getElementById('rotNota').textContent = 'Marca 2 figuras para comprobar.'; return; }
+                        revelada = true;
+                        const ok = [...sel].every(k => practica.opciones[k].correcta);
+                        const letras = practica.opciones.map((o, k) => o.correcta ? 'ABCD'[k] : '').filter(Boolean).join(' y ');
+                        document.getElementById('rotCuadricula').outerHTML = cuadricula(practica, true).match(/<div id="rotCuadricula"[\s\S]*$/)[0];
+                        const nota = document.getElementById('rotNota');
+                        nota.style.color = ok ? '#30D158' : '#FFB020';
+                        nota.textContent = ok ? `¡Bien! Las figuras ${letras} son la misma figura girada.` : `Las figuras correctas eran ${letras}. Las otras son imagen en espejo o de otra forma.`;
+                        const b = document.getElementById('rotComprobar');
+                        b.textContent = 'Comenzar la prueba (3 minutos)';
+                        b.onclick = comenzarPrueba;
+                    };
+                }
+
+                function comenzarPrueba() {
+                    caja.onclick = null;
+                    fin = Date.now() + ROT_DURACION_S * 1000;
+                    temporizador = setInterval(actualizarReloj, 500);
+                    mostrarItem(0);
+                }
+
+                function actualizarReloj() {
+                    const rest = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+                    const el = document.getElementById('rotReloj');
+                    if (el) {
+                        el.textContent = `${Math.floor(rest / 60)}:${String(rest % 60).padStart(2, '0')}`;
+                        el.style.color = rest <= 30 ? '#FF375F' : '#00D4FF';
+                    }
+                    if (rest <= 0) terminar();
+                }
+
+                function mostrarItem(i) {
+                    actual = i; sel = new Set(respuestas[i]); revelada = false;
+                    const ultimo = i === items.length - 1;
+                    caja.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <strong style="color:#00D4FF;">Ítem ${i + 1} de ${items.length}</strong>
+                            <span id="rotReloj" style="font-weight:700;font-size:1.15rem;color:#00D4FF;">3:00</span></div>
+                        ${cuadricula(items[i], false)}
+                        <div id="rotNota" style="text-align:center;color:#A0A0B0;font-size:0.85rem;margin-top:8px;min-height:1.2em;">Marcadas: ${sel.size} de 2</div>
+                        ${btn('rotSig', ultimo ? 'Finalizar prueba' : 'Siguiente →')}`;
+                    caja.onclick = e => { const c = e.target.closest('[data-k]'); if (c) { alternar(parseInt(c.dataset.k), items[actual], false); respuestas[actual] = new Set(sel); } };
+                    document.getElementById('rotSig').onclick = () => { respuestas[actual] = new Set(sel); ultimo ? terminar() : mostrarItem(actual + 1); };
+                    actualizarReloj();
+                }
+
+                function terminar() {
+                    if (terminado) return;
+                    terminado = true;
+                    clearInterval(temporizador);
+                    if (sel && items[actual]) respuestas[actual] = new Set(sel);
+                    puntajeRotacion = puntuarRotacion(items, respuestas);
+                    caja.onclick = null;
+                    caja.innerHTML = `<div style="text-align:center;padding:10px 0;">
+                            <div style="font-size:2.6rem;">✅</div>
+                            <h2 style="color:#00D4FF;margin:6px 0;">Prueba completada</h2>
+                            <p style="color:#A0A0B0;">Gracias. Ahora continúa con tu registro.</p>
+                            ${btn('rotFin', 'Continuar con el registro')}</div>`;
+                    document.getElementById('rotFin').onclick = () => { ov.remove(); resolve(puntajeRotacion); };
+                }
+
+                pantallaIntro();
+            });
+        }
+
+        // ===== Reglas del registro: nombre completo, correo institucional y tipo de participante =====
+        const PALABRA_NOMBRE = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ'’\-]+$/;
+        let configRegistro = { dominios_estudiante: ['pedagogica.edu.co', 'upn.edu.co'], correo_libre: ['docente', 'validador', 'pruebas'] };
+        const listaDominios = () => configRegistro.dominios_estudiante.map(d => '@' + d).join(' o ');
+        function textoAyudaCorreo(rol) {
+            if (!rol) return 'Elige primero tu tipo de participante: de eso depende qué correo se acepta.';
+            if (configRegistro.correo_libre.includes(rol)) return 'Puedes usar cualquier correo.';
+            return 'Usa tu correo institucional: ' + listaDominios() + '.';
+        }
+        fetch('/api/config/registro').then(x => x.json()).then(cfg => {
+            configRegistro = { ...configRegistro, ...cfg };
+            document.getElementById('ayudaCorreo').textContent = textoAyudaCorreo(document.getElementById('rol').value);
+        }).catch(() => {});
+
+        function nombreCompletoValido(nombre) {
+            const palabras = nombre.split(' ');
+            return nombre.length >= 5 && nombre.length <= 50 && palabras.length >= 2 && palabras.every(p => PALABRA_NOMBRE.test(p));
+        }
+        function correoPermitido(rol, correo) {
+            const dom = (correo.split('@')[1] || '').toLowerCase();
+            if (!dom) return false;
+            if (configRegistro.correo_libre.includes(rol)) return true;
+            return configRegistro.dominios_estudiante.some(d => dom === d || dom.endsWith('.' + d));
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('rol').addEventListener('change', function () {
+                const esEstudiante = this.value === 'estudiante';
+                const grupo = document.getElementById('grupoSemestre');
+                grupo.style.display = (this.value && !esEstudiante) ? 'none' : '';
+                document.getElementById('semestre').required = esEstudiante || !this.value;
+                document.getElementById('ayudaCorreo').textContent = textoAyudaCorreo(this.value);
+            });
+        });
+
+        // Rastreo de deslizadores tocados (item crítico: no aceptar valores por defecto sin interacción)
+        const deslizadoresTocados = {
+            experiencia: false,
+            conocimiento_genero: false,
+            habilidad_espacial: false,
+            familiaridad_3d: false
+        };
+        function marcarTocado(id, valor) {
+            deslizadoresTocados[id] = true;
+            document.getElementById(id + 'Value').textContent = valor;
+        }
+
         // Splash de 4 segundos
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
@@ -247,23 +625,52 @@
             }, 4000);
         });
 
-        function mostrarInfo(event, seccion) {
-            document.querySelectorAll('.info-tab').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('manualContent').style.display       = seccion === 'manual' ? 'block' : 'none';
-            document.getElementById('consentimientoContent').style.display = seccion === 'consentimiento' ? 'block' : 'none';
+        let consentimientoAceptado = false;
+
+        function aceptarConsentimiento() {
+            consentimientoAceptado = true;
+            document.getElementById('pasoConsentimiento').style.display = 'none';
+            document.getElementById('formularioRegistro').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            const primero = document.getElementById('usuario');
+            if (primero) setTimeout(() => primero.focus({ preventScroll: true }), 300);
         }
 
-        document.getElementById('aceptoConsentimiento').addEventListener('change', function () {
-            const form = document.getElementById('formularioRegistro');
-            const btn  = document.getElementById('submitBtn');
-            form.style.opacity      = this.checked ? '1' : '0.5';
-            form.style.pointerEvents = this.checked ? 'auto' : 'none';
-            btn.disabled            = !this.checked;
-        });
+        function verConsentimientoDeNuevo() {
+            const paso = document.getElementById('pasoConsentimiento');
+            const visible = paso.style.display !== 'none';
+            paso.style.display = visible ? 'none' : 'block';
+            const boton = document.getElementById('btnAceptoConsentimiento');
+            if (boton) boton.textContent = '✅ Seguir con mi registro';
+            if (!visible) window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (!visible) boton.onclick = () => { paso.style.display = 'none'; window.scrollTo({ top: 0, behavior: 'smooth' }); };
+        }
 
         function descargarConsentimiento() {
-            const texto = `CONSENTIMIENTO INFORMADO\n\nUNIVERSIDAD PEDAGÓGICA NACIONAL\nFACULTAD DE CIENCIA Y TECNOLOGÍA\n\nTítulo: Macrofotografía y fotogrametría para la identificación de Linepithema\nInvestigador: John Steve Vanegas Canchón\n\nYo, ____________, acepto participar voluntariamente en este estudio.`;
+            const texto = `CONSENTIMIENTO INFORMADO
+
+UNIVERSIDAD PEDAGÓGICA NACIONAL
+FACULTAD DE CIENCIA Y TECNOLOGÍA
+
+Título: Macrofotografía y fotogrametría para la identificación de Linepithema
+Investigador: John Steve Vanegas Canchón
+
+¿EN QUÉ CONSISTE TU PARTICIPACIÓN?
+Identificarás 2 especímenes de hormigas del género Linepithema con una clave dicotómica, usando fotografías o modelos 3D según el grupo que se te asigne. Antes descargarás tres materiales de apoyo y harás una orientación breve; al final responderás dos encuestas cortas y podrás dejar un comentario. Algunos grupos responderán además preguntas breves de reflexión sobre su estrategia.
+
+¿QUÉ DATOS SE GUARDAN?
+Tu nombre completo y tu correo institucional, tu tipo de participante y semestre, tu género si decides indicarlo, tus respuestas sobre experiencia previa y el resultado de una prueba breve de rotación mental. Durante el ejercicio se guardan tus respuestas, aciertos, tiempos y el recorrido que sigues por la clave, además de tus encuestas, reflexiones y comentario final.
+
+¿PARA QUÉ SE USAN?
+Tu nombre y tu correo sirven para identificar tu participación y emitir tu certificado. Los resultados se usan solo con fines académicos y se analizan y presentan de forma anónima.
+
+EL EJERCICIO SOLO SE PUEDE REALIZAR UNA VEZ
+No cierres ni recargues la ventana mientras dure: si la cierras, no podrás volver a ingresar ni repetirlo. Si ocurre por error, avisa al investigador. Puedes dejar de participar cuando quieras, pero no podrás retomar el ejercicio.
+
+DECLARACIÓN
+Declaro que he sido informado/a sobre los objetivos del estudio y sobre los datos que se guardan, que mi participación es voluntaria y que autorizo el uso de mis datos para los fines académicos descritos.
+
+Nombre: ______________________________   Fecha: ______________`;
             const a = document.createElement('a');
             a.href     = URL.createObjectURL(new Blob([texto], { type: 'text/plain' }));
             a.download = 'consentimiento_linepithema.txt';
@@ -273,16 +680,34 @@
 
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const usuario   = document.getElementById('usuario').value.trim();
+            if (!consentimientoAceptado) { document.getElementById('pasoConsentimiento').style.display = 'block'; document.getElementById('formularioRegistro').style.display = 'none'; window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+            const usuario   = document.getElementById('usuario').value.replace(/\s+/g, ' ').trim();
             const correo    = document.getElementById('correo').value.trim();
             const contrasena = document.getElementById('contrasena').value;
             const semestre  = document.getElementById('semestre').value;
-            const curso     = document.getElementById('curso').value;
+            const rol       = document.getElementById('rol').value;
 
-            if (usuario.length < 4)          { mostrarError('El usuario debe tener al menos 4 caracteres'); return; }
+            if (!rol)                         { mostrarError('Selecciona el tipo de participante'); return; }
+            if (!nombreCompletoValido(usuario)) { mostrarError('Escribe tu nombre completo: nombre y apellido, solo letras (máximo 50 caracteres)'); return; }
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) { mostrarError('Correo inválido'); return; }
+            if (!correoPermitido(rol, correo)) {
+                mostrarError('Los estudiantes deben usar su correo institucional (' + listaDominios() + ')');
+                return;
+            }
             if (contrasena.length < 6)        { mostrarError('La contraseña debe tener al menos 6 caracteres'); return; }
-            if (!semestre || !curso)           { mostrarError('Selecciona semestre y curso'); return; }
+            if (rol === 'estudiante' && !semestre) { mostrarError('Selecciona tu semestre'); return; }
+
+            const faltantes = Object.entries(deslizadoresTocados).filter(([k, v]) => !v).map(([k]) => k);
+            if (faltantes.length > 0) {
+                const nombres = { experiencia: 'Experiencia previa en taxonomía', conocimiento_genero: 'Conocimiento del género Linepithema', habilidad_espacial: 'Habilidad espacial', familiaridad_3d: 'Familiaridad con tecnologías 3D' };
+                mostrarError(`Por favor mueve estos deslizadores antes de continuar: ${faltantes.map(f => nombres[f]).join(', ')}`);
+                return;
+            }
+
+            // Prueba breve de rotación mental (una sola vez; si el registro falla no se repite)
+            if (puntajeRotacion === null) {
+                await ejecutarPruebaRotacion();
+            }
 
             const btn = document.getElementById('submitBtn');
             btn.textContent = '⏳ Procesando...';
@@ -294,12 +719,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         usuario, correo, contrasena,
-                        semestre: parseInt(semestre),
-                        curso: parseInt(curso),
+                        semestre: semestre ? parseInt(semestre) : null,
+                        rol,
+                        consentimiento: true,
                         genero: document.getElementById('genero').value || 'No especificado',
                         experiencia: parseInt(document.getElementById('experiencia').value),
                         habilidad_espacial: parseInt(document.getElementById('habilidad_espacial').value),
-                        familiaridad_3d: parseInt(document.getElementById('familiaridad_3d').value)
+                        familiaridad_3d: parseInt(document.getElementById('familiaridad_3d').value),
+                        conocimiento_genero: parseInt(document.getElementById('conocimiento_genero').value),
+                        puntaje_rotacion_mental: puntajeRotacion
                     })
                 });
                 const data = await res.json();

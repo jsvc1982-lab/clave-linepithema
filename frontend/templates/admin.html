@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Clave Linepithema</title>
@@ -45,7 +46,7 @@
         .btn-primary{background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;}
         .btn-secondary{background:#1A1F36;border:1px solid #00D4FF40;color:#00D4FF;}
         .btn-success{background:#00D4FF20;border:1px solid #00D4FF40;color:#00D4FF;}
-        .search-input{padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;font-size:0.9rem;width:250px;}
+        .search-input{padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;font-size:0.9rem;width:250px;max-width:100%;flex:1 1 200px;}
         .search-input:focus{outline:none;border-color:#00D4FF;}
         .mensaje-flotante{position:fixed;bottom:20px;right:20px;background:#00D4FF;color:#0A0E17;padding:12px 20px;border-radius:8px;font-weight:bold;z-index:1000;animation:fadeOut 3s forwards;}
         @keyframes fadeOut{0%{opacity:1;}70%{opacity:1;}100%{opacity:0;}}
@@ -54,6 +55,17 @@
         .especie-card:hover{border-color:#00D4FF80;}
         .especie-card.active{border-color:#00D4FF;background:linear-gradient(135deg,#00D4FF10,#7B61FF10);}
         @media(max-width:800px){.charts-grid{grid-template-columns:1fr;}}
+        .table-wrap table{min-width:600px;}
+        @media(max-width:480px){
+            body{padding:10px;}
+            h1{font-size:1.4rem;}
+            .card,.stat-card{padding:15px;}
+            .tab{padding:8px 12px;font-size:0.8rem;}
+            th,td{padding:8px;font-size:0.75rem;}
+            .search-input{width:100%;}
+            .toolbar,.btn-group{gap:6px;}
+            .btn{padding:8px 14px;font-size:0.85rem;}
+        }
     </style>
 </head>
 <body>
@@ -69,6 +81,8 @@
         <div class="tab"        data-tab="analisis"    onclick="cambiarTab('analisis')">📉 Análisis</div>
         <div class="tab"        data-tab="detalles"    onclick="cambiarTab('detalles')">🔍 Resultados</div>
         <div class="tab"        data-tab="reflexiones" onclick="cambiarTab('reflexiones')">🧠 Reflexiones</div>
+        <div class="tab"        data-tab="pines" onclick="cambiarTab('pines')">📍 Pines</div>
+        <div class="tab"        data-tab="zoomcaracteres" onclick="cambiarTab('zoomcaracteres')">🔬 Zoom Caracteres</div>
     </div>
 
     <div class="toolbar">
@@ -76,6 +90,7 @@
         <button class="btn btn-secondary" onclick="exportarCSVServidor()">📥 CSV (servidor)</button>
         <button class="btn btn-secondary" onclick="exportarJSON()">📥 JSON</button>
         <button class="btn btn-secondary" onclick="window.location.href='/estadisticas'">📊 Estadísticas avanzadas</button>
+        <button class="btn btn-secondary" onclick="window.open('/prueba-niveles-ayuda', '_blank')">🧪 Probar niveles de ayuda</button>
         <button class="btn btn-danger"    onclick="cerrarSesionAdmin()" style="background:#FF375F20;border:1px solid #FF375F40;color:#FF375F;">🔓 Cerrar sesión</button>
     </div>
 
@@ -83,7 +98,7 @@
 </div>
 
 <script>
-    let usuarios = [], especiesConfig = { todas:[], activas:[] }, resultados = [], encuestas = [], reflexiones = [];
+    let usuarios = [], especiesConfig = { todas:[], activas:[] }, resultados = [], encuestas = [], reflexiones = [], pasos = [];
 
     document.addEventListener('DOMContentLoaded', () => {
         Promise.all([
@@ -91,9 +106,10 @@
             fetch('/api/admin/config/especies').then(r => r.json()),
             fetch('/api/admin/datos').then(r => r.json()),
             fetch('/api/admin/encuestas').then(r => r.json()),
-            fetch('/api/admin/reflexiones').then(r => r.json())
-        ]).then(([u, e, r, ec, ref]) => {
-            usuarios = u; especiesConfig = e; resultados = r; encuestas = ec; reflexiones = ref;
+            fetch('/api/admin/reflexiones').then(r => r.json()),
+            fetch('/api/admin/pasos').then(r => r.json())
+        ]).then(([u, e, r, ec, ref, ps]) => {
+            usuarios = u; especiesConfig = e; resultados = r; encuestas = ec; reflexiones = ref; pasos = ps;
             cambiarTab('usuarios');
         }).catch(err => {
             document.getElementById('tabContent').innerHTML =
@@ -119,7 +135,9 @@
             'graficos':     mostrarGraficos,
             'analisis':     mostrarAnalisisEstadistico,
             'detalles':     mostrarResultadosDetallados,
-            'reflexiones':  mostrarReflexiones
+            'reflexiones':  mostrarReflexiones,
+            'pines':        mostrarCalibrarPines,
+            'zoomcaracteres': mostrarZoomCaracteres
         };
         if (acciones[tab]) acciones[tab]();
     }
@@ -142,7 +160,7 @@
                 <div class="table-wrap">
                     <table>
                         <thead><tr>
-                            <th>ID</th><th>Usuario</th><th>Correo</th><th>Sem.</th><th>Curso</th>
+                            <th>ID</th><th>Usuario</th><th>Correo</th><th>Tipo</th><th>Institución</th><th>Sem.</th>
                             <th>Exp.</th><th>Hab.Esp.</th><th>Género</th><th>Grupo</th><th>Acciones</th>
                         </tr></thead>
                         <tbody id="tbodyUsuarios"></tbody>
@@ -162,17 +180,22 @@
                     <button class="btn-sm btn-2d-meta" onclick="asignarGrupo(${u.id},'2D_META')">2D+M</button>
                     <button class="btn-sm btn-3d"      onclick="asignarGrupo(${u.id},'3D')">3D</button>
                     <button class="btn-sm btn-3d-meta" onclick="asignarGrupo(${u.id},'3D_META')">3D+M</button>
+                    <button class="btn-sm" style="background:#7B61FF;color:white;" onclick="resetearPassword(${u.id})" title="Poner clave nueva">🔑</button>
+                    <button class="btn-sm" style="background:#30D158;color:#06210F;" onclick="habilitarReintento(${u.id})" title="Habilitar nuevo intento (solo si cerró la ventana a mitad)">🔓</button>
                     <button class="btn-sm btn-danger"  onclick="eliminarUsuario(${u.id})">🗑️</button>
                    </div>`
                 : `<div class="btn-group">
+                    <button class="btn-sm" style="background:#7B61FF;color:white;" onclick="resetearPassword(${u.id})" title="Poner clave nueva">🔑</button>
+                    <button class="btn-sm" style="background:#30D158;color:#06210F;" onclick="habilitarReintento(${u.id})" title="Habilitar nuevo intento (solo si cerró la ventana a mitad)">🔓</button>
                     <button class="btn-sm btn-danger" onclick="eliminarUsuario(${u.id})">🗑️</button>
                    </div>`;
             return `<tr>
                 <td>${u.id}</td>
                 <td><strong>${u.nombre_usuario}</strong></td>
                 <td>${u.correo}</td>
+                <td><span style="color:${(u.rol && u.rol !== 'estudiante' && u.rol !== 'usuario') ? '#FFB020' : '#A0A0B0'};">${u.rol === 'usuario' || !u.rol ? 'estudiante' : u.rol}</span></td>
+                <td>${u.institucion || '—'}</td>
                 <td>${u.semestre || '—'}</td>
-                <td>${u.curso || '—'}</td>
                 <td>${u.experiencia_taxonomica ?? '—'}/5</td>
                 <td>${u.habilidad_espacial ?? '—'}/20</td>
                 <td>${u.genero || '—'}</td>
@@ -224,6 +247,13 @@
         }
     }
 
+    async function habilitarReintento(id) {
+        if (!confirm('¿Habilitar un nuevo intento?\n\nSolo se borra un intento INCOMPLETO (la persona cerró la ventana a mitad del ejercicio). Un intento con las dos identificaciones completas nunca se borra.')) return;
+        const res = await fetch(`/api/admin/usuarios/${id}/habilitar_reintento`, { method: 'POST' });
+        const data = await res.json();
+        alert(res.ok ? '✅ ' + data.mensaje : '⚠️ ' + (data.error || 'No se pudo habilitar'));
+    }
+
     async function eliminarUsuario(id) {
         const u = usuarios.find(u => u.id === id);
         if (!confirm(`¿Eliminar a "${u?.nombre_usuario}"? Se perderán TODOS sus datos.`)) return;
@@ -234,6 +264,26 @@
             renderTablaUsuarios(usuarios);
         } else {
             mostrarMensaje('❌ Error al eliminar', '#FF375F');
+        }
+    }
+
+    async function resetearPassword(id) {
+        const u = usuarios.find(u => u.id === id);
+        const nueva = prompt(`Nueva contraseña temporal para "${u?.nombre_usuario}" (mínimo 4 caracteres):`);
+        if (!nueva) return;
+        if (nueva.trim().length < 4) {
+            mostrarMensaje('❌ La contraseña debe tener al menos 4 caracteres', '#FF375F');
+            return;
+        }
+        const res = await fetch(`/api/admin/usuarios/${id}/resetear_password`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ nueva_password: nueva.trim() })
+        });
+        if (res.ok) {
+            mostrarMensaje(`✅ Contraseña de ${u?.nombre_usuario} actualizada. Comunícasela por tu cuenta.`);
+        } else {
+            const data = await res.json().catch(()=>({}));
+            mostrarMensaje(`❌ ${data.error || 'Error al resetear contraseña'}`, '#FF375F');
         }
     }
 
@@ -261,14 +311,23 @@
         renderEspeciesConfig();
     }
 
+    const CODIGOS_FOTO = { gallardoi:'esp1', humile:'esp2', tsachila:'esp3', piliferum:'esp4', hirsutum:'esp5',
+                           angulatum:'esp6', neotropicum:'esp7', dispertitum:'esp8', iniquum:'esp9' };
+
     function renderEspeciesConfig() {
         const grid = document.getElementById('especiesGrid');
         if (!grid) return;
         grid.innerHTML = especiesConfig.todas.map(esp => {
             const act = especiesConfig.activas.includes(esp.id);
             return `<div class="especie-card ${act?'active':''}" onclick="toggleEspecie('${esp.id}')">
-                <input type="checkbox" ${act?'checked':''} style="accent-color:#00D4FF;" onclick="event.stopPropagation();toggleEspecie('${esp.id}')">
-                <div><strong>${esp.nombre}</strong><br><span style="color:#A0A0B0;font-size:0.8rem;">${esp.id}</span></div>
+                <input type="checkbox" ${act?'checked':''} style="accent-color:#00D4FF;flex:0 0 auto;" onclick="event.stopPropagation();toggleEspecie('${esp.id}')">
+                <div style="flex:0 0 96px;width:96px;height:64px;">
+                    <img src="/foto/${CODIGOS_FOTO[esp.id] || esp.id}/lateral.jpg" alt="${esp.nombre}" loading="lazy"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+                         style="width:96px;height:64px;object-fit:cover;border-radius:8px;background:#0A0E17;display:block;">
+                    <div style="display:none;width:96px;height:64px;align-items:center;justify-content:center;text-align:center;background:#0A0E17;border:1px dashed #FF375F80;border-radius:8px;color:#FF375F;font-size:0.7rem;">sin foto 2D</div>
+                </div>
+                <div><strong>${esp.nombre}</strong><br><span style="color:#A0A0B0;font-size:0.8rem;">${esp.id} · ${CODIGOS_FOTO[esp.id] || ''}</span></div>
             </div>`;
         }).join('');
     }
@@ -329,7 +388,7 @@
         const sus       = grupos.map(g=>{ const e=encuestas.filter(e=>e.grupo===g&&e.tipo==='SUS'); return e.length?Math.round(e.reduce((s,e)=>s+(e.puntaje_total||0),0)/e.length):0; });
 
         document.getElementById('tabContent').innerHTML = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;">
+            <div class="charts-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">📊 Precisión por grupo</div><canvas id="chPrecision"></canvas></div>
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">⏱️ Tiempo promedio (s)</div><canvas id="chTiempo"></canvas></div>
                 <div style="background:#1A1F36;border-radius:15px;padding:20px;"><div class="card-title">📋 Puntaje SUS</div><canvas id="chSUS"></canvas></div>
@@ -398,22 +457,402 @@
 
     // ===== REFLEXIONES =====
     function mostrarReflexiones() {
-        const filas = reflexiones.map(r=>`
+        const grupos = ['2D', '2D_META', '3D', '3D_META'];
+        const nombresUsuarios = [...new Set(reflexiones.map(r=>r.usuario).concat(pasos.map(p=>p.usuario)))].sort();
+
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">🧠 Reflexiones y recorrido detallado por la clave</div>
+                <div class="toolbar" style="margin-bottom:15px;">
+                    <select id="filtroGrupoReflexiones" onchange="renderReflexionesFiltradas()" style="padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;">
+                        <option value="">Todos los grupos / modelos</option>
+                        ${grupos.map(g=>`<option value="${g}">${g}</option>`).join('')}
+                    </select>
+                    <select id="filtroUsuarioReflexiones" onchange="renderReflexionesFiltradas()" style="padding:10px 15px;background:#1A1F36;border:1px solid #00D4FF40;border-radius:8px;color:#E0E0E0;">
+                        <option value="">Todos los usuarios</option>
+                        ${nombresUsuarios.map(n=>`<option value="${n}">${n}</option>`).join('')}
+                    </select>
+                    <button class="btn btn-secondary" onclick="exportarReflexionesCSV()">📥 Exportar reflexiones (CSV)</button>
+                    <button class="btn btn-secondary" onclick="exportarPasosCSV()">📥 Exportar recorrido detallado (CSV)</button>
+                </div>
+                <div id="contenidoReflexionesFiltradas"></div>
+            </div>`;
+        renderReflexionesFiltradas();
+    }
+
+    function renderReflexionesFiltradas() {
+        const grupoSel = document.getElementById('filtroGrupoReflexiones')?.value || '';
+        const usuarioSel = document.getElementById('filtroUsuarioReflexiones')?.value || '';
+
+        const reflexionesF = reflexiones.filter(r =>
+            (!grupoSel || r.grupo === grupoSel) && (!usuarioSel || r.usuario === usuarioSel)
+        );
+        const pasosF = pasos.filter(p =>
+            (!grupoSel || p.grupo === grupoSel) && (!usuarioSel || p.usuario === usuarioSel)
+        );
+
+        // ----- Bloque de reflexiones metacognitivas (pre/durante/post) -----
+        const filasReflexiones = reflexionesF.map(r=>`
             <tr>
                 <td>${r.usuario}</td><td>${r.grupo}</td><td>${r.momento||'—'}</td>
                 <td style="max-width:300px;font-size:0.82rem;">${(r.respuesta_raw||'').substring(0,120)}${(r.respuesta_raw||'').length>120?'…':''}</td>
             </tr>`).join('');
+
+        // ----- Bloque de recorrido paso a paso por la clave -----
+        // Agrupar por usuario + especimen para armar el recorrido completo
+        const grupos_pasos = {};
+        pasosF.forEach(p => {
+            const key = `${p.usuario}||${p.sesion_id}||${p.especimen_id}`;
+            if (!grupos_pasos[key]) grupos_pasos[key] = { usuario:p.usuario, grupo:p.grupo, especimen_id:p.especimen_id, pasos:[] };
+            grupos_pasos[key].pasos.push(p);
+        });
+
+        const bloquesRecorrido = Object.values(grupos_pasos).map(g => {
+            g.pasos.sort((a,b)=>a.orden_paso - b.orden_paso);
+            const tiempoTotal = g.pasos.reduce((s,p)=>s+(p.tiempo_segundos||0),0);
+            const pasosRapidos = g.pasos.filter(p=>p.tiempo_segundos < 2).length;
+            const ultimoPaso = g.pasos[g.pasos.length-1];
+            const conclusionOk = ultimoPaso ? ultimoPaso.es_paso_correcto : null;
+            const alertaConciencia = pasosRapidos >= Math.ceil(g.pasos.length/2)
+                ? '<span style="color:#FFB020;" title="La mitad o más de sus respuestas tomaron menos de 2s">⚡ Posible clic sin leer</span>'
+                : '<span style="color:#00D4FF;">✓ Ritmo razonable</span>';
+
+            // Solo la PRIMERA pregunta equivocada es "se desvió aquí"; las siguientes son ruta alternativa
+            const idxDesvio = g.pasos.findIndex(p => !p.es_paso_correcto);
+            const etiquetaPaso = (i) => {
+                if (idxDesvio === -1 || i < idxDesvio) return { txt: '✅', color: '#00D4FF' };
+                if (i === idxDesvio) return { txt: '❌ se desvió aquí', color: '#FF375F' };
+                return { txt: '↪ ruta alternativa', color: '#A0A0B0' };
+            };
+            const filasPaso = g.pasos.map((p, i) => `
+                <tr>
+                    <td>Pareado ${p.pregunta}</td>
+                    <td>Opción ${p.opcion_elegida===0?'A':'B'}</td>
+                    <td style="color:${etiquetaPaso(i).color};">${etiquetaPaso(i).txt}</td>
+                    <td>${(p.tiempo_segundos||0).toFixed(1)}s ${p.tiempo_segundos<2?'⚡':''}</td>
+                </tr>`).join('');
+
+            return `<div class="stat-card" style="margin-bottom:12px;text-align:left;">
+                <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                    <strong style="color:#00D4FF;">${g.usuario}</strong>
+                    <span class="badge">${g.grupo||'—'}</span>
+                    <span style="color:#A0A0B0;">Espécimen: ${g.especimen_id}</span>
+                    <span>Tiempo total: <strong>${tiempoTotal.toFixed(1)}s</strong></span>
+                    ${alertaConciencia}
+                </div>
+                <table style="width:100%;font-size:0.85rem;">
+                    <thead><tr style="color:#00D4FF;"><th style="text-align:left;">Paso</th><th style="text-align:left;">Eligió</th><th style="text-align:left;">Resultado</th><th style="text-align:left;">Tiempo</th></tr></thead>
+                    <tbody>${filasPaso}</tbody>
+                </table>
+            </div>`;
+        }).join('');
+
+        document.getElementById('contenidoReflexionesFiltradas').innerHTML = `
+            <div class="card-title" style="font-size:1rem;margin-top:10px;">🧭 Recorrido detallado por la clave (${Object.keys(grupos_pasos).length} espécimen(es))</div>
+            ${bloquesRecorrido || '<div style="text-align:center;padding:20px;color:#A0A0B0;">Sin recorridos registrados con este filtro.</div>'}
+
+            <div class="card-title" style="font-size:1rem;margin-top:25px;">💭 Reflexiones metacognitivas (${reflexionesF.length})</div>
+            <div class="table-wrap">
+                <table><thead><tr><th>Usuario</th><th>Grupo</th><th>Momento</th><th>Respuesta</th></tr></thead>
+                <tbody>${filasReflexiones || '<tr><td colspan="4" style="text-align:center;padding:20px;">Sin reflexiones con este filtro.</td></tr>'}</tbody></table>
+            </div>`;
+    }
+
+    function exportarPasosCSV() {
+        const etiquetas = {};
+        const porEsp = {};
+        pasos.forEach(p => { const k = `${p.sesion_id}||${p.especimen_id}`; (porEsp[k] = porEsp[k] || []).push(p); });
+        Object.values(porEsp).forEach(lista => {
+            lista.sort((x, y) => x.orden_paso - y.orden_paso);
+            const idx = lista.findIndex(p => !p.es_paso_correcto);
+            lista.forEach((p, i) => { etiquetas[`${p.sesion_id}||${p.especimen_id}||${p.orden_paso}`] = (idx === -1 || i < idx) ? 'correcto' : (i === idx ? 'desvio' : 'ruta_alternativa'); });
+        });
+        let csv = 'Usuario,Grupo,Sesion,Especimen,Pregunta,OpcionElegida,PasoCorrecto,EtiquetaPaso,PasoFinal,TiempoSegundos,OrdenPaso\n';
+        pasos.forEach(p => {
+            csv += `"${p.usuario}","${p.grupo}",${p.sesion_id},"${p.especimen_id}",${p.pregunta},${p.opcion_elegida===0?'A':'B'},${p.es_paso_correcto},${etiquetas[`${p.sesion_id}||${p.especimen_id}||${p.orden_paso}`]},${p.es_paso_final},${p.tiempo_segundos},${p.orden_paso}\n`;
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' }));
+        a.download = `recorrido_detallado_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        mostrarMensaje('✅ Recorrido detallado exportado');
+    }
+
+    // ===== CALIBRAR ZOOM DE CARACTERES (botón "Ver este carácter") =====
+    const PREGUNTAS_CLAVE_TEXTO = {
+        1: "¿Pelos adpresos en la glándula metapleural?",
+        2: "¿El pronoto tiene un par de setas erectas?",
+        3: "¿Escapos antenales cortos?",
+        4: "¿Surco pre-sutural del clípeo marcado?",
+        5: "¿Dorso de la cabeza con más de 5 setas?",
+        6: "¿Pronoto con más de 10 setas erectas?",
+        7: "¿Margen posterior de la cabeza cóncavo?",
+        8: "¿Escapos antenales cortos (vs. pedicelo)?"
+    };
+    let zoomCaracteresEdicion = {};
+    let preguntaZoomActual = 1;
+
+    async function mostrarZoomCaracteres() {
+        let guardado = {};
+        try {
+            const res = await fetch('/api/config/zoom_caracteres');
+            if (res.ok) guardado = await res.json();
+        } catch(e) { /* sin datos guardados aún */ }
+        zoomCaracteresEdicion = guardado || {};
+
         document.getElementById('tabContent').innerHTML = `
             <div class="card">
-                <div class="card-title">🧠 Reflexiones metacognitivas (${reflexiones.length})</div>
-                <div style="margin-bottom:15px;">
-                    <button class="btn btn-secondary" onclick="exportarReflexionesCSV()">📥 Exportar CSV</button>
+                <div class="card-title">🔬 Calibrar "Ver este carácter" (2D y 3D)</div>
+                <p style="color:#A0A0B0;font-size:0.85rem;margin-bottom:15px;">
+                    Elige la pregunta, encuadra la foto (2D) y orienta el modelo (3D) como quieres que
+                    vea el estudiante al tocar "🔍 Ver este carácter". Usamos <em>L. humile</em> como
+                    referencia para calibrar; el encuadre se aplica proporcionalmente a cualquier especie.
+                </p>
+                <div id="botonesPreguntaZoom" style="margin-bottom:15px;display:flex;gap:8px;flex-wrap:wrap;">
+                    ${[1,2,3,4,5,6,7,8].map(n => `<button class="btn ${n===preguntaZoomActual?'btn-success':'btn-secondary'}" onclick="cambiarPreguntaZoom(${n})" style="padding:8px 14px;">P${n}</button>`).join('')}
                 </div>
-                <div class="table-wrap">
-                    <table><thead><tr><th>Usuario</th><th>Grupo</th><th>Momento</th><th>Respuesta</th></tr></thead>
-                    <tbody>${filas || '<tr><td colspan="4" style="text-align:center;padding:20px;">Sin reflexiones aún.</td></tr>'}</tbody></table>
+                <div id="preguntaZoomTexto" style="color:#00D4FF;margin-bottom:15px;font-weight:600;"></div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;">
+                    <div class="stat-card">
+                        <strong style="color:#00D4FF;">📷 Encuadre 2D</strong>
+                        <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">Toca el punto exacto del carácter en la foto.</p>
+                        <div style="position:relative;display:inline-block;max-width:100%;" id="zoom2dContainer">
+                            <img id="zoom2dImg" src="/foto/esp2/lateral.jpg"
+                                 style="max-width:100%;display:block;border-radius:10px;border:2px solid #00D4FF40;" draggable="false">
+                            <div id="zoom2dMarcador" style="display:none;position:absolute;width:22px;height:22px;border-radius:50%;background:rgba(255,71,95,0.85);border:2px solid white;transform:translate(-50%,-50%);pointer-events:none;"></div>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <label style="font-size:0.8rem;color:#A0A0B0;">Escala (zoom): <span id="zoom2dEscalaVal">2.2</span>x</label>
+                            <input type="range" id="zoom2dEscala" min="1.2" max="4" step="0.1" value="2.2" style="width:100%;" oninput="document.getElementById('zoom2dEscalaVal').textContent=this.value">
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <strong style="color:#00D4FF;">🧊 Encuadre 3D</strong>
+                        <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">Gira/acerca el modelo con el mouse hasta el encuadre deseado, luego guarda esta vista.</p>
+                        <div style="height:280px;border-radius:10px;overflow:hidden;border:2px solid #00D4FF40;">
+                            <model-viewer id="zoom3dViewer" src="/static/modelos3d/esp2.glb" camera-controls style="width:100%;height:100%;background:#0A0E17;"></model-viewer>
+                        </div>
+                        <button class="btn btn-secondary" onclick="capturarVista3D()" style="margin-top:10px;width:100%;">📸 Guardar esta vista para P${preguntaZoomActual}</button>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px;">
+                    <button class="btn btn-success" onclick="guardarZoomCaracteres()">💾 Guardar toda la calibración</button>
                 </div>
             </div>`;
+
+        document.getElementById('zoom2dImg').addEventListener('click', (e) => {
+            const rect = e.target.getBoundingClientRect();
+            const px = ((e.clientX - rect.left) / rect.width) * 100;
+            const py = ((e.clientY - rect.top) / rect.height) * 100;
+            const escala = parseFloat(document.getElementById('zoom2dEscala').value);
+            if (!zoomCaracteresEdicion[preguntaZoomActual]) zoomCaracteresEdicion[preguntaZoomActual] = {};
+            zoomCaracteresEdicion[preguntaZoomActual]['2d'] = { x: Math.round(px*10)/10, y: Math.round(py*10)/10, scale: escala };
+            mostrarMarcador2D();
+        });
+
+        cambiarPreguntaZoom(preguntaZoomActual);
+    }
+
+    function cambiarPreguntaZoom(n) {
+        preguntaZoomActual = n;
+        document.getElementById('preguntaZoomTexto').textContent = `Pregunta ${n}: ${PREGUNTAS_CLAVE_TEXTO[n] || ''}`;
+        const botones = document.querySelectorAll('#botonesPreguntaZoom button.btn');
+        botones.forEach(b => {
+            const esActivo = b.textContent.trim() === `P${n}`;
+            b.classList.toggle('btn-success', esActivo);
+            b.classList.toggle('btn-secondary', !esActivo);
+        });
+        const btnCapturar = document.querySelector('button[onclick="capturarVista3D()"]');
+        if (btnCapturar) btnCapturar.textContent = `📸 Guardar esta vista para P${n}`;
+        mostrarMarcador2D();
+    }
+
+    function mostrarMarcador2D() {
+        const cfg = zoomCaracteresEdicion[preguntaZoomActual] && zoomCaracteresEdicion[preguntaZoomActual]['2d'];
+        const marcador = document.getElementById('zoom2dMarcador');
+        if (!marcador) return;
+        if (cfg) {
+            marcador.style.display = 'block';
+            marcador.style.left = cfg.x + '%';
+            marcador.style.top = cfg.y + '%';
+            document.getElementById('zoom2dEscala').value = cfg.scale || 2.2;
+            document.getElementById('zoom2dEscalaVal').textContent = cfg.scale || 2.2;
+        } else {
+            marcador.style.display = 'none';
+        }
+    }
+
+    function capturarVista3D() {
+        const mv = document.getElementById('zoom3dViewer');
+        if (!mv) return;
+        if (!zoomCaracteresEdicion[preguntaZoomActual]) zoomCaracteresEdicion[preguntaZoomActual] = {};
+        zoomCaracteresEdicion[preguntaZoomActual]['3d'] = {
+            orbit: mv.cameraOrbit,
+            target: mv.cameraTarget,
+            fov: mv.fieldOfView
+        };
+        mostrarMensaje(`✅ Vista 3D guardada para Pregunta ${preguntaZoomActual}`);
+    }
+
+    async function guardarZoomCaracteres() {
+        const res = await fetch('/api/admin/config/zoom_caracteres', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ datos: zoomCaracteresEdicion })
+        });
+        if (res.ok) {
+            mostrarMensaje('✅ Calibración guardada. Ya se aplica en las 4 claves.');
+        } else {
+            mostrarMensaje('❌ Error al guardar', '#FF375F');
+        }
+    }
+
+    // ===== CALIBRAR PINES (glosario interactivo) =====
+    const PARTES_HORMIGA_DEFAULT = [
+        {id:"cabeza", label:"Cabeza", px:28, py:54},
+        {id:"mandibulas", label:"Mandíbulas", px:17, py:66},
+        {id:"clipeo", label:"Clípeo", px:21, py:60},
+        {id:"margen", label:"Margen posterior de la cabeza", px:36, py:47},
+        {id:"ocelos", label:"Ocelos", px:22, py:40},
+        {id:"escapo", label:"Escapo", px:21, py:33},
+        {id:"mesosoma", label:"Mesosoma", px:48, py:42},
+        {id:"pronoto", label:"Pronoto", px:40, py:40},
+        {id:"surco", label:"Surco metanotal", px:53, py:38},
+        {id:"propodeo", label:"Propodeo", px:60, py:40},
+        {id:"glandula", label:"Glándula metapleural", px:60, py:54},
+        {id:"peciolo", label:"Pecíolo", px:67, py:47},
+        {id:"gaster", label:"Gáster", px:82, py:42},
+        {id:"setas", label:"Setas erectas", px:79, py:33},
+        {id:"pubescencia", label:"Pubescencia", px:57, py:57},
+        {id:"pilosidad", label:"Pilosidad", px:87, py:36}
+    ];
+    let posicionesPinesEdicion = {};
+    let pinArrastrando = null;
+
+    async function mostrarCalibrarPines() {
+        document.getElementById('tabContent').innerHTML = `
+            <div class="card">
+                <div class="card-title">📍 Calibrar pines del glosario interactivo</div>
+                <p style="color:#A0A0B0;font-size:0.85rem;margin-bottom:15px;">
+                    Arrastra cada punto numerado a la posición correcta sobre la foto. Los cambios se aplican
+                    a las 4 versiones de la clave (2D, 2D+Meta, 3D, 3D+Meta) en cuanto los guardes.
+                </p>
+                <div style="margin-bottom:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-success" onclick="guardarPosicionesPines()">💾 Guardar posiciones</button>
+                    <button class="btn btn-secondary" onclick="restablecerPosicionesPines()">↺ Restablecer a valores por defecto</button>
+                </div>
+                <div style="position:relative;display:inline-block;max-width:100%;" id="calibradorContainer">
+                    <img id="calibradorImg" src="/static/imagenes/linepithema/diagrama_hormiga.png"
+                         style="max-width:100%;display:block;border-radius:15px;border:2px solid #00D4FF40;" draggable="false">
+                    <div id="calibradorOverlay" style="position:absolute;top:0;left:0;"></div>
+                </div>
+                <div style="margin-top:10px;font-size:0.8rem;color:#A0A0B0;" id="calibradorLeyenda"></div>
+            </div>`;
+
+        let guardadas = {};
+        try {
+            const res = await fetch('/api/config/pines');
+            if (res.ok) guardadas = await res.json();
+        } catch(e) { /* usa valores por defecto */ }
+
+        posicionesPinesEdicion = {};
+        PARTES_HORMIGA_DEFAULT.forEach(p => {
+            posicionesPinesEdicion[p.id] = guardadas[p.id]
+                ? { ...guardadas[p.id] }
+                : { px: p.px, py: p.py };
+        });
+
+        const img = document.getElementById('calibradorImg');
+        if (img.complete && img.naturalWidth > 0) {
+            renderPinesCalibrador();
+        } else {
+            img.addEventListener('load', renderPinesCalibrador);
+        }
+        window.addEventListener('resize', renderPinesCalibrador);
+    }
+
+    function renderPinesCalibrador() {
+        const overlay = document.getElementById('calibradorOverlay');
+        const img = document.getElementById('calibradorImg');
+        if (!overlay || !img) return;
+        overlay.style.width = img.offsetWidth + 'px';
+        overlay.style.height = img.offsetHeight + 'px';
+        overlay.innerHTML = '';
+
+        PARTES_HORMIGA_DEFAULT.forEach((p, i) => {
+            const coords = posicionesPinesEdicion[p.id];
+            const pin = document.createElement('div');
+            pin.style.cssText = `position:absolute;width:26px;height:26px;border-radius:50%;
+                background:rgba(0,212,255,0.9);border:2px solid white;transform:translate(-50%,-50%);
+                cursor:grab;display:flex;align-items:center;justify-content:center;z-index:10;
+                box-shadow:0 2px 8px rgba(0,0,0,0.5);font-size:11px;font-weight:bold;color:#0A0E17;
+                left:${coords.px}%; top:${coords.py}%;`;
+            pin.textContent = i + 1;
+            pin.title = p.label;
+            pin.dataset.id = p.id;
+
+            pin.addEventListener('mousedown', (e) => {
+                pinArrastrando = p.id;
+                pin.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            pin.addEventListener('touchstart', (e) => {
+                pinArrastrando = p.id;
+                e.preventDefault();
+            }, { passive: false });
+
+            overlay.appendChild(pin);
+        });
+
+        const contenedor = document.getElementById('calibradorContainer');
+        contenedor.onmousemove = (e) => moverPinArrastrado(e.clientX, e.clientY);
+        contenedor.onmouseup = () => { pinArrastrando = null; };
+        contenedor.onmouseleave = () => { pinArrastrando = null; };
+        contenedor.ontouchmove = (e) => {
+            if (pinArrastrando && e.touches[0]) {
+                moverPinArrastrado(e.touches[0].clientX, e.touches[0].clientY);
+                e.preventDefault();
+            }
+        };
+        contenedor.ontouchend = () => { pinArrastrando = null; };
+
+        document.getElementById('calibradorLeyenda').innerHTML =
+            PARTES_HORMIGA_DEFAULT.map((p, i) => `<span style="margin-right:12px;">${i+1}. ${p.label}</span>`).join('');
+    }
+
+    function moverPinArrastrado(clientX, clientY) {
+        if (!pinArrastrando) return;
+        const img = document.getElementById('calibradorImg');
+        const rect = img.getBoundingClientRect();
+        let px = ((clientX - rect.left) / rect.width) * 100;
+        let py = ((clientY - rect.top) / rect.height) * 100;
+        px = Math.max(0, Math.min(100, px));
+        py = Math.max(0, Math.min(100, py));
+        posicionesPinesEdicion[pinArrastrando] = { px: Math.round(px * 10) / 10, py: Math.round(py * 10) / 10 };
+        renderPinesCalibrador();
+    }
+
+    async function guardarPosicionesPines() {
+        const res = await fetch('/api/admin/config/pines', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ posiciones: posicionesPinesEdicion })
+        });
+        if (res.ok) {
+            mostrarMensaje('✅ Posiciones guardadas. Ya se aplican en las 4 claves.');
+        } else {
+            mostrarMensaje('❌ Error al guardar posiciones', '#FF375F');
+        }
+    }
+
+    function restablecerPosicionesPines() {
+        if (!confirm('¿Restablecer todos los pines a su posición original? (no se guarda hasta que le des "Guardar posiciones")')) return;
+        PARTES_HORMIGA_DEFAULT.forEach(p => {
+            posicionesPinesEdicion[p.id] = { px: p.px, py: p.py };
+        });
+        renderPinesCalibrador();
     }
 
     // ===== EXPORTAR =====
@@ -435,7 +874,7 @@
     function exportarExcel() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-            usuarios.map(u=>({ ID:u.id, Usuario:u.nombre_usuario, Correo:u.correo, Grupo:u.grupo_asignado||'Sin asignar', Semestre:u.semestre, Curso:u.curso }))
+            usuarios.map(u=>({ ID:u.id, Usuario:u.nombre_usuario, Correo:u.correo, Grupo:u.grupo_asignado||'Sin asignar', Tipo:(u.rol==='usuario'||!u.rol)?'estudiante':u.rol, Institucion:u.institucion||'', Semestre:u.semestre }))
         ), 'Usuarios');
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
             resultados.map(r=>({ Usuario:r.usuario, Grupo:r.grupo, Especimen:r.especimen||'', Correcta:r.correcta||'', Seleccionada:r.seleccionada||'', Resultado:r.acerto?'Correcto':'Incorrecto', Tiempo:r.tiempo||0 }))
