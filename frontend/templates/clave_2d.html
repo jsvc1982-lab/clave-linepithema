@@ -934,7 +934,7 @@ if (cargarProgresoLocal()) {  // ← NUEVA LÍNEA 2
             if (especimenes.length > 0 && especimenes[indiceActual]) {
                 const especie = especimenes[indiceActual].especie;
                 const codigo = CODIGO_ESPECIE[especie] || especie;
-                document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${codigo}/${vista}.jpg`;
+                document.getElementById('specimenImage').src = `/foto/${codigo}/${vista}.jpg`;
                 if (typeof resetZoomImagen === 'function') resetZoomImagen();
             }
         }
@@ -972,7 +972,7 @@ if (especimenes[index]) {
     const especie = especimenes[index].especie;
     const codigo = CODIGO_ESPECIE[especie] || especie;
     const img = document.getElementById('specimenImage');
-    img.src = `/static/imagenes/linepithema/${codigo}/${vistaActual}.jpg`;
+    img.src = `/foto/${codigo}/${vistaActual}.jpg`;
     img.style.cursor = 'zoom-in';
     img.style.transition = 'transform 0.2s ease';
     
@@ -2213,7 +2213,7 @@ function verCaracterEnfocado(preguntaNum) {
 
             const img = document.getElementById('imgOrientacion');
             const especieFoto = ESPECIES_ORIENTACION_2D[orientacionIndice % ESPECIES_ORIENTACION_2D.length];
-            img.src = `/static/imagenes/linepithema/${especieFoto}/lateral.jpg`;
+            img.src = `/foto/${CODIGO_ESPECIE[especieFoto] || especieFoto}/lateral.jpg`;
             img.style.transform = 'scale(1)';
             img.dataset.zoomed = '0';
 

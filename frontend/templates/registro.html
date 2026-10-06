@@ -158,20 +158,6 @@
 
                 <form id="registerForm">
                     <div class="form-grid">
-                        <div class="form-group full-width">
-                            <label>👤 Nombre completo *</label>
-                            <input type="text" id="usuario" required minlength="5" maxlength="50" autocomplete="name" placeholder="Nombres y apellidos">
-                            <small style="color:#A0A0B0;font-size:0.75rem;display:block;margin-top:4px;">Escribe tu nombre y apellido completos. Con este nombre iniciarás sesión y saldrá en tu certificado.</small>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>📧 Correo institucional *</label>
-                            <input type="email" id="correo" required autocomplete="email" placeholder="tucorreo@pedagogica.edu.co">
-                            <small id="ayudaCorreo" style="color:#A0A0B0;font-size:0.75rem;display:block;margin-top:4px;">Estudiantes: correo institucional (@pedagogica.edu.co o @upn.edu.co).</small>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>🔑 Contraseña *</label>
-                            <input type="password" id="contrasena" required minlength="6" placeholder="Mínimo 6 caracteres">
-                        </div>
                         <div class="form-group">
                             <label>🧑‍🎓 Tipo de participante *</label>
                             <select id="rol" required>
@@ -191,6 +177,20 @@
                                 <option value="5">5°</option><option value="6">6°</option>
                                 <option value="7">7°</option><option value="8">8°</option>
                             </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>👤 Nombre completo *</label>
+                            <input type="text" id="usuario" required minlength="5" maxlength="50" autocomplete="name" placeholder="Nombres y apellidos">
+                            <small style="color:#A0A0B0;font-size:0.75rem;display:block;margin-top:4px;">Escribe tu nombre y apellido completos. Con este nombre iniciarás sesión y saldrá en tu certificado.</small>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>📧 Correo institucional *</label>
+                            <input type="email" id="correo" required autocomplete="email" placeholder="tucorreo@pedagogica.edu.co">
+                            <small id="ayudaCorreo" style="color:#A0A0B0;font-size:0.75rem;display:block;margin-top:4px;">Elige primero tu tipo de participante: de eso depende qué correo se acepta.</small>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>🔑 Contraseña *</label>
+                            <input type="password" id="contrasena" required minlength="6" placeholder="Mínimo 6 caracteres">
                         </div>
                         <div class="form-group">
                             <label>⚥ Género</label>
@@ -572,7 +572,8 @@ if (typeof module !== 'undefined') module.exports = RotMental;
         let configRegistro = { dominios_estudiante: ['pedagogica.edu.co', 'upn.edu.co'], correo_libre: ['docente', 'validador', 'pruebas'] };
         const listaDominios = () => configRegistro.dominios_estudiante.map(d => '@' + d).join(' o ');
         function textoAyudaCorreo(rol) {
-            if (rol && configRegistro.correo_libre.includes(rol)) return 'Puedes usar cualquier correo.';
+            if (!rol) return 'Elige primero tu tipo de participante: de eso depende qué correo se acepta.';
+            if (configRegistro.correo_libre.includes(rol)) return 'Puedes usar cualquier correo.';
             return 'Usa tu correo institucional: ' + listaDominios() + '.';
         }
         fetch('/api/config/registro').then(x => x.json()).then(cfg => {

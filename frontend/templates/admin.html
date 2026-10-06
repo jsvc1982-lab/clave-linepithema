@@ -311,14 +311,23 @@
         renderEspeciesConfig();
     }
 
+    const CODIGOS_FOTO = { gallardoi:'esp1', humile:'esp2', tsachila:'esp3', piliferum:'esp4', hirsutum:'esp5',
+                           angulatum:'esp6', neotropicum:'esp7', dispertitum:'esp8', iniquum:'esp9' };
+
     function renderEspeciesConfig() {
         const grid = document.getElementById('especiesGrid');
         if (!grid) return;
         grid.innerHTML = especiesConfig.todas.map(esp => {
             const act = especiesConfig.activas.includes(esp.id);
             return `<div class="especie-card ${act?'active':''}" onclick="toggleEspecie('${esp.id}')">
-                <input type="checkbox" ${act?'checked':''} style="accent-color:#00D4FF;" onclick="event.stopPropagation();toggleEspecie('${esp.id}')">
-                <div><strong>${esp.nombre}</strong><br><span style="color:#A0A0B0;font-size:0.8rem;">${esp.id}</span></div>
+                <input type="checkbox" ${act?'checked':''} style="accent-color:#00D4FF;flex:0 0 auto;" onclick="event.stopPropagation();toggleEspecie('${esp.id}')">
+                <div style="flex:0 0 96px;width:96px;height:64px;">
+                    <img src="/foto/${CODIGOS_FOTO[esp.id] || esp.id}/lateral.jpg" alt="${esp.nombre}" loading="lazy"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+                         style="width:96px;height:64px;object-fit:cover;border-radius:8px;background:#0A0E17;display:block;">
+                    <div style="display:none;width:96px;height:64px;align-items:center;justify-content:center;text-align:center;background:#0A0E17;border:1px dashed #FF375F80;border-radius:8px;color:#FF375F;font-size:0.7rem;">sin foto 2D</div>
+                </div>
+                <div><strong>${esp.nombre}</strong><br><span style="color:#A0A0B0;font-size:0.8rem;">${esp.id} · ${CODIGOS_FOTO[esp.id] || ''}</span></div>
             </div>`;
         }).join('');
     }
@@ -610,7 +619,7 @@
                         <strong style="color:#00D4FF;">📷 Encuadre 2D</strong>
                         <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">Toca el punto exacto del carácter en la foto.</p>
                         <div style="position:relative;display:inline-block;max-width:100%;" id="zoom2dContainer">
-                            <img id="zoom2dImg" src="/static/imagenes/linepithema/humile/lateral.jpg"
+                            <img id="zoom2dImg" src="/foto/esp2/lateral.jpg"
                                  style="max-width:100%;display:block;border-radius:10px;border:2px solid #00D4FF40;" draggable="false">
                             <div id="zoom2dMarcador" style="display:none;position:absolute;width:22px;height:22px;border-radius:50%;background:rgba(255,71,95,0.85);border:2px solid white;transform:translate(-50%,-50%);pointer-events:none;"></div>
                         </div>
