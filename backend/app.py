@@ -36,12 +36,22 @@ if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Render cierra las conexiones inactivas de la base: se comprueban antes de usarlas y se renuevan cada ~5 minutos.
+# Evita errores como "SSL error: decryption failed or bad record mac" tras una pausa o un reinicio de la base.
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 280}
 
 CORS(app, supports_credentials=True, origins=os.getenv('ALLOWED_ORIGIN', 'http://127.0.0.1:5000'))
 
 db.init_app(app)
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception:
+        # En una base vacía, los 2 workers de gunicorn pueden crear las tablas a la vez: se reintenta una vez
+        db.session.rollback()
+        import time
+        time.sleep(2)
+        db.create_all()
 
 # ===== CREDENCIALES ADMIN (solo desde variables de entorno) =====
 ADMIN_USER = os.environ.get('ADMIN_USER')
@@ -1017,6 +1027,24 @@ def exportar_csv():
         mimetype='text/csv; charset=utf-8',
         headers={'Content-Disposition': 'attachment; filename=items_linepithema.csv'}
     )
+
+# ===== FOTOS 2D DE LOS ESPECÍMENES, SERVIDAS POR CÓDIGO =====
+# La clave las pide como /foto/esp2/lateral.jpg para que el nombre de la especie no aparezca en la dirección.
+# Se sirven desde la carpeta con el código (esp2) si existe y, si no, desde la carpeta con el nombre de la especie,
+# así no hace falta renombrar carpetas en el repositorio.
+CODIGO_A_ESPECIE = {'esp1': 'gallardoi', 'esp2': 'humile', 'esp3': 'tsachila', 'esp4': 'piliferum', 'esp5': 'hirsutum',
+                    'esp6': 'angulatum', 'esp7': 'neotropicum', 'esp8': 'dispertitum', 'esp9': 'iniquum'}
+VISTAS_FOTO = ('lateral', 'cabeza', 'dorsal')
+
+@app.route('/foto/<codigo>/<vista>.jpg')
+def foto_especimen(codigo, vista):
+    if codigo not in CODIGO_A_ESPECIE or vista not in VISTAS_FOTO:
+        return jsonify({'error': 'No encontrada'}), 404
+    base = os.path.join(app.static_folder, 'imagenes', 'linepithema')
+    for carpeta in (codigo, CODIGO_A_ESPECIE[codigo]):
+        if os.path.isfile(os.path.join(base, carpeta, vista + '.jpg')):
+            return send_from_directory(os.path.join(base, carpeta), vista + '.jpg', max_age=3600)
+    return jsonify({'error': 'No encontrada'}), 404
 
 # ===== API EXPERIMENTO =====
 def estado_ejercicio(usuario):
