@@ -1,0 +1,195 @@
+{
+ "descripcion": "Cantidad de fotos 2D comparativas por rasgo y especie. Archivos: {rasgo}_{esp}_{n}.jpg",
+ "alias": {
+  "p7b": "p5c"
+ },
+ "rasgos": {
+  "p1a": {
+   "esp1": 2,
+   "esp2": 2,
+   "esp3": 2,
+   "esp4": 2,
+   "esp5": 2,
+   "esp6": 2,
+   "esp7": 2,
+   "esp8": 2,
+   "esp9": 2
+  },
+  "p2a": {
+   "esp1": 2,
+   "esp2": 2,
+   "esp3": 2,
+   "esp4": 2,
+   "esp5": 2,
+   "esp6": 2,
+   "esp7": 2,
+   "esp8": 2,
+   "esp9": 2
+  },
+  "p2b": {
+   "esp1": 2,
+   "esp2": 1,
+   "esp3": 2,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p2c": {
+   "esp1": 2,
+   "esp2": 2,
+   "esp3": 2,
+   "esp4": 2,
+   "esp5": 2,
+   "esp6": 2,
+   "esp7": 2,
+   "esp8": 2,
+   "esp9": 2
+  },
+  "p2d": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p3a": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p3b": {
+   "esp1": 3,
+   "esp2": 3,
+   "esp3": 3,
+   "esp4": 3,
+   "esp5": 3,
+   "esp6": 3,
+   "esp7": 3,
+   "esp8": 3,
+   "esp9": 3
+  },
+  "p3c": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p4a": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p5a": {
+   "esp1": 3,
+   "esp2": 3,
+   "esp3": 3,
+   "esp4": 3,
+   "esp5": 3,
+   "esp6": 3,
+   "esp7": 3,
+   "esp8": 3,
+   "esp9": 3
+  },
+  "p5b": {
+   "esp1": 2,
+   "esp2": 2,
+   "esp3": 2,
+   "esp4": 2,
+   "esp5": 2,
+   "esp6": 2,
+   "esp7": 2,
+   "esp8": 2,
+   "esp9": 2
+  },
+  "p5c": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p5d": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p6a": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p7c": {
+   "esp1": 2,
+   "esp2": 2,
+   "esp3": 2,
+   "esp4": 2,
+   "esp5": 2,
+   "esp6": 2,
+   "esp7": 2,
+   "esp8": 2,
+   "esp9": 2
+  },
+  "p8a": {
+   "esp1": 2,
+   "esp2": 2,
+   "esp3": 2,
+   "esp4": 2,
+   "esp5": 2,
+   "esp6": 2,
+   "esp7": 2,
+   "esp8": 2,
+   "esp9": 2
+  },
+  "p8b": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  }
+ }
+}
