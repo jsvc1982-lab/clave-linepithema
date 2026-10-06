@@ -42,6 +42,41 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle'
 
 CORS(app, supports_credentials=True, origins=os.getenv('ALLOWED_ORIGIN', 'http://127.0.0.1:5000'))
 
+# ===== ESQUEMA: agrega columnas nuevas a una base creada con una versión anterior =====
+# db.create_all() solo crea tablas que NO existen; no agrega columnas a las que ya existen. Por eso, si la base se
+# creó (o se restauró de un respaldo) con una versión vieja, esta función completa las columnas que falten.
+COLUMNAS_NUEVAS = {
+    'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)')],
+    'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER')],
+    'reflexiones': [('orden_especimen', 'INTEGER')],
+}
+
+def asegurar_esquema():
+    from sqlalchemy import inspect, text
+    insp = inspect(db.engine)
+    es_postgres = db.engine.dialect.name == 'postgresql'
+    agregadas = []
+    for tabla, columnas in COLUMNAS_NUEVAS.items():
+        if not insp.has_table(tabla):
+            continue
+        existentes = {c['name'] for c in insp.get_columns(tabla)}
+        for nombre, tipo in columnas:
+            if nombre in existentes:
+                continue
+            try:
+                si_no_existe = 'IF NOT EXISTS ' if es_postgres else ''   # evita choques si 2 workers lo hacen a la vez
+                db.session.execute(text(f'ALTER TABLE {tabla} ADD COLUMN {si_no_existe}{nombre} {tipo}'))
+                db.session.commit()
+                agregadas.append(f'{tabla}.{nombre}')
+            except Exception:
+                db.session.rollback()   # otro worker pudo agregarla primero
+    # Los usuarios de versiones anteriores quedan como estudiantes
+    if insp.has_table('usuarios'):
+        db.session.execute(text("UPDATE usuarios SET rol = 'estudiante' WHERE rol IS NULL OR rol = 'usuario'"))
+        db.session.commit()
+    if agregadas:
+        print('[esquema] Columnas agregadas: ' + ', '.join(agregadas), flush=True)
+
 db.init_app(app)
 with app.app_context():
     try:
@@ -52,6 +87,11 @@ with app.app_context():
         import time
         time.sleep(2)
         db.create_all()
+    try:
+        asegurar_esquema()
+    except Exception as e:
+        db.session.rollback()
+        print(f'[esquema] No se pudo verificar el esquema: {e}', flush=True)
 
 # ===== CREDENCIALES ADMIN (solo desde variables de entorno) =====
 ADMIN_USER = os.environ.get('ADMIN_USER')
