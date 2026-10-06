@@ -1,0 +1,22 @@
+EJEMPLO DE PRUEBA - GALERIA 3D
+==============================
+SOLO PARA PROBAR la plataforma. Las imagenes son de relleno (llevan el letrero
+"EJEMPLO DE PRUEBA 3D"). NUNCA usar con participantes.
+
+Contenido: la carpeta comparativas_3d con 73 archivos (72 imagenes + manifest.json),
+menos de 100, asi que entra en UNA sola subida a GitHub.
+Cubre los pareados 1, 2 y 3 (rasgos p1a, p2a-p2d, p3a-p3c); los demas pareados no
+mostraran galeria, y eso es lo esperado en este ejemplo.
+
+COMO SUBIRLO
+1. Descomprime este zip.
+2. En GitHub, rama final2, entra a: frontend / static / imagenes / linepithema
+3. Add file > Upload files > arrastra la carpeta "comparativas_3d" > Commit changes.
+4. Espera el despliegue en Render (~1 minuto) y entra con una cuenta de grupo 3D.
+
+COMO PROBARLO
+En la orientacion (Fase 1), en los pareados 1, 2 y 3 aparecen frases resaltadas.
+Tocalas: se abre la galeria con las opciones A y B y sus ejemplos.
+
+CUANDO LLEGUEN LAS CAPTURAS REALES
+Borra la carpeta comparativas_3d de prueba y sube la real, con su propio manifest.json.
