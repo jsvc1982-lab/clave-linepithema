@@ -52,10 +52,11 @@ COLUMNAS_NUEVAS = {
 }
 
 def asegurar_esquema():
+    """Completa las columnas que falten. Devuelve (columnas_agregadas, errores)."""
     from sqlalchemy import inspect, text
     insp = inspect(db.engine)
     es_postgres = db.engine.dialect.name == 'postgresql'
-    agregadas = []
+    agregadas, errores = [], []
     for tabla, columnas in COLUMNAS_NUEVAS.items():
         if not insp.has_table(tabla):
             continue
@@ -68,14 +69,22 @@ def asegurar_esquema():
                 db.session.execute(text(f'ALTER TABLE {tabla} ADD COLUMN {si_no_existe}{nombre} {tipo}'))
                 db.session.commit()
                 agregadas.append(f'{tabla}.{nombre}')
-            except Exception:
-                db.session.rollback()   # otro worker pudo agregarla primero
+            except Exception as e:
+                db.session.rollback()
+                errores.append(f'{tabla}.{nombre}: {str(e).splitlines()[0][:200]}')
     # Los usuarios de versiones anteriores quedan como estudiantes
-    if insp.has_table('usuarios'):
-        db.session.execute(text("UPDATE usuarios SET rol = 'estudiante' WHERE rol IS NULL OR rol = 'usuario'"))
-        db.session.commit()
+    try:
+        if insp.has_table('usuarios'):
+            db.session.execute(text("UPDATE usuarios SET rol = 'estudiante' WHERE rol IS NULL OR rol = 'usuario'"))
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        errores.append(f'usuarios.rol: {str(e).splitlines()[0][:200]}')
     if agregadas:
         print('[esquema] Columnas agregadas: ' + ', '.join(agregadas), flush=True)
+    if errores:
+        print('[esquema] NO se pudieron agregar: ' + ' | '.join(errores), flush=True)
+    return agregadas, errores
 
 db.init_app(app)
 with app.app_context():
@@ -89,6 +98,7 @@ with app.app_context():
         db.create_all()
     try:
         asegurar_esquema()
+        print('[esquema] Esquema verificado al arrancar', flush=True)
     except Exception as e:
         db.session.rollback()
         print(f'[esquema] No se pudo verificar el esquema: {e}', flush=True)
@@ -965,6 +975,31 @@ def habilitar_reintento(usuario_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/reparar_esquema', methods=['GET', 'POST'])
+@admin_required
+def reparar_esquema():
+    """Diagnóstico y reparación: completa las columnas que falten y muestra a qué base está conectada la app."""
+    try:
+        from sqlalchemy import inspect
+        agregadas, errores = asegurar_esquema()
+        insp = inspect(db.engine)
+        url = db.engine.url
+        faltan = {}
+        for tabla, columnas in COLUMNAS_NUEVAS.items():
+            existentes = {c['name'] for c in insp.get_columns(tabla)} if insp.has_table(tabla) else set()
+            faltan[tabla] = [n for n, _ in columnas if n not in existentes] if insp.has_table(tabla) else ['(la tabla no existe)']
+        return jsonify({
+            'ok': not errores and not any(faltan.values()),
+            'base_de_datos': {'tipo': db.engine.dialect.name, 'servidor': url.host, 'nombre': url.database, 'usuario': url.username},
+            'columnas_agregadas_ahora': agregadas,
+            'errores': errores,
+            'columnas_que_aun_faltan': faltan,
+            'tablas': sorted(insp.get_table_names())
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 @app.route('/api/admin/exportar_csv', methods=['GET'])
 @admin_required
