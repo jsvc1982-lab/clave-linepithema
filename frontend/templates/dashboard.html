@@ -380,12 +380,21 @@
             return '<div style="color:#A0A0B0;font-size:0.85rem;">No hay registro detallado de pasos para este espécimen.</div>';
         }
 
-        const filas = pasosEspecimen.map(p => {
+        // Solo la PRIMERA pregunta equivocada es "Se desvió aquí"; las siguientes ya son ruta alternativa
+        const idxDesvio = pasosEspecimen.findIndex(p => !p.es_paso_correcto);
+        const etiquetaPaso = (i) => {
+            if (idxDesvio === -1 || i < idxDesvio) return { txt: '✅ Correcto', color: '#00D4FF' };
+            if (i === idxDesvio) return { txt: '❌ Se desvió aquí', color: '#FF375F' };
+            return { txt: '↪ Ruta alternativa', color: '#A0A0B0' };
+        };
+
+        const filas = pasosEspecimen.map((p, i) => {
             const rapido = p.tiempo_segundos < 2;
+            const et = etiquetaPaso(i);
             return `<tr>
-                <td>Pregunta ${p.pregunta}</td>
+                <td>Pareado ${p.pregunta}</td>
                 <td>Opción ${p.opcion_elegida === 0 ? 'A' : 'B'}</td>
-                <td style="color:${p.es_paso_correcto ? '#00D4FF' : '#FF375F'};">${p.es_paso_correcto ? '✅ Correcto' : '❌ Se desvió aquí'}</td>
+                <td style="color:${et.color};">${et.txt}</td>
                 <td>${p.tiempo_segundos.toFixed(1)}s ${rapido ? '<span title="Respuesta muy rápida, posible clic sin leer con atención" style="color:#FFB020;">⚡</span>' : ''}</td>
             </tr>`;
         }).join('');

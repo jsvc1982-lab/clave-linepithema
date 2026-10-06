@@ -536,7 +536,10 @@
         .pin:hover,.pin.activo{background:#7B61FF;transform:translate(-50%,-50%) scale(1.25);box-shadow:0 0 0 4px rgba(123,97,255,0.35);z-index:20;}
         .pin-num{font-family:Arial,sans-serif;font-size:10px;color:#0A0E17;font-weight:bold;pointer-events:none;}
         .pin.activo .pin-num{color:#fff;}
-</style>
+.char-desc:empty { display: none; }
+    .rasgo-tap { cursor: pointer; background: linear-gradient(45deg, #7B61FF30, #00D4FF30); border-bottom: 2px solid #7B61FF; padding: 1px 3px; border-radius: 4px; font-weight: 600; color: #B8A9FF; }
+    .rasgo-tap:hover { background: linear-gradient(45deg, #7B61FF60, #00D4FF60); color: #fff; }
+    </style>
 </head>
 <body>
     <div id="introScreen" class="intro-overlay">
@@ -574,12 +577,14 @@
                 </div>
             </div>
 
-            <div style="text-align:center; color:#00D4FF; font-size:0.85rem; margin:10px 0;">⬇️ Descarga la guía antes de continuar (obligatorio)</div>
+            <div id="avisoUnaVez" style="background:#FFB02018;border:2px solid #FFB020;border-radius:12px;padding:12px 14px;margin:12px 0;font-size:0.85rem;line-height:1.5;color:#E0E0E0;">
+                <strong style="color:#FFB020;">⚠️ El ejercicio solo se puede realizar una vez.</strong> No cierres ni recargues esta ventana: si la cierras, no podrás volver a ingresar a las descargas ni repetirlo.
+            </div>
+            <div style="text-align:center; color:#00D4FF; font-size:0.9rem; margin:10px 0; font-weight:600;">⬇️ Descarga los 3 materiales para continuar (obligatorio) · <span id="contadorDescargas">0 de 3</span></div>
             <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:10px;">
-                <button onclick="descargarPDFCompleto()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:1px solid #00D4FF40;color:#00D4FF;padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;">📚 Clave completa</button>
-                <button onclick="descargarGuiaRapida()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:1px solid #00D4FF40;color:#00D4FF;padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;">📄 Guía rápida</button>
-                <button onclick="descargarGlosario()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:1px solid #00D4FF40;color:#00D4FF;padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;">📖 Glosario</button>
-                <button onclick="descargarImagenReferencia()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:1px solid #00D4FF40;color:#00D4FF;padding:9px 14px;border-radius:10px;cursor:pointer;font-size:0.82rem;font-weight:600;">🖼️ Foto de referencia</button>
+                <button id="btnDescClave" onclick="descargarClaveOriginal()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:2px solid #00D4FF40;color:#00D4FF;padding:10px 14px;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;">📚 Clave original <span class="chk"></span></button>
+                <button id="btnDescGlosario" onclick="descargarGlosarioConFotos()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:2px solid #00D4FF40;color:#00D4FF;padding:10px 14px;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;">📖 Glosario con fotos <span class="chk"></span></button>
+                <button id="btnDescPines" onclick="descargarImagenPines()" style="display:flex;align-items:center;gap:6px;background:rgba(26,31,54,0.9);border:2px solid #00D4FF40;color:#00D4FF;padding:10px 14px;border-radius:10px;cursor:pointer;font-size:0.85rem;font-weight:600;">📍 Imagen de pines <span class="chk"></span></button>
             </div>
             
             <div style="text-align:center; color:#A0A0B0; font-size:0.8rem; margin-top:10px;">👆 Toca los puntos numerados sobre la foto para ver cada estructura</div>
@@ -697,63 +702,67 @@
         // ===== CONFIGURACIÓN DE LA CLAVE =====
          const CLAVE = {
     1: {
-        pregunta: "¿La porción anterior a la glándula metapleural tiene pelos adpresos en cantidad moderada a abundante?",
+        pregunta: "Pareado 1",
         opciones: [
-            {texto: "Sí, pelos moderados a abundantes", desc: "Observar en posición dorso-oblicua", siguiente: 2},
-            {texto: "No, sin pelos o muy pocos", desc: "Porción anterior lisa o casi lisa", siguiente: 4}
+            {texto: "Porción anterior a la bula de la glándula metapleural con pelos adpresos en cantidad moderada a abundante (a veces los individuos deben ser observados en posición dorso-oblicua)", desc: "", siguiente: 2},
+            {texto: "Porción anterior a la bula de la glándula metapleural con unos pocos o careciendo de pelos adpresos", desc: "", siguiente: 4}
         ]
     },
     2: {
-        pregunta: "¿El pronoto tiene un par de setas erectas?",
+        pregunta: "Pareado 2",
         opciones: [
-            {texto: "Sí, se observan claramente", desc: "Palpos maxilares largos, surco metanotal débil", resultado: "neotropicum"},
-            {texto: "No, no se observan", desc: "Palpos maxilares cortos, propodeo inclinado", siguiente: 3}
+            {texto: "Pronoto con un par de setas erectas (pueden estar caídas), palpos maxilares largos, más de la mitad de la longitud de la cabeza; surco metanotal ligeramente marcado o no marcado, propodeo bajo y redondeado", desc: "", resultado: "neotropicum"},
+            {texto: "Pronoto usualmente sin setas erectas, raras veces un par; palpos maxilares con una longitud máxima igual o inferior a la longitud de la cabeza; surco metanotal marcado ligeramente o de manera moderada; propodeo inclinado hacia adelante, con una cara dorsal y una posterior formando un ángulo obtuso", desc: "", siguiente: 3}
         ]
     },
     3: {
-        pregunta: "¿Los escapos antenales son cortos?",
+        pregunta: "Pareado 3",
         opciones: [
-            {texto: "Sí, escapos cortos", desc: "Menores que la longitud de la cabeza, mesonoto angular", resultado: "gallardoi"},
-            {texto: "No, escapos largos", desc: "Mayores o iguales a la cabeza, mesonoto recto", resultado: "humile"}
+            {texto: "Escapos antenales relativamente cortos, usualmente con un tamaño inferior a la longitud de la cabeza; pronoto y primer terguito del gáster con setas (a veces pueden estar perdidas); mesonoto angular, con un declive posterior y en ocasiones abultado", desc: "", resultado: "gallardoi"},
+            {texto: "Escapos antenales largos, iguales o mayores a la longitud de la cabeza; pronoto y primer terguito del gáster sin setas; mesonoto recto, no angular o abultado", desc: "", resultado: "humile"}
         ]
     },
     4: {
-        pregunta: "¿El surco pre-sutural del clípeo está presente y bien marcado?",
+        pregunta: "Pareado 4",
         opciones: [
-            {texto: "Sí, surco evidente", desc: "Clípeo con surco pre-sutural marcado", siguiente: 6},
-            {texto: "No, surco ausente o débil", desc: "Clípeo liso o surco apenas visible", siguiente: 5}
+            {texto: "Porción posterior del clípeo con un surco débil o sin surco (surco pre-sutural del clípeo)", desc: "", siguiente: 5},
+            {texto: "Surco pre-sutural del clípeo presente y bien marcado", desc: "", siguiente: 6}
         ]
     },
     5: {
-        pregunta: "¿El dorso de la cabeza tiene más de 5 setas erectas?",
+        pregunta: "Pareado 5",
         opciones: [
-            {texto: "Sí, muchas setas", desc: "Cabeza con más de 5 setas, mesosoma esbelto", resultado: "iniquum"},
-            {texto: "No, pocas o ninguna", desc: "Cabeza con menos de 5 setas, mesosoma robusto", resultado: "dispertitum"}
+            {texto: "Dorso de la cabeza con más de 5 setas erectas, mesosoma esbelto, dorso del mesonoto con una impresión media moderada a fuerte, superficie del cuerpo brillante y lustrosa", desc: "", resultado: "iniquum"},
+            {texto: "Dorso de la cabeza nunca con más de 5 setas, mesosoma más robusto, mesonoto con una impresión media ligeramente impresa o ausente, cuerpo no tan brillante y lustroso como arriba", desc: "", resultado: "dispertitum"}
         ]
     },
     6: {
-        pregunta: "¿El pronoto tiene más de 10 setas erectas?",
+        pregunta: "Pareado 6",
         opciones: [
-            {texto: "Sí, muy piloso", desc: "Cuerpo cubierto de setas erectas", resultado: "hirsutum"},
-            {texto: "No, menos de 10", desc: "Cuerpo sin muchas setas erectas", siguiente: 7}
+            {texto: "Pronoto con más de 10 setas erectas, superficie de todo el cuerpo con setas erectas largas o cortas", desc: "", resultado: "hirsutum"},
+            {texto: "Pronoto con menos de 10 setas erectas, superficie de todo el cuerpo nunca cubierto con muchas setas erectas", desc: "", siguiente: 7}
         ]
     },
     7: {
-        pregunta: "¿El margen posterior de la cabeza es profundamente cóncavo?",
+        pregunta: "Pareado 7",
         opciones: [
-            {texto: "Sí, muy cóncavo", desc: "Borde occipital con escotadura profunda", resultado: "tsachila"},
-            {texto: "No, recto o ligeramente cóncavo", desc: "Borde occipital recto o apenas cóncavo", siguiente: 8}
+            {texto: "Margen posterior de la cabeza profundamente cóncavo, dorso del mesonoto nunca con una impresión media, pronoto usualmente con 4 (2–8) setas erectas a suberectas", desc: "", resultado: "tsachila"},
+            {texto: "Margen posterior de la cabeza recto a ligeramente cóncavo, dorso del mesonoto con una ligera impresión media o sin impresión, pronoto nunca con más de 4 setas erectas", desc: "", siguiente: 8}
         ]
     },
     8: {
-        pregunta: "¿Los escapos antenales son cortos?",
+        pregunta: "Pareado 8",
         opciones: [
-            {texto: "Sí, escapos cortos", desc: "Sobrepasan poco el margen posterior de la cabeza", resultado: "angulatum"},
-            {texto: "No, escapos largos", desc: "Sobrepasan claramente el margen posterior", resultado: "piliferum"}
+            {texto: "Escapos antenales cortos, sobrepasando el margen posterior de la cabeza por una longitud inferior a la del pedicelo, propodeo relativamente alto, con caras anterior dorsal y posterior distinguibles, a veces la cara dorsal ligeramente deprimida", desc: "", resultado: "angulatum"},
+            {texto: "Escapos antenales relativamente largos, sobrepasando el margen posterior de la cabeza por una longitud igual o superior a la del pedicelo, propodeo usualmente redondeado, no como arriba", desc: "", resultado: "piliferum"}
         ]
     }
 };
 
+        const CODIGO_ESPECIE = {
+            gallardoi: 'esp1', humile: 'esp2', tsachila: 'esp3', piliferum: 'esp4',
+            hirsutum: 'esp5', angulatum: 'esp6', neotropicum: 'esp7', dispertitum: 'esp8', iniquum: 'esp9'
+        };
         const ESPECIES = {
     'neotropicum': {nombre: 'Linepithema neotropicum', caracteristicas: 'Pronoto con par de setas erectas, palpos maxilares largos', distribucion: 'Región Andina, 260-2600m'},
     'gallardoi': {nombre: 'Linepithema gallardoi', caracteristicas: 'Escapos cortos, mesonoto angular, pronoto con setas', distribucion: 'Alta montaña, >1000m'},
@@ -782,7 +791,7 @@
     {term: "Mesonoto", def: "Segunda parte del mesosoma (tórax), entre el pronoto y el propodeo. Su forma (angular, recta) y su impresión media ayudan a diferenciar especies."},
     {term: "Mesosoma", def: "Tórax, región del cuerpo donde se insertan los tres pares de patas. Comprende el pronoto, mesonoto y propodeo. Es la región central del cuerpo."},
     {term: "Ojos", def: "Órganos visuales compuestos ubicados en la cabeza. Pueden ser grandes o pequeños según la especie. Su posición y tamaño son caracteres diagnósticos."},
-    {term: "Palpos maxilares", def: "Apéndices sensoriales pares cerca de la boca, asociados a las mandíbulas. Su longitud relativa a la cabeza es un carácter diagnóstico (ej. L. neotropicum)."},
+    {term: "Palpos maxilares", def: "Apéndices sensoriales pares cerca de la boca, asociados a las mandíbulas. Su longitud relativa a la cabeza es un carácter diagnóstico de la clave."},
     {term: "Patas", def: "Tres pares de apéndices articulados insertados en el mesosoma. Cada pata se compone de coxa, trocánter, fémur, tibia y tarso. Su longitud relativa es importante."},
     {term: "Pecíolo", def: "Segmento o nódulo que conecta el mesosoma con el gáster (la 'cintura' de la hormiga). En Linepithema es característico y puede tener forma de escama o nódulo."},
     {term: "Pedicelo antenal", def: "Segundo segmento de la antena, entre el escapo y el flagelo. No confundir con el pecíolo del cuerpo: aquí se usa como referencia de longitud para comparar con el escapo."},
@@ -794,7 +803,7 @@
     {term: "Setas erectas", def: "Pelos erguidos que sobresalen del perfil del cuerpo. Se cuentan para diferenciar especies. Su presencia, cantidad y distribución son diagnósticas."},
     {term: "Surco metanotal", def: "Depresión o surco en el mesosoma que separa el mesonoto del propodeo. Puede ser impreso o no según la especie. Es visible en vista dorsal."},
     {term: "Surco pre-sutural del clípeo", def: "Surco ubicado en la porción posterior del clípeo, antes de su sutura con la cabeza. Puede estar bien marcado, débil o ausente según la especie."},
-    {term: "Terguito", def: "Placa dorsal endurecida de un segmento del gáster. El primer terguito puede presentar o no setas, carácter que diferencia L. gallardoi de L. humile."},
+    {term: "Terguito", def: "Placa dorsal endurecida de un segmento del gáster. El primer terguito puede presentar o no setas, un carácter que usa la clave."},
     {term: "Tórax", def: "Región media del cuerpo donde se insertan las patas. En hormigas se compone de pronoto, mesonoto, metanoto y propodeo. Es sinónimo de mesosoma."}
 ];
         // ===== VARIABLES GLOBALES =====
@@ -823,6 +832,17 @@
         let reflexionDuranteEnviada = false;
         let reflexionPostEnviada = false;
         let comentarioFinalEnviado = false;
+        // ===== DISEÑO DEL MONITOREO (documentar en la metodología) =====
+        // La reflexión 'durante' (seguridad + cambio de estrategia) aparece solo tras la 1.ª y la 3.ª
+        // respuesta de cada espécimen (si la ruta llega a ellas). La reflexión final cierra cada espécimen.
+        const MOMENTOS_MONITOREO = [1, 3];
+        // true: la reflexión final (acierto percibido, dificultad, esfuerzo) se pide ANTES de mostrar si acertó,
+        // para que no esté contaminada por el feedback. false: comportamiento anterior (después del feedback).
+        const REFLEXION_FINAL_ANTES_DEL_FEEDBACK = true;
+        let tiempoReflexionAcumulado = 0;
+        let tiempoInicioReflexionActual = null;
+        let previaSlidersTocados = { reflexion1: false, reflexion2: false, reflexion3: false, reflexion4: false };
+        let seguridadDuranteTocada = false;
         let zoomCaracteresConfig = {};
         fetch('/api/config/zoom_caracteres').then(r => r.json()).then(d => { zoomCaracteresConfig = d; }).catch(() => {});
         let vistaActual = 'lateral';
@@ -841,12 +861,25 @@
                 return;
             }
             
+            if (!usuario) usuario = window.__nombreSesion || '';
             if (usuario) {
                 document.getElementById('userBadge').innerHTML = `Usuario: <span>${usuario}</span>`;
             }
+            // ¿Puede realizar el ejercicio? (un solo intento por participante)
+            try {
+                const re = await fetch('/api/experimento/estado');
+                if (re.ok) estadoEjercicio = await re.json();
+            } catch (e) { /* sin conexión: se deja continuar y el servidor decide al iniciar */ }
+            if (estadoEjercicio) {
+                if (estadoEjercicio.reanudar_encuestas) {
+                    mostrarPantallaEstado('📝', 'Solo te faltan las encuestas', 'Ya terminaste las dos identificaciones. Responde las encuestas finales para ver tus resultados y descargar tu certificado.', 'Continuar con las encuestas', reanudarEncuestas);
+                } else if (!estadoEjercicio.puede_iniciar) {
+                    mostrarPantallaYaRealizado(estadoEjercicio.codigo);
+                }
+            }
             cargarGlosario();
             document.getElementById('startBtn').addEventListener('click', function() {
-                if (!guiaDescargada) {
+                if (!todasDescargadas()) {
                     mostrarAvisoDescargaObligatoria();
                     return;
                 }
@@ -859,6 +892,7 @@
                 const response = await fetch('/api/verificar_sesion');
                 if (response.ok) {
                     const data = await response.json();
+                    window.__nombreSesion = data.usuario;
                     return data.id;
                 }
             } catch(e) {
@@ -885,10 +919,12 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ usuario_id: usuarioId })
                 });
+                if (response.status === 409) { mostrarPantallaYaRealizado('abandonado'); return; }
                 if (!response.ok) throw new Error('Error al iniciar');
                 const data = await response.json();
                 sesionId = data.sesion_id;
                 especimenes = data.especimenes.slice(0, 2);
+                ejercicioEnCurso = true;
             } catch (error) {
                 console.error('Error iniciando sesión:', error);
                 mostrarFeedback('❌ Error al iniciar la sesión experimental', '#FF375F');
@@ -918,12 +954,16 @@
 
         // ===== REFLEXIONES METACOGNITIVAS =====
        function mostrarReflexionPrevia() {
+    previaSlidersTocados.reflexion1 = false;
+    previaSlidersTocados.reflexion2 = false;
+    previaSlidersTocados.reflexion3 = false;
+    previaSlidersTocados.reflexion4 = false;
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 600px;">
             <h3>🧠 Reflexión previa</h3>
-            <p>Por favor, responde las siguientes preguntas con una escala de 0 a 100:</p>
+            <p>Por favor, responde las siguientes preguntas moviendo cada deslizador:</p>
             
             <div style="margin: 20px 0;">
                 <label style="color: #00D4FF;">1. ¿Qué nivel de conocimiento tenías sobre el género Linepithema antes de este estudio?</label>
@@ -933,7 +973,7 @@
                     <span>100</span>
                 </div>
                 <div style="text-align: center; margin-top: 5px;">
-                    <span id="valor1" style="color: #00D4FF;">50</span>%
+                    <span id="valor1" style="color: #00D4FF;">— sin responder —</span>
                 </div>
             </div>
             
@@ -945,7 +985,7 @@
                     <span>100</span>
                 </div>
                 <div style="text-align: center; margin-top: 5px;">
-                    <span id="valor2" style="color: #00D4FF;">50</span>%
+                    <span id="valor2" style="color: #00D4FF;">— sin responder —</span>
                 </div>
             </div>
             
@@ -953,11 +993,11 @@
                 <label style="color: #00D4FF;">3. ¿Cuánto tiempo crees que te tomará identificar cada especie (en minutos)?</label>
                 <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
                     <span>0</span>
-                    <input type="range" id="reflexion3" min="0" max="30" value="10" style="flex: 1;">
-                    <span>30</span>
+                    <input type="range" id="reflexion3" min="0" max="5" step="0.5" value="2.5" style="flex: 1;">
+                    <span>5</span>
                 </div>
                 <div style="text-align: center; margin-top: 5px;">
-                    <span id="valor3" style="color: #00D4FF;">10</span> min
+                    <span id="valor3" style="color: #00D4FF;">— sin responder —</span>
                 </div>
             </div>
             <!-- ✅ NUEVA PREGUNTA: RAZONAMIENTO ESPACIAL -->
@@ -969,7 +1009,7 @@
         <span>100%</span>
     </div>
     <div style="text-align: center; margin-top: 5px;">
-        <span id="valor4" style="color: #00D4FF;">50</span>%
+        <span id="valor4" style="color: #00D4FF;">— sin responder —</span>
     </div>
 </div>
 <!-- Selección de estrategia -->
@@ -982,7 +1022,7 @@
         </div>
         <div style="margin-bottom: 10px;">
             <input type="radio" name="estrategia" id="estrat2" value="comparativa">
-            <label for="estrat2" style="color:#E0E0E0;">🔍 <strong>Comparación activa</strong> - Comparar el espécimen con las imágenes de referencia o con mi memoria</label>
+            <label for="estrat2" style="color:#E0E0E0;">🔍 <strong>Comparación activa</strong> - Contrastar cada carácter de la clave observando el espécimen desde distintas vistas</label>
         </div>
         <div>
             <input type="radio" name="estrategia" id="estrat3" value="hipotetica">
@@ -995,22 +1035,31 @@
     `;
     document.body.appendChild(modal);
     
-    // Actualizar valores mostrados
+    // Actualizar valores mostrados y marcar como tocado
     document.getElementById('reflexion1').addEventListener('input', function(e) {
-        document.getElementById('valor1').textContent = e.target.value;
+        document.getElementById('valor1').textContent = e.target.value + '%';
+        previaSlidersTocados.reflexion1 = true;
     });
     document.getElementById('reflexion2').addEventListener('input', function(e) {
-        document.getElementById('valor2').textContent = e.target.value;
+        document.getElementById('valor2').textContent = e.target.value + '%';
+        previaSlidersTocados.reflexion2 = true;
     });
     document.getElementById('reflexion3').addEventListener('input', function(e) {
-        document.getElementById('valor3').textContent = e.target.value;
+        document.getElementById('valor3').textContent = e.target.value + ' min';
+        previaSlidersTocados.reflexion3 = true;
     });
     document.getElementById('reflexion4').addEventListener('input', function(e) {
-    document.getElementById('valor4').textContent = e.target.value;
+    document.getElementById('valor4').textContent = e.target.value + '%';
+    previaSlidersTocados.reflexion4 = true;
     });
 }
 
         async function guardarReflexionPrevia() {
+    const faltantes = Object.entries(previaSlidersTocados).filter(([k, v]) => !v).map(([k]) => k);
+    if (faltantes.length > 0) {
+        mostrarFeedback('⚠️ Mueve todos los deslizadores antes de continuar', '#FFB020');
+        return;
+    }
     if (reflexionPreviaEnviada) return;
     reflexionPreviaEnviada = true;
     const nivelConocimiento = document.getElementById('reflexion1').value;
@@ -1043,6 +1092,8 @@ else estrategiaTexto = 'Hipotético-deductiva';
 
        function mostrarReflexionDurante(preguntaNum) {
     reflexionDuranteEnviada = false;
+    seguridadDuranteTocada = false;
+    tiempoInicioReflexionActual = Date.now();
     return new Promise((resolve) => {
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -1059,7 +1110,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
                         <span>100%</span>
                     </div>
                     <div style="text-align: center; margin-top: 5px;">
-                        <span id="seguridadValor" style="color: #00D4FF;">50</span>%
+                        <span id="seguridadValor" style="color: #00D4FF;">— sin responder —</span>
                     </div>
                 </div>
                 
@@ -1113,7 +1164,8 @@ else estrategiaTexto = 'Hipotético-deductiva';
         });
         
         document.getElementById('reflexionDuranteSeguridad').addEventListener('input', function(e) {
-            document.getElementById('seguridadValor').textContent = e.target.value;
+            document.getElementById('seguridadValor').textContent = e.target.value + '%';
+            seguridadDuranteTocada = true;
         });
         
         window.resolverReflexion = resolve;
@@ -1121,6 +1173,10 @@ else estrategiaTexto = 'Hipotético-deductiva';
 }
 
         async function guardarReflexionDurante(preguntaNum) {
+    if (!seguridadDuranteTocada) {
+        mostrarFeedback('⚠️ Mueve el deslizador de seguridad antes de continuar', '#FFB020');
+        return;
+    }
     if (reflexionDuranteEnviada) return;
     reflexionDuranteEnviada = true;
     const seguridad = document.getElementById('reflexionDuranteSeguridad').value;
@@ -1145,6 +1201,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ 
                 sesion_id: sesionId, 
+                orden_especimen: indiceActual + 1,
                 momento: 'durante', 
                 pregunta: `Pregunta ${preguntaNum} (monitoreo de estrategia)`, 
                 respuesta: respuesta 
@@ -1161,11 +1218,16 @@ else estrategiaTexto = 'Hipotético-deductiva';
         }
     }
     
+    if (tiempoInicioReflexionActual) {
+        tiempoReflexionAcumulado += (Date.now() - tiempoInicioReflexionActual) / 1000;
+        tiempoInicioReflexionActual = null;
+    }
     window.resolverReflexion();
 }
 
         function mostrarReflexionPost() {
     reflexionPostEnviada = false;
+    tiempoInicioReflexionActual = Date.now();
     return new Promise((resolve) => {
         const modal = document.createElement('div');
         modal.className = 'modal';
@@ -1245,11 +1307,16 @@ else estrategiaTexto = 'Hipotético-deductiva';
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ 
                 sesion_id: sesionId, 
+                orden_especimen: indiceActual + 1,
                 momento: 'post', 
                 pregunta: `Reflexión final espécimen ${indiceActual+1} (escala numérica)`, 
                 respuesta: respuesta 
             })
         });
+    }
+    if (tiempoInicioReflexionActual) {
+        tiempoReflexionAcumulado += (Date.now() - tiempoInicioReflexionActual) / 1000;
+        tiempoInicioReflexionActual = null;
     }
     document.querySelector('.modal').remove();
     window.resolverReflexionPost();
@@ -1279,12 +1346,13 @@ else estrategiaTexto = 'Hipotético-deductiva';
             event.target.classList.add('active');
             if (especimenes.length > 0 && especimenes[indiceActual]) {
                 const especie = especimenes[indiceActual].especie;
-                document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${especie}/${vista}.jpg`;
+                const codigo = CODIGO_ESPECIE[especie] || especie;
+                document.getElementById('specimenImage').src = `/static/imagenes/linepithema/${codigo}/${vista}.jpg`;
                 if (typeof resetZoomImagen === 'function') resetZoomImagen();
             }
         }
 
-        async function guardarResultadoBackend(especimenId, especieCorrecta, especieSeleccionada, esCorrecta, tiempo) {
+        async function guardarResultadoBackend(especimenId, especieCorrecta, especieSeleccionada, esCorrecta, tiempo, tiempoReflexion, primeraPreguntaDesvio) {
             try {
                 const response = await fetch('/api/experimento/guardar_resultado', {
                     method: 'POST',
@@ -1296,6 +1364,8 @@ else estrategiaTexto = 'Hipotético-deductiva';
                         especie_seleccionada: especieSeleccionada,
                         es_correcta: esCorrecta,
                         tiempo_segundos: tiempo,
+                        tiempo_reflexion_segundos: tiempoReflexion,
+                        primera_pregunta_desvio: primeraPreguntaDesvio,
                         orden: indiceActual + 1
                     })
                 });
@@ -1331,34 +1401,32 @@ else estrategiaTexto = 'Hipotético-deductiva';
     caminoCorrectoActual = caminoHaciaEspecie(especimenes[index].especie);
     ordenPasoActual = 0;
     especimenFinalizado = false;
+    tiempoReflexionAcumulado = 0;
     tiempoInicioEspecimen = Date.now();
     
     document.getElementById('specimenCounter').textContent = `ESPÉCIMEN ${index+1}/${especimenes.length}`;
     document.getElementById('progressBar').style.width = `${((index+1)/especimenes.length)*100}%`;
     
 if (especimenes[index]) {
-    if (typeof loadSketchfabModel === 'function') {
-        loadSketchfabModel(especimenes[index].especie);
-    } else {
-        const especie = especimenes[index].especie;
-        const img = document.getElementById('specimenImage');
-        img.src = `/static/imagenes/linepithema/${especie}/${vistaActual}.jpg`;
-        img.style.cursor = 'zoom-in';
-        img.style.transition = 'transform 0.2s ease';
-        
-        // Zoom con scroll (rueda del mouse)
-        let currentScale = 1;
-        img.addEventListener('wheel', function(e) {
-            e.preventDefault();
-            if (e.deltaY < 0) {
-                currentScale = Math.min(currentScale + 0.1, 3);
-            } else {
-                currentScale = Math.max(currentScale - 0.1, 1);
-            }
-            img.style.transform = `scale(${currentScale})`;
-            img.style.transformOrigin = 'center center';
-        });
-    }
+    const especie = especimenes[index].especie;
+    const codigo = CODIGO_ESPECIE[especie] || especie;
+    const img = document.getElementById('specimenImage');
+    img.src = `/static/imagenes/linepithema/${codigo}/${vistaActual}.jpg`;
+    img.style.cursor = 'zoom-in';
+    img.style.transition = 'transform 0.2s ease';
+    
+    // Zoom con scroll (rueda del mouse)
+    let currentScale = 1;
+    img.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+            currentScale = Math.min(currentScale + 0.1, 3);
+        } else {
+            currentScale = Math.max(currentScale - 0.1, 1);
+        }
+        img.style.transform = `scale(${currentScale})`;
+        img.style.transformOrigin = 'center center';
+    });
 }
             mostrarPregunta(1);
 }
@@ -1370,20 +1438,18 @@ if (especimenes[index]) {
     }
             if (!paso) return;
             
-            if (numero > 1 && pasoActual !== numero) {
+            if (numero > 1 && pasoActual !== numero && MOMENTOS_MONITOREO.includes(caminoRecorrido.length)) {
                 await mostrarReflexionDurante(numero);
             }
             
             tiempoInicioPaso = Date.now();
             pasoActual = numero;
-            let html = `<div class="current-question">Pregunta ${numero}</div>`;
+            let html = `<div class="current-question">Pareado ${numero}</div>`;
             if (caminoRecorrido.length > 0) {
                 const partes = caminoRecorrido.map(c => `P${c.pregunta}:${c.opcion===0?'A':'B'}`);
                 html += `<div style="font-size:0.75rem;color:#7B61FF;margin-bottom:10px;background:#1A1F36;padding:8px 12px;border-radius:8px;">🧭 Tu camino: ${partes.join(' → ')} → <strong>Pregunta ${numero}</strong></div>`;
             }
-            html += `<div style="font-size:0.75rem;color:#A0A0B0;margin-bottom:10px;">📸 Esta clave no incluye imágenes de referencia por carácter. Guíate por la descripción morfológica de cada opción y por la guía que descargaste.</div>
-                <div class="question-text">${paso.pregunta}</div>`;
-            html += `<button class="action-btn" onclick="verCaracterEnfocado(${numero})" style="background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;margin-bottom:10px;padding:10px;width:100%;border:none;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Ver este carácter en el espécimen</button>`;
+            html += `<div style="font-size:0.75rem;color:#A0A0B0;margin-bottom:10px;">📸 Esta clave no incluye imágenes de referencia por carácter. Guíate por la descripción morfológica de cada opción y por la guía que descargaste.</div>`;
             html += `<div class="options-grid">`;
             paso.opciones.forEach((opcion, idx) => {
                 const letra = idx === 0 ? 'A' : 'B';
@@ -1475,14 +1541,33 @@ if (especimenes[index]) {
             const especieCorrecta = especimenes[indiceActual].especie;
             const nombreCorrecto = ESPECIES[especieCorrecta].nombre;
             const esCorrecto = resultadoEspecie === especieCorrecta;
-            const tiempoEmpleado = (Date.now() - tiempoInicioEspecimen) / 1000;
+            const tiempoTotal = (Date.now() - tiempoInicioEspecimen) / 1000;
+            const tiempoEmpleado = Math.max(0, tiempoTotal - tiempoReflexionAcumulado);
+
+            let divergencia = null;
+            if (!esCorrecto) {
+                const caminoCorrecto = caminoHaciaEspecie(especieCorrecta) || [];
+                for (let i = 0; i < caminoCorrecto.length; i++) {
+                    const paso = caminoRecorrido[i];
+                    if (!paso || paso.pregunta !== caminoCorrecto[i].pregunta || paso.opcion !== caminoCorrecto[i].opcion) {
+                        divergencia = caminoCorrecto[i];
+                        break;
+                    }
+                }
+            }
+
+            if (REFLEXION_FINAL_ANTES_DEL_FEEDBACK) {
+                await mostrarReflexionPost();
+            }
 
             await guardarResultadoBackend(
                 especimenes[indiceActual].id,
                 especieCorrecta,
                 resultadoEspecie,
                 esCorrecto,
-                tiempoEmpleado
+                tiempoEmpleado,
+                tiempoReflexionAcumulado,
+                divergencia ? divergencia.pregunta : null
             );
 
             respuestas[indiceActual] = esCorrecto ? especieCorrecta : 'incorrecto';
@@ -1496,20 +1581,11 @@ if (especimenes[index]) {
             if (esCorrecto) {
                 mostrarFeedback(`✅ ¡Excelente! Identificaste "${nombreCorrecto}"`, '#00D4FF');
             } else {
-                const caminoCorrecto = caminoHaciaEspecie(especieCorrecta) || [];
-                let divergencia = null;
-                for (let i = 0; i < caminoCorrecto.length; i++) {
-                    const paso = caminoRecorrido[i];
-                    if (!paso || paso.pregunta !== caminoCorrecto[i].pregunta || paso.opcion !== caminoCorrecto[i].opcion) {
-                        divergencia = caminoCorrecto[i];
-                        break;
-                    }
-                }
                 let mensajeCaracter = '';
                 if (divergencia) {
                     const pasoClave = CLAVE[divergencia.pregunta];
                     const opcionCorrecta = pasoClave.opciones[divergencia.opcion];
-                    mensajeCaracter = ` Te desviaste en la Pregunta ${divergencia.pregunta}: "${pasoClave.pregunta}" — el carácter correcto era: "${opcionCorrecta.texto}" (${opcionCorrecta.desc}).`;
+                    mensajeCaracter = ` Te desviaste en el Pareado ${divergencia.pregunta}: la opción correcta era la ${divergencia.opcion === 0 ? "A" : "B"}: "${opcionCorrecta.texto}".`;
                 }
                 mostrarFeedback(`❌ Concluiste "${resultadoEspecie}". La especie correcta era "${nombreCorrecto}".${mensajeCaracter}`, '#FF375F');
             }
@@ -1517,7 +1593,9 @@ if (especimenes[index]) {
             caminoRecorrido = [];
 
             setTimeout(async () => {
-                await mostrarReflexionPost();
+                if (!REFLEXION_FINAL_ANTES_DEL_FEEDBACK) {
+                    await mostrarReflexionPost();
+                }
 
                 if (indiceActual < especimenes.length - 1) {
                     setTimeout(() => {
@@ -1792,6 +1870,7 @@ function descargarImagenReferencia() {
             }
             mostrarFeedback('✅ ¡Gracias por completar el estudio!', '#00D4FF');
             setTimeout(() => {
+                ejercicioEnCurso = false;
                 window.location.href = '/dashboard?usuario=' + usuario;
             }, 1500);
         }
@@ -1872,77 +1951,49 @@ function descargarImagenReferencia() {
     const contenido = `CLAVE TAXONÓMICA - GÉNERO Linepithema
 ========================================
 
-PREGUNTAS DE LA CLAVE:
-(cada pregunta trae una "traducción" en lenguaje simple para ubicar el carácter)
+PREGUNTAS DE LA CLAVE (texto original):
 
-1. ¿La porción anterior a la glándula metapleural tiene pelos (pubescencia)?
-   En simple: mira justo antes del "bulto" brillante en la parte trasera del tórax. ¿Se ve peludo ahí, o liso?
-   ● Sí, pelos moderados a abundantes → Ir a pregunta 2
-   ● No, sin pelos o muy pocos → Ir a pregunta 4
+Clave de identificación de obreras del género Linepithema en Colombia.
+Basada en: Escárraga, M., Guerrero, R.J. 2016. The ant genus Linepithema (Formicidae: Dolichoderinae) in Colombia. Zootaxa 4208(5): 446–458. doi:10.11646/zootaxa.4208.5.3
 
-2. ¿El pronoto tiene un par de setas erectas?
-   En simple: el pronoto es la primera parte del tórax, justo detrás de la cabeza. ¿Ves 2 pelos largos y parados ahí?
-   ● Sí → L. neotropicum
-   ● No → Ir a pregunta 3
+1
+   A. Porción anterior a la bula de la glándula metapleural con pelos adpresos en cantidad moderada a abundante (a veces los individuos deben ser observados en posición dorso-oblicua) ..... 2
+   B. Porción anterior a la bula de la glándula metapleural con unos pocos o careciendo de pelos adpresos ..... 4
 
-3. ¿Los escapos antenales son cortos (menores que la longitud de la cabeza)?
-   En simple: el escapo es el primer segmento (el más largo) de la antena. Compáralo con el tamaño de la cabeza.
-   ● Sí → L. gallardoi
-   ● No → L. humile
+2  (volver al pareado 1)
+   A. Pronoto con un par de setas erectas (pueden estar caídas), palpos maxilares largos, más de la mitad de la longitud de la cabeza; surco metanotal ligeramente marcado o no marcado, propodeo bajo y redondeado ..... Linepithema neotropicum
+   B. Pronoto usualmente sin setas erectas, raras veces un par; palpos maxilares con una longitud máxima igual o inferior a la longitud de la cabeza; surco metanotal marcado ligeramente o de manera moderada; propodeo inclinado hacia adelante, con una cara dorsal y una posterior formando un ángulo obtuso ..... 3
 
-4. ¿El clípeo tiene un surco pre-sutural bien marcado?
-   En simple: el clípeo es la placa justo arriba de las mandíbulas. Busca una línea o surco marcado ahí.
-   ● Sí → Ir a pregunta 6
-   ● No → Ir a pregunta 5
+3  (volver al pareado 2)
+   A. Escapos antenales relativamente cortos, usualmente con un tamaño inferior a la longitud de la cabeza; pronoto y primer terguito del gáster con setas (a veces pueden estar perdidas); mesonoto angular, con un declive posterior y en ocasiones abultado ..... Linepithema gallardoi
+   B. Escapos antenales largos, iguales o mayores a la longitud de la cabeza; pronoto y primer terguito del gáster sin setas; mesonoto recto, no angular o abultado ..... Linepithema humile
 
-5. ¿El dorso de la cabeza tiene más de 5 setas erectas?
-   En simple: cuenta los pelos largos y parados en la parte de arriba de la cabeza, vista desde arriba.
-   ● Sí → L. iniquum
-   ● No → L. dispertitum
+4  (volver al pareado 1)
+   A. Porción posterior del clípeo con un surco débil o sin surco (surco pre-sutural del clípeo) ..... 5
+   B. Surco pre-sutural del clípeo presente y bien marcado ..... 6
 
-6. ¿El pronoto tiene más de 10 setas erectas?
-   En simple: mismo lugar que la pregunta 2, pero ahora cuenta si hay más de 10 pelos parados ahí.
-   ● Sí → L. hirsutum
-   ● No → Ir a pregunta 7
+5  (volver al pareado 4)
+   A. Dorso de la cabeza con más de 5 setas erectas, mesosoma esbelto, dorso del mesonoto con una impresión media moderada a fuerte, superficie del cuerpo brillante y lustrosa ..... Linepithema iniquum
+   B. Dorso de la cabeza nunca con más de 5 setas, mesosoma más robusto, mesonoto con una impresión media ligeramente impresa o ausente, cuerpo no tan brillante y lustroso como arriba ..... Linepithema dispertitum
 
-7. ¿El margen posterior de la cabeza es profundamente cóncavo?
-   En simple: mira el borde de atrás de la cabeza, visto desde arriba. ¿Tiene una curva profunda hacia adentro, o es recto?
-   ● Sí → L. tsachila
-   ● No → Ir a pregunta 8
+6  (volver al pareado 4)
+   A. Pronoto con más de 10 setas erectas, superficie de todo el cuerpo con setas erectas largas o cortas ..... Linepithema hirsutum
+   B. Pronoto con menos de 10 setas erectas, superficie de todo el cuerpo nunca cubierto con muchas setas erectas ..... 7
 
-8. ¿Los escapos antenales son cortos (sobrepasan poco el margen posterior)?
-   En simple: mira cuánto sobresale la antena más allá de la cabeza. Si sobresale poco, es "corta".
-   ● Sí → L. angulatum
-   ● No → L. piliferum
+7  (volver al pareado 6)
+   A. Margen posterior de la cabeza profundamente cóncavo, dorso del mesonoto nunca con una impresión media, pronoto usualmente con 4 (2–8) setas erectas a suberectas ..... Linepithema tsachila
+   B. Margen posterior de la cabeza recto a ligeramente cóncavo, dorso del mesonoto con una ligera impresión media o sin impresión, pronoto nunca con más de 4 setas erectas ..... 8
 
-CARACTERÍSTICAS DE LAS ESPECIES:
-- L. neotropicum: Pubescencia metapleural, pronoto con par de setas
-- L. gallardoi: Pubescencia metapleural, escapos cortos
-- L. humile: Pubescencia metapleural, escapos largos
-- L. iniquum: Sin pubescencia, cabeza con >5 setas
-- L. dispertitum: Sin pubescencia, cabeza con <5 setas
-- L. hirsutum: Sin pubescencia, pronoto muy piloso (>10 setas)
-- L. tsachila: Sin pubescencia, cabeza cóncava
-- L. angulatum: Sin pubescencia, escapos cortos
-- L. piliferum: Sin pubescencia, escapos largos
+8  (volver al pareado 7)
+   A. Escapos antenales cortos, sobrepasando el margen posterior de la cabeza por una longitud inferior a la del pedicelo, propodeo relativamente alto, con caras anterior dorsal y posterior distinguibles, a veces la cara dorsal ligeramente deprimida ..... Linepithema angulatum
+   B. Escapos antenales relativamente largos, sobrepasando el margen posterior de la cabeza por una longitud igual o superior a la del pedicelo, propodeo usualmente redondeado, no como arriba ..... Linepithema piliferum
 
-DISTRIBUCIÓN EN COLOMBIA:
-- L. neotropicum: Región Andina, 260-2600m
-- L. gallardoi: Alta montaña, >1000m
-- L. humile: Armenia, Quindío
-- L. iniquum: Arborícola, 940-2000m
-- L. dispertitum: Serranía del Perijá, >2500m
-- L. hirsutum: Nariño, 640m
-- L. tsachila: Pacífico, 286-1800m
-- L. angulatum: Andes, 10-2430m
-- L. piliferum: Cordilleras, 1500-2800m
-
-Fuente: Escárraga & Guerrero (2016)`;
+Fuente: Escárraga, M., Guerrero, R.J. 2016. The ant genus Linepithema (Formicidae: Dolichoderinae) in Colombia. Zootaxa 4208(5): 446–458. doi:10.11646/zootaxa.4208.5.3`;
     
     const blob = new Blob([contenido], {type: 'text/plain'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'clave_taxonomica_linepithema.txt';
+    a.download = 'clave_original_linepithema.txt';
     a.click();
     URL.revokeObjectURL(a.href);
 }
@@ -2199,21 +2250,156 @@ function reiniciarIdentificacion() {
             }
         });
 
+        // ===== Descargas obligatorias (clave original, glosario con fotos, imagen de pines) =====
+        const descargasHechas = { clave: false, glosario: false, pines: false };
+        let ejercicioEnCurso = false;
+        let estadoEjercicio = null;
+
+        function actualizarEstadoDescargas() {
+            const n = Object.values(descargasHechas).filter(Boolean).length;
+            const c = document.getElementById('contadorDescargas');
+            if (c) c.textContent = n + ' de 3';
+            [['btnDescClave', 'clave'], ['btnDescGlosario', 'glosario'], ['btnDescPines', 'pines']].forEach(([id, k]) => {
+                const b = document.getElementById(id);
+                if (!b) return;
+                b.style.borderColor = descargasHechas[k] ? '#30D158' : '#00D4FF40';
+                const chk = b.querySelector('.chk');
+                if (chk) chk.textContent = descargasHechas[k] ? '✅' : '';
+            });
+        }
+        function todasDescargadas() { return descargasHechas.clave && descargasHechas.glosario && descargasHechas.pines; }
+
+        function descargarClaveOriginal() {
+            descargarPDFCompleto();
+            descargasHechas.clave = true;
+            actualizarEstadoDescargas();
+        }
+
+        async function descargarGlosarioConFotos() {
+            const archivo = 'glosario_con_fotos_' + GALERIA_FORMATO + '.pdf';
+            try {
+                const r = await fetch('/static/descargas/' + archivo);
+                if (!r.ok) throw new Error('no disponible');
+                const blob = await r.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = archivo;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+                descargasHechas.glosario = true;
+                actualizarEstadoDescargas();
+            } catch (e) {
+                alert('No se pudo descargar el glosario con fotos. Avisa al investigador.');
+            }
+        }
+
+        // Foto de referencia con los 16 pines numerados y su leyenda (usa las posiciones calibradas por el admin)
+        function descargarImagenPines() {
+            const img = document.getElementById('diagramaImg');
+            if (!img || !img.complete || !img.naturalWidth) { alert('La imagen todavía se está cargando. Espera un momento e inténtalo de nuevo.'); return; }
+            const acentos = { 'Mandibulas': 'Mandíbulas', 'Clipeo': 'Clípeo', 'Peciolo': 'Pecíolo', 'Gaster': 'Gáster', 'Glandula metapleural': 'Glándula metapleural' };
+            const W = img.naturalWidth, H = img.naturalHeight, LEG = 430;
+            const alto = Math.max(H, 100 + PARTES_HORMIGA.length * 38 + 20);
+            const cv = document.createElement('canvas');
+            cv.width = W + LEG; cv.height = alto;
+            const g = cv.getContext('2d');
+            g.fillStyle = '#0A0E17'; g.fillRect(0, 0, cv.width, cv.height);
+            g.drawImage(img, 0, 0, W, H);
+            const r = Math.max(13, W * 0.014);
+            PARTES_HORMIGA.forEach((p, i) => {
+                const c = posicionesPinesAdmin[p.id] || { px: p.px, py: p.py };
+                const x = c.px / 100 * W, y = c.py / 100 * H;
+                g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fillStyle = '#7B61FF'; g.fill();
+                g.lineWidth = 2; g.strokeStyle = '#FFFFFF'; g.stroke();
+                g.fillStyle = '#FFFFFF'; g.font = 'bold ' + Math.round(r * 1.05) + 'px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+                g.fillText(String(i + 1), x, y + 1);
+            });
+            g.textAlign = 'left'; g.textBaseline = 'middle';
+            g.fillStyle = '#00D4FF'; g.font = 'bold 24px Arial';
+            g.fillText('Partes de la hormiga (Linepithema)', W + 22, 40);
+            PARTES_HORMIGA.forEach((p, i) => {
+                const y = 96 + i * 38;
+                g.beginPath(); g.arc(W + 36, y, 13, 0, Math.PI * 2); g.fillStyle = '#7B61FF'; g.fill();
+                g.fillStyle = '#FFFFFF'; g.font = 'bold 14px Arial'; g.textAlign = 'center'; g.fillText(String(i + 1), W + 36, y + 1);
+                g.textAlign = 'left'; g.fillStyle = '#E0E0E0'; g.font = '20px Arial';
+                g.fillText(acentos[p.label] || p.label, W + 62, y + 1);
+            });
+            cv.toBlob(blob => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'pines_partes_hormiga.png';
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+                descargasHechas.pines = true;
+                actualizarEstadoDescargas();
+            }, 'image/png');
+        }
+
         function mostrarAvisoDescargaObligatoria() {
             const existing = document.getElementById('avisoDescargaModal');
             if (existing) existing.remove();
+            const faltan = [];
+            if (!descargasHechas.clave) faltan.push('📚 Clave original');
+            if (!descargasHechas.glosario) faltan.push('📖 Glosario con fotos');
+            if (!descargasHechas.pines) faltan.push('📍 Imagen de pines');
             const modal = document.createElement('div');
             modal.id = 'avisoDescargaModal';
             modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,7,12,0.96);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px;';
             modal.innerHTML = `
                 <div style="background:#121826;border:2px solid #FF375F;border-radius:20px;padding:30px;max-width:450px;width:100%;text-align:center;">
                     <div style="font-size:2.5rem;">⚠️</div>
-                    <h3 style="color:#FF375F;margin:10px 0;">Debes descargar la guía primero</h3>
-                    <p style="color:#E0E0E0;margin-bottom:20px;">Antes de comenzar, descarga la guía de identificación (📚, 📄 o 📖 arriba) y síguela al pie de la letra. Sin ella no podrás identificar correctamente las especies.</p>
+                    <h3 style="color:#FF375F;margin:10px 0;">Faltan descargas obligatorias</h3>
+                    <p style="color:#E0E0E0;margin-bottom:12px;">Para continuar debes descargar los 3 materiales. Te falta:</p>
+                    <p style="color:#FFB020;font-weight:700;margin-bottom:20px;line-height:1.7;">${faltan.join('<br>')}</p>
                     <button onclick="document.getElementById('avisoDescargaModal').remove()" style="padding:12px 30px;background:linear-gradient(45deg,#00D4FF,#7B61FF);border:none;border-radius:10px;color:white;font-weight:bold;cursor:pointer;">Entendido</button>
                 </div>`;
             document.body.appendChild(modal);
         }
+
+        // ===== Un solo intento: pantallas de estado y salida protegida =====
+        function mostrarPantallaEstado(icono, titulo, mensaje, textoBoton, accion) {
+            const previo = document.getElementById('estadoOverlay');
+            if (previo) previo.remove();
+            const ov = document.createElement('div');
+            ov.id = 'estadoOverlay';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:30000;background:rgba(5,7,12,0.98);display:flex;align-items:center;justify-content:center;padding:20px;';
+            ov.innerHTML = `<div style="background:#121826;border:2px solid #00D4FF60;border-radius:20px;padding:30px;max-width:480px;width:100%;text-align:center;color:#E0E0E0;">
+                <div style="font-size:2.6rem;">${icono}</div><h3 style="color:#00D4FF;margin:10px 0;">${titulo}</h3>
+                <p style="line-height:1.6;margin-bottom:20px;">${mensaje}</p>
+                <button id="btnEstadoOverlay" style="padding:13px 30px;background:linear-gradient(45deg,#00D4FF,#7B61FF);border:none;border-radius:10px;color:white;font-weight:bold;cursor:pointer;">${textoBoton}</button></div>`;
+            document.body.appendChild(ov);
+            document.getElementById('btnEstadoOverlay').onclick = accion;
+        }
+        function mostrarPantallaYaRealizado(codigo) {
+            ejercicioEnCurso = false;
+            mostrarPantallaEstado('🔒', 'Este ejercicio ya quedó registrado',
+                'El ejercicio solo puede realizarse una vez, por eso ya no es posible volver a las descargas ni repetirlo.' +
+                (codigo === 'abandonado' ? '<br><br><span style="color:#FFB020;">Si cerraste la ventana antes de terminar, avisa al investigador para que revise tu caso.</span>' : ''),
+                'Ir a mi panel', () => { window.location.href = '/dashboard'; });
+        }
+        async function reanudarEncuestas() {
+            try {
+                const r = await fetch('/api/experimento/iniciar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario_id: usuarioId }) });
+                const d = await r.json();
+                if (!r.ok || d.reanudar !== 'encuestas') throw new Error('sin sesión para reanudar');
+                sesionId = d.sesion_id;
+                especimenes = (d.especimenes || []).slice(0, 2);
+                respuestas = especimenes.map(e => e.especie);
+                especiesCompletadas = especimenes.map(() => true);
+                const ov = document.getElementById('estadoOverlay'); if (ov) ov.remove();
+                document.getElementById('introScreen').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                document.getElementById('specimenCounter').textContent = 'ENCUESTAS FINALES';
+                ejercicioEnCurso = true;
+                mostrarEncuestas();
+            } catch (e) {
+                alert('No se pudieron retomar las encuestas. Avisa al investigador.');
+            }
+        }
+        window.addEventListener('beforeunload', function (e) {
+            if (ejercicioEnCurso) { e.preventDefault(); e.returnValue = ''; return ''; }
+        });
+
 
         let zoomEspecimenState = { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 };
 
@@ -2321,6 +2507,132 @@ function verCaracterEnfocado(preguntaNum) {
         }
 
         document.addEventListener('DOMContentLoaded', inicializarZoomEspecimen);
+        // ===== Galería comparativa: SOLO en la fase de orientación (nunca durante la identificación evaluada) =====
+        // Para cada rasgo de un pareado muestra ejemplos de la opción A y de la opción B, con los espécimenes
+        // que la propia clave coloca en cada opción. Las muestras van sin nombre y en orden aleatorio.
+        const GALERIA_FORMATO = '2d';   // '2d' (fotos) o '3d' (capturas del modelo)
+        const GALERIA_BASE = '/static/imagenes/linepithema/comparativas' + (GALERIA_FORMATO === '3d' ? '_3d' : '') + '/';
+        let galeriaManifest = null;
+        fetch(GALERIA_BASE + 'manifest.json').then(r => r.ok ? r.json() : null).then(m => { galeriaManifest = m; }).catch(() => {});
+
+        const GALERIA_CODIGOS = { gallardoi: 'esp1', humile: 'esp2', tsachila: 'esp3', piliferum: 'esp4', hirsutum: 'esp5',
+                                  angulatum: 'esp6', neotropicum: 'esp7', dispertitum: 'esp8', iniquum: 'esp9' };
+
+        // Rasgos de cada pareado, con la frase EXACTA de la clave para la opción A y para la B
+        const GALERIA_RASGOS = [
+            { id: 'p1a', pareado: 1, nombre: 'Pelos adpresos en la bula de la glándula metapleural',
+              A: 'pelos adpresos en cantidad moderada a abundante', B: 'unos pocos o careciendo de pelos adpresos' },
+            { id: 'p2a', pareado: 2, nombre: 'Setas erectas en el pronoto',
+              A: 'Pronoto con un par de setas erectas (pueden estar caídas)', B: 'Pronoto usualmente sin setas erectas, raras veces un par' },
+            { id: 'p2b', pareado: 2, nombre: 'Longitud de los palpos maxilares',
+              A: 'palpos maxilares largos, más de la mitad de la longitud de la cabeza', B: 'palpos maxilares con una longitud máxima igual o inferior a la longitud de la cabeza' },
+            { id: 'p2c', pareado: 2, nombre: 'Surco metanotal',
+              A: 'surco metanotal ligeramente marcado o no marcado', B: 'surco metanotal marcado ligeramente o de manera moderada' },
+            { id: 'p2d', pareado: 2, nombre: 'Forma del propodeo',
+              A: 'propodeo bajo y redondeado', B: 'propodeo inclinado hacia adelante, con una cara dorsal y una posterior formando un ángulo obtuso' },
+            { id: 'p3a', pareado: 3, nombre: 'Longitud de los escapos antenales',
+              A: 'Escapos antenales relativamente cortos, usualmente con un tamaño inferior a la longitud de la cabeza', B: 'Escapos antenales largos, iguales o mayores a la longitud de la cabeza' },
+            { id: 'p3b', pareado: 3, nombre: 'Setas en el pronoto y el primer terguito del gáster',
+              A: 'pronoto y primer terguito del gáster con setas (a veces pueden estar perdidas)', B: 'pronoto y primer terguito del gáster sin setas' },
+            { id: 'p3c', pareado: 3, nombre: 'Forma del mesonoto',
+              A: 'mesonoto angular, con un declive posterior y en ocasiones abultado', B: 'mesonoto recto, no angular o abultado' },
+            { id: 'p4a', pareado: 4, nombre: 'Surco pre-sutural del clípeo',
+              A: 'Porción posterior del clípeo con un surco débil o sin surco (surco pre-sutural del clípeo)', B: 'Surco pre-sutural del clípeo presente y bien marcado' },
+            { id: 'p5a', pareado: 5, nombre: 'Cantidad de setas en el dorso de la cabeza',
+              A: 'Dorso de la cabeza con más de 5 setas erectas', B: 'Dorso de la cabeza nunca con más de 5 setas' },
+            { id: 'p5b', pareado: 5, nombre: 'Forma del mesosoma',
+              A: 'mesosoma esbelto', B: 'mesosoma más robusto' },
+            { id: 'p5c', pareado: 5, nombre: 'Impresión media del mesonoto',
+              A: 'dorso del mesonoto con una impresión media moderada a fuerte', B: 'mesonoto con una impresión media ligeramente impresa o ausente' },
+            { id: 'p5d', pareado: 5, nombre: 'Brillo de la superficie del cuerpo',
+              A: 'superficie del cuerpo brillante y lustrosa', B: 'cuerpo no tan brillante y lustroso como arriba' },
+            { id: 'p6a', pareado: 6, nombre: 'Densidad de setas erectas',
+              A: 'Pronoto con más de 10 setas erectas, superficie de todo el cuerpo con setas erectas largas o cortas', B: 'Pronoto con menos de 10 setas erectas, superficie de todo el cuerpo nunca cubierto con muchas setas erectas' },
+            { id: 'p7a', pareado: 7, nombre: 'Margen posterior de la cabeza',
+              A: 'Margen posterior de la cabeza profundamente cóncavo', B: 'Margen posterior de la cabeza recto a ligeramente cóncavo' },
+            { id: 'p7b', pareado: 7, nombre: 'Impresión media del mesonoto',
+              A: 'dorso del mesonoto nunca con una impresión media', B: 'dorso del mesonoto con una ligera impresión media o sin impresión' },
+            { id: 'p7c', pareado: 7, nombre: 'Setas en el pronoto',
+              A: 'pronoto usualmente con 4 (2–8) setas erectas a suberectas', B: 'pronoto nunca con más de 4 setas erectas' },
+            { id: 'p8a', pareado: 8, nombre: 'Escapos antenales frente al pedicelo',
+              A: 'Escapos antenales cortos, sobrepasando el margen posterior de la cabeza por una longitud inferior a la del pedicelo', B: 'Escapos antenales relativamente largos, sobrepasando el margen posterior de la cabeza por una longitud igual o superior a la del pedicelo' },
+            { id: 'p8b', pareado: 8, nombre: 'Forma del propodeo',
+              A: 'propodeo relativamente alto, con caras anterior dorsal y posterior distinguibles, a veces la cara dorsal ligeramente deprimida', B: 'propodeo usualmente redondeado, no como arriba' }
+        ];
+
+        // especies que la clave coloca bajo una opción (sigue los "siguiente" hasta las hojas)
+        function galeriaHojas(opcion) {
+            if (opcion.resultado) return [opcion.resultado];
+            return CLAVE[opcion.siguiente].opciones.flatMap(galeriaHojas);
+        }
+        // imágenes de un rasgo (resuelve alias como p7a -> p5a); null si aún no hay material
+        function galeriaImagenes(rasgoId) {
+            if (!galeriaManifest || !galeriaManifest.rasgos) return null;
+            const id = (galeriaManifest.alias && galeriaManifest.alias[rasgoId]) || rasgoId;
+            return galeriaManifest.rasgos[id] ? { id, porEsp: galeriaManifest.rasgos[id] } : null;
+        }
+        function galeriaEsc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        // texto de una opción con las frases de rasgo resaltadas y tocables
+        function galeriaTextoOpcion(n, idxOpcion) {
+            const texto = CLAVE[n].opciones[idxOpcion].texto;
+            const marcas = [];
+            GALERIA_RASGOS.filter(r => r.pareado === n && galeriaImagenes(r.id)).forEach(r => {
+                const frase = idxOpcion === 0 ? r.A : r.B;
+                const i = texto.indexOf(frase);
+                if (i >= 0) marcas.push({ ini: i, fin: i + frase.length, id: r.id });
+            });
+            marcas.sort((a, b) => a.ini - b.ini);
+            let html = '', pos = 0;
+            marcas.forEach(m => {
+                if (m.ini < pos) return;
+                html += galeriaEsc(texto.slice(pos, m.ini)) + '<span class="rasgo-tap" onclick="abrirGaleriaRasgo(\'' + m.id + '\')">' + galeriaEsc(texto.slice(m.ini, m.fin)) + '</span>';
+                pos = m.fin;
+            });
+            return { html: html + galeriaEsc(texto.slice(pos)), hayMarcas: marcas.length > 0 };
+        }
+
+        function cerrarGaleriaRasgo() {
+            const ov = document.getElementById('galeriaOverlay');
+            if (ov) ov.remove();
+        }
+
+        function abrirGaleriaRasgo(id) {
+            const r = GALERIA_RASGOS.find(x => x.id === id), im = galeriaImagenes(id);
+            if (!r || !im) return;
+            cerrarGaleriaRasgo();
+            const ops = CLAVE[r.pareado].opciones;
+            const tarjetas = (idx) => {
+                const especies = galeriaHojas(ops[idx]).filter(e => im.porEsp[GALERIA_CODIGOS[e]]);
+                for (let k = especies.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [especies[k], especies[j]] = [especies[j], especies[k]]; }
+                if (!especies.length) return '<div style="color:#A0A0B0;font-size:0.85rem;">Sin imágenes de esta opción para este rasgo.</div>';
+                return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">' + especies.map((e, n) => {
+                    const cod = GALERIA_CODIGOS[e], cuantas = im.porEsp[cod];
+                    let fotos = '';
+                    for (let i = 1; i <= cuantas; i++) fotos += '<img src="' + GALERIA_BASE + im.id + '_' + cod + '_' + i + '.jpg" alt="Ejemplo" loading="lazy" onerror="this.style.display=\'none\'" style="height:130px;width:auto;max-width:100%;border-radius:8px;flex:0 0 auto;object-fit:contain;background:#fff;">';
+                    return '<div style="background:#0A0E17;border:1px solid #00D4FF30;border-radius:12px;padding:8px;">' +
+                           '<div style="display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;">' + fotos + '</div>' +
+                           '<div style="font-size:0.75rem;color:#A0A0B0;margin-top:5px;">Ejemplo ' + (n + 1) + (cuantas > 1 ? ' · ' + cuantas + ' vistas (desliza)' : '') + '</div></div>';
+                }).join('') + '</div>';
+            };
+            const bloque = (idx, color) => '<div style="margin-bottom:18px;">' +
+                '<div style="font-weight:700;color:' + color + ';margin-bottom:4px;">Opción ' + (idx === 0 ? 'A' : 'B') + '</div>' +
+                '<div style="font-size:0.85rem;color:#E0E0E0;margin-bottom:8px;font-style:italic;">“' + galeriaEsc(idx === 0 ? r.A : r.B) + '”</div>' + tarjetas(idx) + '</div>';
+            const ov = document.createElement('div');
+            ov.id = 'galeriaOverlay';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:10100;background:rgba(5,7,12,0.97);overflow-y:auto;padding:14px 10px;display:flex;justify-content:center;align-items:flex-start;';
+            ov.onclick = (e) => { if (e.target === ov) cerrarGaleriaRasgo(); };
+            ov.innerHTML = '<div style="background:#121826;border:2px solid #7B61FF;border-radius:18px;padding:18px;max-width:760px;width:100%;color:#E0E0E0;box-sizing:border-box;margin:auto;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;">' +
+                    '<div><div style="color:#7B61FF;font-size:0.8rem;font-weight:700;">Pareado ' + r.pareado + ' · ' + (GALERIA_FORMATO === '3d' ? 'capturas del modelo 3D' : 'fotografías') + '</div>' +
+                    '<div style="color:#00D4FF;font-size:1.1rem;font-weight:700;">' + galeriaEsc(r.nombre) + '</div></div>' +
+                    '<button onclick="cerrarGaleriaRasgo()" style="background:#1A1F36;border:1px solid #FF375F60;color:#FF375F;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:1.1rem;flex:0 0 auto;">✕</button></div>' +
+                '<div style="font-size:0.78rem;color:#A0A0B0;margin-bottom:14px;">Son ejemplos de orientación, sin nombre y en orden aleatorio.</div>' +
+                bloque(0, '#00D4FF') + bloque(1, '#FFB020') +
+                '</div>';
+            document.body.appendChild(ov);
+        }
+
         const CARACTERES_ORIENTACION = [1,2,3,4,5,6,7,8];
         const ESPECIES_ORIENTACION_2D = ['humile','angulatum','piliferum','gallardoi'];
         let orientacionFase = 1;
@@ -2340,7 +2652,14 @@ function verCaracterEnfocado(preguntaNum) {
             document.getElementById('orientacionSubtitulo').textContent = orientacionFase === 1
                 ? `Fase 1 de 2 — observa cada carácter (${orientacionIndice+1}/8)`
                 : `Fase 2 de 2 — repaso rápido (${orientacionIndice+1}/8)`;
-            document.getElementById('orientacionTexto').textContent = paso.pregunta;
+            const tituloP = `<div style="color:#7B61FF;font-weight:700;margin-bottom:8px;">Pareado ${numPregunta}</div>`;
+            let hayAyuda = false;
+            const filasOp = paso.opciones.map((op, i) => {
+                const t = orientacionFase === 1 ? galeriaTextoOpcion(numPregunta, i) : { html: galeriaEsc(op.texto), hayMarcas: false };
+                if (t.hayMarcas) hayAyuda = true;
+                return `<div style="margin-bottom:10px;font-size:0.9rem;line-height:1.5;"><strong style="color:#00D4FF;">${i === 0 ? 'A' : 'B'}.</strong> ${t.html}</div>`;
+            }).join('');
+            document.getElementById('orientacionTexto').innerHTML = tituloP + filasOp + (hayAyuda ? '<div style="font-size:0.78rem;color:#A0A0B0;margin-top:6px;">👆 Toca las frases resaltadas para ver ejemplos de cada opción.</div>' : '');
 
             const img = document.getElementById('imgOrientacion');
             const especieFoto = ESPECIES_ORIENTACION_2D[orientacionIndice % ESPECIES_ORIENTACION_2D.length];

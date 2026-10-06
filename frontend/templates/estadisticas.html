@@ -73,7 +73,13 @@
                 fetch('/api/admin/encuestas').then(r=>r.json()),
                 fetch('/api/admin/reflexiones').then(r=>r.json())
             ]);
-            usuarios=u; resultados=r; encuestas=e; reflexiones=ref;
+            // El análisis usa solo a los ESTUDIANTES: docentes, validadores y cuentas de pruebas se excluyen
+            const noEstudiantes = new Set(u.filter(x => x.rol && !['estudiante', 'usuario'].includes(x.rol)).map(x => x.nombre_usuario));
+            usuarios = u.filter(x => !noEstudiantes.has(x.nombre_usuario));
+            resultados = r.filter(x => !noEstudiantes.has(x.usuario));
+            encuestas = e.filter(x => !noEstudiantes.has(x.usuario));
+            reflexiones = ref.filter(x => !noEstudiantes.has(x.usuario));
+            if (noEstudiantes.size) mostrarMensaje(`Análisis solo con estudiantes: ${noEstudiantes.size} cuenta(s) de docente, validador o pruebas excluida(s)`, '#7B61FF');
         } catch(err) {
             document.getElementById('contenido').innerHTML =
                 `<div class="error-state">❌ Error al cargar datos. Verifica que estás autenticado como administrador.<br><br><button class="btn btn-secondary" onclick="window.location.href='/admin'">← Ir al login</button></div>`;
@@ -414,15 +420,34 @@
     }
 
     // ===== 9. ANÁLISIS FACTORIAL 2×2×2 =====
+    // ===== Factor Semestre (2 niveles) =====
+    // Con exactamente 2 semestres distintos entre los estudiantes: nivel bajo = el menor, nivel alto = el mayor.
+    // Con más de 2: corte en la mediana (≤ mediana = bajo; > mediana = alto).
+    function definirNivelesSemestre(){
+        const sem = usuarios.filter(u=>u.grupo_asignado && Number.isFinite(u.semestre)).map(u=>u.semestre).sort((a,b)=>a-b);
+        const distintos = [...new Set(sem)];
+        if (distintos.length < 2) return null;
+        if (distintos.length === 2) return { corte: distintos[0], bajo: distintos[0]+'°', alto: distintos[1]+'°', tipo: 'dos semestres distintos' };
+        let corte = sem[Math.floor((sem.length-1)/2)];                    // mediana inferior
+        if (corte === distintos[distintos.length-1]) corte = distintos[distintos.length-2];   // evita un nivel alto vacío
+        return { corte, bajo: '≤ '+corte+'°', alto: '> '+corte+'°', tipo: 'corte en la mediana' };
+    }
+    function nivelSemestre(u){
+        const d = window._nivelesSemestre;
+        if (!d || !Number.isFinite(u.semestre)) return null;
+        return u.semestre <= d.corte ? -1 : 1;                            // -1 = semestre bajo, +1 = semestre alto
+    }
+
     function construirDatasetFactorial(){
         const sesionUsuarioMap={};
         resultados.forEach(r=>{ if(r.sesion_id!==undefined) sesionUsuarioMap[r.sesion_id]=r.usuario; });
 
-        return usuarios.filter(u=>u.grupo_asignado && (u.curso===1||u.curso===2)).map(u=>{
+        window._nivelesSemestre = definirNivelesSemestre();
+        return usuarios.filter(u=>u.grupo_asignado && nivelSemestre(u)).map(u=>{
             const grupo=u.grupo_asignado;
             const R = grupo.startsWith('3D') ? 1 : -1;      // -1=2D, +1=3D
             const M = grupo.includes('META') ? 1 : -1;       // -1=Sin Meta, +1=Con Meta
-            const I = u.curso===2 ? 1 : -1;                  // -1=Institución 1, +1=Institución 2
+            const S = nivelSemestre(u);                          // -1=semestre bajo, +1=semestre alto
             const sexoCode = u.genero==='Femenino' ? 1 : (u.genero==='Masculino' ? -1 : null);
 
             const ru = resultados.filter(r=>r.usuario===u.nombre_usuario);
@@ -449,9 +474,9 @@
                 ? (cog.carga_intrinseca+cog.carga_extrinseca+cog.carga_germana) : null;
 
             return {
-                usuario:u.nombre_usuario, grupo, R, M, I, sexoCode,
+                usuario:u.nombre_usuario, grupo, R, M, S, sexoCode,
                 representacion: R===1?'3D':'2D', meta: M===1?'Con Meta':'Sin Meta',
-                institucion:u.curso, sexo:u.genero,
+                semestre:u.semestre, semestreNivel: S===1 ? window._nivelesSemestre.alto : window._nivelesSemestre.bajo, sexo:u.genero,
                 precision, tiempo, objetivoLogrado, cambioEstrategia,
                 sus, cargaIntrinseca, cargaExtrinseca, cargaTotal
             };
@@ -462,8 +487,8 @@
         const rows = dataset.filter(d=>d[dvKey]!==null && d[dvKey]!==undefined);
         const n=rows.length;
         if(n<10) return {error:`Datos insuficientes (n=${n}). Se necesitan más participantes.`};
-        const cols=['Intercepto','Representación (R)','Meta (M)','Institución (I)','R×M','R×I','M×I','R×M×I'];
-        const X = rows.map(r=>[1, r.R, r.M, r.I, r.R*r.M, r.R*r.I, r.M*r.I, r.R*r.M*r.I]);
+        const cols=['Intercepto','Representación (R)','Meta (M)','Semestre (S)','R×M','R×S','M×S','R×M×S'];
+        const X = rows.map(r=>[1, r.R, r.M, r.S, r.R*r.M, r.R*r.S, r.M*r.S, r.R*r.M*r.S]);
         const y = rows.map(r=>r[dvKey]);
         let full;
         try { full = solveOLS(X,y); } catch(e){ return {error:'Faltan combinaciones de grupos (celda vacía). No se puede calcular todavía.'}; }
@@ -530,7 +555,7 @@
     }
 
     function seccionAnalisisFactorial(){
-        let html = `<div class="section"><div class="section-title">🔬 9. Análisis Factorial 2×2×2 (Representación × Meta × Institución)</div>
+        let html = `<div class="section"><div class="section-title">🔬 9. Análisis Factorial 2×2×2 (Representación × Meta × Semestre)</div>
             <div class="stat-card" style="margin-bottom:20px;font-size:0.85rem;color:#A0A0B0;">
                 ⚠️ Vista rápida calculada en el navegador (Suma de Cuadrados Tipo III). Para el análisis definitivo de tu tesis,
                 exporta el dataset con el botón de abajo y procésalo en R o SPSS.
@@ -542,6 +567,12 @@
             return html + `<div class="error-state">Error al construir el dataset: ${e.message}</div></div>`;
         }
         window._datasetFactorial = dataset;
+        const nv = window._nivelesSemestre;
+        if (nv) {
+            html += `<div class="stat-card" style="margin-bottom:15px;">Factor <strong>Semestre</strong> (${nv.tipo}): nivel bajo = <strong>${nv.bajo}</strong> (n=${dataset.filter(d=>d.S===-1).length}), nivel alto = <strong>${nv.alto}</strong> (n=${dataset.filter(d=>d.S===1).length}).</div>`;
+        } else {
+            html += `<div class="stat-card" style="margin-bottom:15px;border-color:#FFB020;">⚠️ El análisis 2×2×2 necesita estudiantes de al menos dos semestres distintos. Los demás resultados del panel no se ven afectados.</div>`;
+        }
 
         const dvsAnova = [
             {key:'precision', nombre:'Precisión taxonómica (%)'},
@@ -571,7 +602,7 @@
         const predObjetivo = [
             {key:'R', nombre:'Representación (3D)'},
             {key:'M', nombre:'Meta (con Meta)'},
-            {key:'I', nombre:'Institución 2'},
+            {key:'S', nombre:'Semestre (alto)'},
             {key:'sexoCode', nombre:'Sexo (Femenino)'}
         ];
         const resObj = regresionLogistica(dataset, 'objetivoLogrado', predObjetivo);
@@ -589,7 +620,7 @@
         html += `<div class="stat-card"><strong style="color:#7B61FF;">Cambio de estrategia (solo grupos con Meta)</strong>`;
         const predCambio = [
             {key:'R', nombre:'Representación (3D)'},
-            {key:'I', nombre:'Institución 2'},
+            {key:'S', nombre:'Semestre (alto)'},
             {key:'sexoCode', nombre:'Sexo (Femenino)'}
         ];
         const datasetMeta = dataset.filter(d=>d.meta==='Con Meta');
@@ -616,7 +647,7 @@
         const wb=XLSX.utils.book_new();
         const filas = dataset.map(d=>({
             Usuario:d.usuario, Grupo:d.grupo, Representacion:d.representacion, Meta:d.meta,
-            Institucion:d.institucion, Sexo:d.sexo, Precision_pct:d.precision, Tiempo_seg:d.tiempo,
+            Semestre:d.semestre, Semestre_nivel:d.semestreNivel, Sexo:d.sexo, Precision_pct:d.precision, Tiempo_seg:d.tiempo,
             Objetivo_Logrado:d.objetivoLogrado, Cambio_Estrategia:d.cambioEstrategia,
             SUS:d.sus, Carga_Intrinseca:d.cargaIntrinseca, Carga_Extrinseca:d.cargaExtrinseca, Carga_Total:d.cargaTotal
         }));

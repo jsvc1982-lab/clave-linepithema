@@ -160,7 +160,7 @@
                 <div class="table-wrap">
                     <table>
                         <thead><tr>
-                            <th>ID</th><th>Usuario</th><th>Correo</th><th>Sem.</th><th>Curso</th>
+                            <th>ID</th><th>Usuario</th><th>Correo</th><th>Tipo</th><th>Institución</th><th>Sem.</th>
                             <th>Exp.</th><th>Hab.Esp.</th><th>Género</th><th>Grupo</th><th>Acciones</th>
                         </tr></thead>
                         <tbody id="tbodyUsuarios"></tbody>
@@ -181,18 +181,21 @@
                     <button class="btn-sm btn-3d"      onclick="asignarGrupo(${u.id},'3D')">3D</button>
                     <button class="btn-sm btn-3d-meta" onclick="asignarGrupo(${u.id},'3D_META')">3D+M</button>
                     <button class="btn-sm" style="background:#7B61FF;color:white;" onclick="resetearPassword(${u.id})" title="Poner clave nueva">🔑</button>
+                    <button class="btn-sm" style="background:#30D158;color:#06210F;" onclick="habilitarReintento(${u.id})" title="Habilitar nuevo intento (solo si cerró la ventana a mitad)">🔓</button>
                     <button class="btn-sm btn-danger"  onclick="eliminarUsuario(${u.id})">🗑️</button>
                    </div>`
                 : `<div class="btn-group">
                     <button class="btn-sm" style="background:#7B61FF;color:white;" onclick="resetearPassword(${u.id})" title="Poner clave nueva">🔑</button>
+                    <button class="btn-sm" style="background:#30D158;color:#06210F;" onclick="habilitarReintento(${u.id})" title="Habilitar nuevo intento (solo si cerró la ventana a mitad)">🔓</button>
                     <button class="btn-sm btn-danger" onclick="eliminarUsuario(${u.id})">🗑️</button>
                    </div>`;
             return `<tr>
                 <td>${u.id}</td>
                 <td><strong>${u.nombre_usuario}</strong></td>
                 <td>${u.correo}</td>
+                <td><span style="color:${(u.rol && u.rol !== 'estudiante' && u.rol !== 'usuario') ? '#FFB020' : '#A0A0B0'};">${u.rol === 'usuario' || !u.rol ? 'estudiante' : u.rol}</span></td>
+                <td>${u.institucion || '—'}</td>
                 <td>${u.semestre || '—'}</td>
-                <td>${u.curso || '—'}</td>
                 <td>${u.experiencia_taxonomica ?? '—'}/5</td>
                 <td>${u.habilidad_espacial ?? '—'}/20</td>
                 <td>${u.genero || '—'}</td>
@@ -242,6 +245,13 @@
         } else {
             mostrarMensaje('❌ Error en asignación', '#FF375F');
         }
+    }
+
+    async function habilitarReintento(id) {
+        if (!confirm('¿Habilitar un nuevo intento?\n\nSolo se borra un intento INCOMPLETO (la persona cerró la ventana a mitad del ejercicio). Un intento con las dos identificaciones completas nunca se borra.')) return;
+        const res = await fetch(`/api/admin/usuarios/${id}/habilitar_reintento`, { method: 'POST' });
+        const data = await res.json();
+        alert(res.ok ? '✅ ' + data.mensaje : '⚠️ ' + (data.error || 'No se pudo habilitar'));
     }
 
     async function eliminarUsuario(id) {
@@ -498,11 +508,18 @@
                 ? '<span style="color:#FFB020;" title="La mitad o más de sus respuestas tomaron menos de 2s">⚡ Posible clic sin leer</span>'
                 : '<span style="color:#00D4FF;">✓ Ritmo razonable</span>';
 
-            const filasPaso = g.pasos.map(p => `
+            // Solo la PRIMERA pregunta equivocada es "se desvió aquí"; las siguientes son ruta alternativa
+            const idxDesvio = g.pasos.findIndex(p => !p.es_paso_correcto);
+            const etiquetaPaso = (i) => {
+                if (idxDesvio === -1 || i < idxDesvio) return { txt: '✅', color: '#00D4FF' };
+                if (i === idxDesvio) return { txt: '❌ se desvió aquí', color: '#FF375F' };
+                return { txt: '↪ ruta alternativa', color: '#A0A0B0' };
+            };
+            const filasPaso = g.pasos.map((p, i) => `
                 <tr>
-                    <td>Pregunta ${p.pregunta}</td>
+                    <td>Pareado ${p.pregunta}</td>
                     <td>Opción ${p.opcion_elegida===0?'A':'B'}</td>
-                    <td style="color:${p.es_paso_correcto?'#00D4FF':'#FF375F'};">${p.es_paso_correcto?'✅':'❌ se desvió aquí'}</td>
+                    <td style="color:${etiquetaPaso(i).color};">${etiquetaPaso(i).txt}</td>
                     <td>${(p.tiempo_segundos||0).toFixed(1)}s ${p.tiempo_segundos<2?'⚡':''}</td>
                 </tr>`).join('');
 
@@ -533,9 +550,17 @@
     }
 
     function exportarPasosCSV() {
-        let csv = 'Usuario,Grupo,Sesion,Especimen,Pregunta,OpcionElegida,PasoCorrecto,PasoFinal,TiempoSegundos,OrdenPaso\n';
+        const etiquetas = {};
+        const porEsp = {};
+        pasos.forEach(p => { const k = `${p.sesion_id}||${p.especimen_id}`; (porEsp[k] = porEsp[k] || []).push(p); });
+        Object.values(porEsp).forEach(lista => {
+            lista.sort((x, y) => x.orden_paso - y.orden_paso);
+            const idx = lista.findIndex(p => !p.es_paso_correcto);
+            lista.forEach((p, i) => { etiquetas[`${p.sesion_id}||${p.especimen_id}||${p.orden_paso}`] = (idx === -1 || i < idx) ? 'correcto' : (i === idx ? 'desvio' : 'ruta_alternativa'); });
+        });
+        let csv = 'Usuario,Grupo,Sesion,Especimen,Pregunta,OpcionElegida,PasoCorrecto,EtiquetaPaso,PasoFinal,TiempoSegundos,OrdenPaso\n';
         pasos.forEach(p => {
-            csv += `"${p.usuario}","${p.grupo}",${p.sesion_id},"${p.especimen_id}",${p.pregunta},${p.opcion_elegida===0?'A':'B'},${p.es_paso_correcto},${p.es_paso_final},${p.tiempo_segundos},${p.orden_paso}\n`;
+            csv += `"${p.usuario}","${p.grupo}",${p.sesion_id},"${p.especimen_id}",${p.pregunta},${p.opcion_elegida===0?'A':'B'},${p.es_paso_correcto},${etiquetas[`${p.sesion_id}||${p.especimen_id}||${p.orden_paso}`]},${p.es_paso_final},${p.tiempo_segundos},${p.orden_paso}\n`;
         });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' }));
@@ -840,7 +865,7 @@
     function exportarExcel() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-            usuarios.map(u=>({ ID:u.id, Usuario:u.nombre_usuario, Correo:u.correo, Grupo:u.grupo_asignado||'Sin asignar', Semestre:u.semestre, Curso:u.curso }))
+            usuarios.map(u=>({ ID:u.id, Usuario:u.nombre_usuario, Correo:u.correo, Grupo:u.grupo_asignado||'Sin asignar', Tipo:(u.rol==='usuario'||!u.rol)?'estudiante':u.rol, Institucion:u.institucion||'', Semestre:u.semestre }))
         ), 'Usuarios');
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
             resultados.map(r=>({ Usuario:r.usuario, Grupo:r.grupo, Especimen:r.especimen||'', Correcta:r.correcta||'', Seleccionada:r.seleccionada||'', Resultado:r.acerto?'Correcto':'Incorrecto', Tiempo:r.tiempo||0 }))
