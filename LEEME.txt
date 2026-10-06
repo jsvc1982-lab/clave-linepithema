@@ -1,0 +1,47 @@
+CLAVE LINEPITHEMA - PAQUETE FINAL (5 de octubre de 2026)
+=========================================================
+
+Las carpetas de este paquete tienen las MISMAS rutas que el repositorio:
+
+  backend/app.py
+  backend/models.py
+  frontend/templates/registro.html
+  frontend/templates/login.html
+  frontend/templates/clave_2d.html
+  frontend/templates/clave_2d_meta.html
+  frontend/templates/clave_3d.html
+  frontend/templates/clave_3d_meta.html
+  frontend/templates/dashboard.html
+  frontend/templates/admin.html
+  frontend/templates/estadisticas.html
+  frontend/static/descargas/glosario_con_fotos_2d.pdf
+
+ORDEN SUGERIDO
+--------------
+1. Crear la base de datos nueva (guia en el Word "Renovar_base_de_datos_gratis_Render").
+   - Base vacia: las tablas se crean con init_db.py y ya traen todas las columnas nuevas.
+   - Restaurando un respaldo viejo: correr las 7 lineas SQL de la guia (Parte B).
+2. Actualizar la variable DATABASE_URL en Render con la base nueva.
+3. Subir este paquete a la rama de Render (hoy final2): arrastrar las carpetas
+   backend y frontend, respetando las rutas.
+4. Subir aparte las fotos comparativas 2D (los 3 lotes zip; el manifest.json viene
+   en el lote 3) a: frontend/static/imagenes/linepithema/comparativas/
+5. Renombrar las carpetas de fotos 2D: humile->esp2, angulatum->esp6, piliferum->esp4,
+   gallardoi->esp1 (dentro de frontend/static/imagenes/linepithema/).
+6. Esperar el redespliegue en Render y probar.
+
+NO HACE FALTA
+-------------
+- Variables de entorno nuevas (DOMINIOS_INSTITUCIONALES ya no se usa).
+
+PENDIENTE
+---------
+- Glosario 3D: falta frontend/static/descargas/glosario_con_fotos_3d.pdf y las capturas
+  3D (carpeta comparativas_3d con su manifest.json). Sin ese PDF los grupos 3D no pueden
+  completar las tres descargas obligatorias.
+
+PRUEBA ANTES DE ABRIR A ESTUDIANTES
+-----------------------------------
+Crear 4 cuentas de tipo "Pruebas" (una por grupo: 2D, 2D+META, 3D, 3D+META), asignarles
+grupo desde el panel y recorrer: registro, login, 3 descargas, orientacion, identificacion,
+encuestas, panel y certificado. Revisar tambien el CSV y /estadisticas.
