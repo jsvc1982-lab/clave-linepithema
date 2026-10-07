@@ -430,6 +430,18 @@
 .char-desc:empty { display: none; }
     .rasgo-tap { cursor: pointer; background: linear-gradient(45deg, #7B61FF30, #00D4FF30); border-bottom: 2px solid #7B61FF; padding: 1px 3px; border-radius: 4px; font-weight: 600; color: #B8A9FF; }
     .rasgo-tap:hover { background: linear-gradient(45deg, #7B61FF60, #00D4FF60); color: #fff; }
+    
+    /* ===== Orientación: pantalla amplia a dos columnas ===== */
+    .orientacion-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+    .orientacion-visor { position: relative; height: clamp(320px, 64vh, 600px); border-radius: 14px; overflow: hidden; border: 1px solid #00D4FF40; background: #0A0E17; }
+    .orientacion-hint { position: absolute; left: 10px; bottom: 10px; font-size: 0.75rem; color: #C8D0E0; background: rgba(5,7,12,0.78); padding: 5px 10px; border-radius: 8px; pointer-events: none; z-index: 2; }
+    .orientacion-zoom { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 3; }
+    .modal-content .orientacion-zoom button { width: 40px; height: 40px; padding: 0; border-radius: 10px; font-size: 1.2rem; line-height: 1; background: rgba(18,24,38,0.92); border: 1px solid #00D4FF70; color: #00D4FF; }
+    .modal-content .orientacion-zoom button:hover { background: #00D4FF; color: #0A0E17; }
+    @media (max-width: 900px) {
+        .orientacion-grid { grid-template-columns: 1fr; gap: 16px; }
+        .orientacion-visor { height: clamp(240px, 42vh, 400px); }
+    }
     </style>
 </head>
 <body>
@@ -528,18 +540,25 @@
 
     <!-- Orientación: debe ser hija directa de <body>; si estuviera dentro de introScreen, al ocultar el inicio se ocultaría ella también (pantalla negra) -->
     <div id="orientacionScreen" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:650px; max-height:85vh; overflow-y:auto;">
-            <h2 style="color:#00D4FF;text-align:center;margin-bottom:6px;">🎓 Antes de comenzar</h2>
-            <p id="orientacionSubtitulo" style="color:#A0A0B0;text-align:center;font-size:0.85rem;margin-bottom:15px;"></p>
-            <div style="height:220px;border-radius:12px;overflow:hidden;border:1px solid #00D4FF30;margin-bottom:15px;background:#0A0E17;">
-                <model-viewer id="mvOrientacion" camera-controls style="width:100%;height:100%;background:transparent;"></model-viewer>
-            </div>
-            <div id="orientacionTexto" style="font-size:1rem;margin-bottom:15px;"></div>
-            <div id="orientacionAyuda" style="margin-bottom:15px;"></div>
-            <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;" id="orientacionTira"></div>
-            <div style="display:flex;gap:10px;">
-                <button class="action-btn btn-prev" onclick="orientacionAnterior()">← Anterior</button>
-                <button class="action-btn btn-submit" onclick="orientacionSiguiente()" id="orientacionBtnSig">Siguiente →</button>
+        <div class="modal-content" style="max-width:1180px; width:96%; max-height:94vh; overflow-y:auto; padding:22px 26px;">
+            <h2 style="color:#00D4FF;text-align:center;margin-bottom:4px;">🎓 Antes de comenzar</h2>
+            <p id="orientacionSubtitulo" style="color:#A0A0B0;text-align:center;font-size:0.85rem;margin-bottom:16px;"></p>
+            <div class="orientacion-grid">
+                <div>
+                    <div class="orientacion-visor" id="orientacionVisor">
+                        <model-viewer id="mvOrientacion" camera-controls touch-action="pan-y" min-camera-orbit="auto auto 15%" max-camera-orbit="auto auto 130%" shadow-intensity="1" exposure="1" style="width:100%;height:100%;background:transparent;"></model-viewer>
+                        <div id="orientacionHint" class="orientacion-hint">Cargando modelo…</div>
+                    </div>
+                    <div id="orientacionAyuda" style="margin-top:12px;"></div>
+                </div>
+                <div>
+                    <div id="orientacionTexto" style="font-size:1rem;margin-bottom:15px;"></div>
+                    <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;" id="orientacionTira"></div>
+                    <div style="display:flex;gap:10px;">
+                        <button class="action-btn btn-prev" onclick="orientacionAnterior()">← Anterior</button>
+                        <button class="action-btn btn-submit" onclick="orientacionSiguiente()" id="orientacionBtnSig">Siguiente →</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -2423,7 +2442,19 @@ function reiniciarIdentificacion() {
             renderOrientacion();
         }
 
+        // ===== Visor 3D de la orientación: estado de carga y ayuda =====
+        let visor3DListo = false;
+        function configurarVisor3D() {
+            if (visor3DListo) return;
+            const mv = document.getElementById('mvOrientacion'), hint = document.getElementById('orientacionHint');
+            if (!mv || !hint) return;
+            visor3DListo = true;
+            mv.addEventListener('load', () => { hint.textContent = '🖱️ Arrastra para girar · rueda o pellizco para acercar'; });
+            mv.addEventListener('error', () => { hint.textContent = '⚠️ No se pudo cargar el modelo 3D. Recarga la página (Ctrl+Shift+R).'; });
+        }
+
         function renderOrientacion() {
+            configurarVisor3D();
             const numPregunta = CARACTERES_ORIENTACION[orientacionIndice];
             const paso = CLAVE[numPregunta];
             document.getElementById('orientacionSubtitulo').textContent = orientacionFase === 1
@@ -2440,12 +2471,16 @@ function reiniciarIdentificacion() {
 
             const mv = document.getElementById('mvOrientacion');
             const especieModelo = ESPECIES_ORIENTACION_3D[orientacionIndice % ESPECIES_ORIENTACION_3D.length];
-            mv.src = `/static/modelos3d/${especieModelo}.glb`;
+            const rutaModelo = `/static/modelos3d/${especieModelo}.glb`;
+            if (!mv.getAttribute('src') || !mv.getAttribute('src').endsWith(rutaModelo)) {
+                document.getElementById('orientacionHint').textContent = 'Cargando modelo…';
+            }
+            mv.src = rutaModelo;
 
             const ayudaZona = document.getElementById('orientacionAyuda');
             if (orientacionFase === 1) {
                 ayudaZona.innerHTML = `<button class="action-btn" onclick="rotarOrientacion()" style="background:linear-gradient(45deg,#00D4FF,#7B61FF);color:white;width:100%;border:none;padding:10px;border-radius:8px;cursor:pointer;font-weight:600;">🔍 Rotar y observar</button>`;
-                mv.cameraOrbit = '0deg 75deg 1.3m';
+                mv.cameraOrbit = '0deg 75deg auto';
             } else {
                 ayudaZona.innerHTML = `<div style="font-size:0.8rem;color:#A0A0B0;text-align:center;">Repaso rápido — intenta recordar dónde mirar antes de seguir.</div>`;
             }
@@ -2468,7 +2503,7 @@ function reiniciarIdentificacion() {
 
         function rotarOrientacion() {
             const mv = document.getElementById('mvOrientacion');
-            mv.cameraOrbit = (Math.random()*360).toFixed(0) + 'deg 70deg 1.1m';
+            mv.cameraOrbit = (Math.random()*360).toFixed(0) + 'deg 70deg 80%';
         }
 
         function orientacionAnterior() {
