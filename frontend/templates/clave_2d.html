@@ -890,14 +890,22 @@
                     body: JSON.stringify({ usuario_id: usuarioId })
                 });
                 if (response.status === 409) { mostrarPantallaYaRealizado('abandonado'); return; }
-                if (!response.ok) throw new Error('Error al iniciar');
+                if (!response.ok) {
+                    let motivo = 'Error al iniciar';
+                    try { const j = await response.json(); if (j && j.error) motivo = j.error; } catch (e) { /* sin detalle */ }
+                    throw new Error(motivo);
+                }
                 const data = await response.json();
                 sesionId = data.sesion_id;
                 especimenes = data.especimenes.slice(0, 2);
                 ejercicioEnCurso = true;
             } catch (error) {
                 console.error('Error iniciando sesión:', error);
-                mostrarFeedback('❌ Error al iniciar la sesión experimental', '#FF375F');
+                ejercicioEnCurso = false;
+                // Si la sesión no se pudo crear, se vuelve a la pantalla de inicio (no se deja la página en negro)
+                ['orientacionScreen', 'mainApp'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+                const inicio = document.getElementById('introScreen'); if (inicio) inicio.style.display = '';
+                mostrarFeedback('❌ No se pudo iniciar: ' + ((error && error.message && error.message !== 'Error al iniciar') ? error.message : 'error de conexión') + '. Avisa al investigador.', '#FF375F');
                 return;
             }
             

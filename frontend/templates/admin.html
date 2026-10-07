@@ -335,11 +335,16 @@
     function seleccionarTodas()   { especiesConfig.activas = especiesConfig.todas.map(e=>e.id); renderEspeciesConfig(); }
     function deseleccionarTodas() { especiesConfig.activas = []; renderEspeciesConfig(); }
     async function guardarEspecies() {
+        if (especiesConfig.activas.length < 2) {
+            mostrarMensaje('⚠️ Activa al menos 2 especies: cada participante identifica 2 distintas', '#FF375F');
+            return;
+        }
         const res = await fetch('/api/admin/config/especies', {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ activas: especiesConfig.activas })
         });
-        mostrarMensaje(res.ok ? '✅ Configuración guardada' : '❌ Error al guardar', res.ok ? '#00D4FF' : '#FF375F');
+        let detalle = ''; if (!res.ok) { try { detalle = (await res.json()).error || ''; } catch (e) {} }
+        mostrarMensaje(res.ok ? '✅ Configuración guardada' : '❌ ' + (detalle || 'Error al guardar'), res.ok ? '#00D4FF' : '#FF375F');
     }
 
     // ===== ESTADÍSTICAS =====
