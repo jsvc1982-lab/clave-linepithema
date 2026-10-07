@@ -170,10 +170,19 @@ def calcular_sus(respuestas):
         return None
 
 def get_especies_activas():
+    """Especies que se sortean. Si la configuración guardada tiene menos de 2 especies válidas (cada participante
+    necesita 2 distintas), se ignora y se usan las activas por defecto, para que el ejercicio nunca quede bloqueado."""
+    por_defecto = [e['id'] for e in POOL_ESPECIES if e['activa']]
     config = Configuracion.query.filter_by(clave='especies_activas').first()
     if config:
-        return json.loads(config.valor)
-    return [e['id'] for e in POOL_ESPECIES if e['activa']]
+        try:
+            validas = [i for i in json.loads(config.valor) if i in {e['id'] for e in POOL_ESPECIES}]
+        except Exception:
+            validas = []
+        if len(validas) >= 2:
+            return validas
+        print('[especies] Configuración guardada con menos de 2 especies válidas: se usan las de por defecto', flush=True)
+    return por_defecto
 
 def set_especies_activas(especies_ids):
     config = Configuracion.query.filter_by(clave='especies_activas').first()
@@ -728,6 +737,8 @@ def set_especies_config():
         data = request.json
         ids_validos = [e['id'] for e in POOL_ESPECIES]
         activas = [e for e in data.get('activas', []) if e in ids_validos]
+        if len(activas) < 2:
+            return jsonify({'error': 'Activa al menos 2 especies: cada participante identifica 2 especies distintas'}), 400
         set_especies_activas(activas)
         return jsonify({'mensaje': 'Configuración actualizada'})
     except Exception as e:
