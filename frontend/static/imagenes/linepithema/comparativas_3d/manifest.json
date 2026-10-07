@@ -1,0 +1,97 @@
+{
+ "descripcion": "EJEMPLO DE PRUEBA 3D (imagenes de relleno de los pareados 1 a 3). Reemplazar por las capturas reales antes de usar con participantes.",
+ "alias": {
+  "p7b": "p5c",
+  "p7a": "p5a"
+ },
+ "rasgos": {
+  "p1a": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p2a": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p2b": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p2c": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p2d": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p3a": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p3b": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  },
+  "p3c": {
+   "esp1": 1,
+   "esp2": 1,
+   "esp3": 1,
+   "esp4": 1,
+   "esp5": 1,
+   "esp6": 1,
+   "esp7": 1,
+   "esp8": 1,
+   "esp9": 1
+  }
+ }
+}
