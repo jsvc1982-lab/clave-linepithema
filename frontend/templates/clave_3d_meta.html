@@ -485,23 +485,6 @@
             </div>
         </div>
         
-    <div id="orientacionScreen" class="modal" style="display:none;">
-        <div class="modal-content" style="max-width:650px; max-height:85vh; overflow-y:auto;">
-            <h2 style="color:#00D4FF;text-align:center;margin-bottom:6px;">🎓 Antes de comenzar</h2>
-            <p id="orientacionSubtitulo" style="color:#A0A0B0;text-align:center;font-size:0.85rem;margin-bottom:15px;"></p>
-            <div style="height:220px;border-radius:12px;overflow:hidden;border:1px solid #00D4FF30;margin-bottom:15px;background:#0A0E17;">
-                <model-viewer id="mvOrientacion" camera-controls style="width:100%;height:100%;background:transparent;"></model-viewer>
-            </div>
-            <div id="orientacionTexto" style="font-size:1rem;margin-bottom:15px;"></div>
-            <div id="orientacionAyuda" style="margin-bottom:15px;"></div>
-            <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;" id="orientacionTira"></div>
-            <div style="display:flex;gap:10px;">
-                <button class="action-btn btn-prev" onclick="orientacionAnterior()">← Anterior</button>
-                <button class="action-btn btn-submit" onclick="orientacionSiguiente()" id="orientacionBtnSig">Siguiente →</button>
-            </div>
-        </div>
-    </div>
-
         <div id="zoomModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column;">
                 <div style="position:relative;display:inline-block;max-width:90%;max-height:80%;">
                     <img id="zoomImg" src="/static/imagenes/linepithema/diagrama_hormiga.png" style="max-width: 100%; max-height: 80vh; display:block; border-radius: 15px; border: 2px solid #00D4FF;">
@@ -540,6 +523,24 @@
             </div>
             
             <button class="start-btn" id="startBtn">🚀 Comenzar identificación 3D con Metacognición</button>
+        </div>
+    </div>
+
+    <!-- Orientación: debe ser hija directa de <body>; si estuviera dentro de introScreen, al ocultar el inicio se ocultaría ella también (pantalla negra) -->
+    <div id="orientacionScreen" class="modal" style="display:none;">
+        <div class="modal-content" style="max-width:650px; max-height:85vh; overflow-y:auto;">
+            <h2 style="color:#00D4FF;text-align:center;margin-bottom:6px;">🎓 Antes de comenzar</h2>
+            <p id="orientacionSubtitulo" style="color:#A0A0B0;text-align:center;font-size:0.85rem;margin-bottom:15px;"></p>
+            <div style="height:220px;border-radius:12px;overflow:hidden;border:1px solid #00D4FF30;margin-bottom:15px;background:#0A0E17;">
+                <model-viewer id="mvOrientacion" camera-controls style="width:100%;height:100%;background:transparent;"></model-viewer>
+            </div>
+            <div id="orientacionTexto" style="font-size:1rem;margin-bottom:15px;"></div>
+            <div id="orientacionAyuda" style="margin-bottom:15px;"></div>
+            <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;" id="orientacionTira"></div>
+            <div style="display:flex;gap:10px;">
+                <button class="action-btn btn-prev" onclick="orientacionAnterior()">← Anterior</button>
+                <button class="action-btn btn-submit" onclick="orientacionSiguiente()" id="orientacionBtnSig">Siguiente →</button>
+            </div>
         </div>
     </div>
 
