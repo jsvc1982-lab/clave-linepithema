@@ -977,7 +977,7 @@ function verCaracterEnfocado(preguntaNum) {
             body: JSON.stringify({ sesion_id: sesionId, momento: 'pre', pregunta: 'Reflexión previa (escala numérica)', respuesta: respuesta })
         });
     }
-    document.querySelector('.modal').remove();
+    cerrarModalDinamico();
     iniciarIdentificacion();
 }
 
@@ -1067,7 +1067,7 @@ function verCaracterEnfocado(preguntaNum) {
                 momento: 'durante', pregunta: `Pregunta ${preguntaNum} (monitoreo de estrategia)`, respuesta: respuesta })
         });
     }
-    document.querySelector('.modal').remove();
+    cerrarModalDinamico();
     
     if (cambiarEstrategia === 'no') {
         if (confirm('¿Cambiar de estrategia? Se reiniciará la identificación.')) {
@@ -1174,10 +1174,18 @@ function verCaracterEnfocado(preguntaNum) {
         tiempoReflexionAcumulado += (Date.now() - tiempoInicioReflexionActual) / 1000;
         tiempoInicioReflexionActual = null;
     }
-    document.querySelector('.modal').remove();
+    cerrarModalDinamico();
     window.resolverReflexionPost();
 }
         
+
+        // Cierra el cuestionario abierto (previa / durante / final). Nunca toca la pantalla de orientación, que
+        // también usa la clase "modal": antes se cerraba "el primer .modal" y el cuestionario no desaparecía.
+        function cerrarModalDinamico() {
+            const abiertos = [...document.querySelectorAll('.modal')].filter(m => m.id !== 'orientacionScreen' && m.style.display !== 'none');
+            const m = abiertos[abiertos.length - 1];
+            if (m) m.remove();
+        }
 
         // ===== INICIAR CON SESIÓN PRIMERO =====
         async function iniciarConReflexion() {
