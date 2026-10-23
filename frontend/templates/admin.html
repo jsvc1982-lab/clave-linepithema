@@ -584,7 +584,7 @@
         mostrarMensaje('✅ Recorrido detallado exportado');
     }
 
-    // ===== CALIBRAR ZOOM DE CARACTERES (botón "Ver este carácter") =====
+    // ===== CALIBRAR EL ENCUADRE DE CADA CARÁCTER (2D: elegir vista lateral/frontal/dorsal; 3D: orientar el modelo) =====
     const PREGUNTAS_CLAVE_TEXTO = {
         1: "¿Pelos adpresos en la glándula metapleural?",
         2: "¿El pronoto tiene un par de setas erectas?",
@@ -597,6 +597,8 @@
     };
     let zoomCaracteresEdicion = {};
     let preguntaZoomActual = 1;
+    let vista2dActual = 'lateral';
+    const VISTAS_2D = [{ id: 'lateral', t: 'Lateral' }, { id: 'cabeza', t: 'Frontal (cabeza)' }, { id: 'dorsal', t: 'Dorsal' }];
 
     async function mostrarZoomCaracteres() {
         let guardado = {};
@@ -608,11 +610,15 @@
 
         document.getElementById('tabContent').innerHTML = `
             <div class="card">
-                <div class="card-title">🔬 Calibrar "Ver este carácter" (2D y 3D)</div>
-                <p style="color:#A0A0B0;font-size:0.85rem;margin-bottom:15px;">
-                    Elige la pregunta, encuadra la foto (2D) y orienta el modelo (3D) como quieres que
-                    vea el estudiante al tocar "🔍 Ver este carácter". Usamos <em>L. humile</em> como
-                    referencia para calibrar; el encuadre se aplica proporcionalmente a cualquier especie.
+                <div class="card-title">🔬 Calibrar el encuadre de cada carácter (2D y 3D)</div>
+                <p style="color:#A0A0B0;font-size:0.85rem;margin-bottom:10px;">
+                    Elige la pregunta (pareado), luego la <strong>vista de la foto</strong> donde el carácter se ve mejor
+                    (lateral, frontal o dorsal), toca el punto exacto y ajusta la escala: abajo ves cómo quedaría el encuadre.
+                    En 3D, orienta el modelo y guarda la vista. Usamos <em>L. humile</em> como referencia; el encuadre se aplica
+                    proporcionalmente a cualquier especie.
+                </p>
+                <p style="background:#FFB02018;border-left:4px solid #FFB020;border-radius:6px;padding:8px 12px;font-size:0.82rem;color:#E0E0E0;margin-bottom:15px;">
+                    ⚠️ Estos encuadres <strong>se guardan</strong>, pero hoy la plataforma todavía <strong>no los muestra</strong> a los estudiantes.
                 </p>
                 <div id="botonesPreguntaZoom" style="margin-bottom:15px;display:flex;gap:8px;flex-wrap:wrap;">
                     ${[1,2,3,4,5,6,7,8].map(n => `<button class="btn ${n===preguntaZoomActual?'btn-success':'btn-secondary'}" onclick="cambiarPreguntaZoom(${n})" style="padding:8px 14px;">P${n}</button>`).join('')}
@@ -622,7 +628,11 @@
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;">
                     <div class="stat-card">
                         <strong style="color:#00D4FF;">📷 Encuadre 2D</strong>
-                        <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">Toca el punto exacto del carácter en la foto.</p>
+                        <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">1) Elige la vista. 2) Toca el punto exacto del carácter en la foto.</p>
+                        <div id="vista2dBtns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+                            ${VISTAS_2D.map(v => `<button class="btn btn-secondary" data-vista="${v.id}" onclick="cambiarVista2D('${v.id}')" style="padding:6px 12px;font-size:0.82rem;">${v.t}</button>`).join('')}
+                        </div>
+                        <div id="zoom2dEstado" style="font-size:0.78rem;color:#A0A0B0;margin-bottom:8px;min-height:1.1em;"></div>
                         <div style="position:relative;display:inline-block;max-width:100%;" id="zoom2dContainer">
                             <img id="zoom2dImg" src="/foto/esp2/lateral.jpg"
                                  style="max-width:100%;display:block;border-radius:10px;border:2px solid #00D4FF40;" draggable="false">
@@ -630,7 +640,13 @@
                         </div>
                         <div style="margin-top:10px;">
                             <label style="font-size:0.8rem;color:#A0A0B0;">Escala (zoom): <span id="zoom2dEscalaVal">2.2</span>x</label>
-                            <input type="range" id="zoom2dEscala" min="1.2" max="4" step="0.1" value="2.2" style="width:100%;" oninput="document.getElementById('zoom2dEscalaVal').textContent=this.value">
+                            <input type="range" id="zoom2dEscala" min="1.2" max="4" step="0.1" value="2.2" style="width:100%;" oninput="cambiarEscala2D(this.value)">
+                        </div>
+                        <div style="margin-top:12px;">
+                            <div style="font-size:0.8rem;color:#00D4FF;font-weight:600;margin-bottom:4px;">Así quedaría el encuadre</div>
+                            <div id="zoom2dPrevia" style="position:relative;width:100%;max-width:340px;height:220px;overflow:hidden;border-radius:10px;border:2px solid #00D4FF40;background:#0A0E17;">
+                                <img id="zoom2dPreviaImg" alt="Vista previa" draggable="false" onload="actualizarPrevia2D()" style="width:100%;height:100%;object-fit:contain;transform-origin:center center;user-select:none;">
+                            </div>
                         </div>
                     </div>
 
@@ -655,7 +671,7 @@
             const py = ((e.clientY - rect.top) / rect.height) * 100;
             const escala = parseFloat(document.getElementById('zoom2dEscala').value);
             if (!zoomCaracteresEdicion[preguntaZoomActual]) zoomCaracteresEdicion[preguntaZoomActual] = {};
-            zoomCaracteresEdicion[preguntaZoomActual]['2d'] = { x: Math.round(px*10)/10, y: Math.round(py*10)/10, scale: escala };
+            zoomCaracteresEdicion[preguntaZoomActual]['2d'] = { vista: vista2dActual, x: Math.round(px*10)/10, y: Math.round(py*10)/10, scale: escala };
             mostrarMarcador2D();
         });
 
@@ -673,22 +689,74 @@
         });
         const btnCapturar = document.querySelector('button[onclick="capturarVista3D()"]');
         if (btnCapturar) btnCapturar.textContent = `📸 Guardar esta vista para P${n}`;
+        // al cambiar de pregunta se abre la vista que se guardó para ella (o la lateral si aún no hay)
+        const cfg = zoomCaracteresEdicion[n] && zoomCaracteresEdicion[n]['2d'];
+        cambiarVista2D(cfg && cfg.vista ? cfg.vista : 'lateral');
+    }
+
+    function rutaVista2D(v) { return `/foto/esp2/${v}.jpg`; }
+
+    function cambiarVista2D(v) {
+        vista2dActual = v;
+        const img = document.getElementById('zoom2dImg');
+        if (img && !img.src.endsWith(rutaVista2D(v))) img.src = rutaVista2D(v);
+        document.querySelectorAll('#vista2dBtns button').forEach(b => {
+            const activo = b.dataset.vista === v;
+            b.classList.toggle('btn-success', activo);
+            b.classList.toggle('btn-secondary', !activo);
+        });
         mostrarMarcador2D();
+    }
+
+    function cambiarEscala2D(valor) {
+        document.getElementById('zoom2dEscalaVal').textContent = valor;
+        const cfg = zoomCaracteresEdicion[preguntaZoomActual] && zoomCaracteresEdicion[preguntaZoomActual]['2d'];
+        if (cfg) cfg.scale = parseFloat(valor);
+        actualizarPrevia2D();
     }
 
     function mostrarMarcador2D() {
         const cfg = zoomCaracteresEdicion[preguntaZoomActual] && zoomCaracteresEdicion[preguntaZoomActual]['2d'];
         const marcador = document.getElementById('zoom2dMarcador');
         if (!marcador) return;
+        const nombreVista = v => (VISTAS_2D.find(x => x.id === v) || { t: v }).t.toLowerCase();
+        const estado = document.getElementById('zoom2dEstado');
         if (cfg) {
-            marcador.style.display = 'block';
-            marcador.style.left = cfg.x + '%';
-            marcador.style.top = cfg.y + '%';
+            const vistaGuardada = cfg.vista || 'lateral';
             document.getElementById('zoom2dEscala').value = cfg.scale || 2.2;
             document.getElementById('zoom2dEscalaVal').textContent = cfg.scale || 2.2;
+            if (vistaGuardada === vista2dActual) {
+                marcador.style.display = 'block';
+                marcador.style.left = cfg.x + '%';
+                marcador.style.top = cfg.y + '%';
+                estado.innerHTML = `✅ Guardado en la vista <strong>${nombreVista(vistaGuardada)}</strong> (${cfg.x}%, ${cfg.y}%) · escala ${cfg.scale || 2.2}×`;
+            } else {
+                marcador.style.display = 'none';
+                estado.innerHTML = `Hay un punto guardado en la vista <strong>${nombreVista(vistaGuardada)}</strong>. Si tocas esta foto, se reemplaza por la vista ${nombreVista(vista2dActual)}.`;
+            }
         } else {
             marcador.style.display = 'none';
+            estado.textContent = `Sin punto guardado para P${preguntaZoomActual}.`;
         }
+        actualizarPrevia2D();
+    }
+
+    // Vista previa: la foto se muestra completa (contain) y el punto elegido se lleva al centro con la escala indicada
+    function actualizarPrevia2D() {
+        const cont = document.getElementById('zoom2dPrevia'), img = document.getElementById('zoom2dPreviaImg');
+        if (!cont || !img) return;
+        const cfg = zoomCaracteresEdicion[preguntaZoomActual] && zoomCaracteresEdicion[preguntaZoomActual]['2d'];
+        const ruta = rutaVista2D(cfg ? (cfg.vista || 'lateral') : vista2dActual);
+        if (!img.src.endsWith(ruta)) img.src = ruta;
+        if (!cfg) { img.style.transform = 'none'; return; }
+        const W = cont.clientWidth, H = cont.clientHeight;
+        const nw = img.naturalWidth || 4, nh = img.naturalHeight || 3, k = Math.min(W / nw, H / nh), w = nw * k, h = nh * k;
+        const px = (W - w) / 2 + cfg.x / 100 * w, py = (H - h) / 2 + cfg.y / 100 * h;
+        const s = cfg.scale || 2.2;
+        // cerca de los bordes no se sale de la foto (así tampoco lo hará el visor del estudiante)
+        const maxX = Math.max(0, (s * w - W) / 2), maxY = Math.max(0, (s * h - H) / 2);
+        const tx = Math.min(maxX, Math.max(-maxX, -s * (px - W / 2))), ty = Math.min(maxY, Math.max(-maxY, -s * (py - H / 2)));
+        img.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
     }
 
     function capturarVista3D() {
@@ -709,7 +777,7 @@
             body: JSON.stringify({ datos: zoomCaracteresEdicion })
         });
         if (res.ok) {
-            mostrarMensaje('✅ Calibración guardada. Ya se aplica en las 4 claves.');
+            mostrarMensaje('✅ Calibración guardada.');
         } else {
             mostrarMensaje('❌ Error al guardar', '#FF375F');
         }
