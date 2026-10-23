@@ -1693,8 +1693,6 @@ Mesonoto: Segunda parte del mesosoma, entre el pronoto y el propodeo.
 
 Mesosoma: Tórax, región del cuerpo donde se insertan las tres pares de patas.
 
-Ocelos: Ojos simples en la parte superior de la cabeza. Presentes en machos y reinas, ausentes en obreras.
-
 Palpos maxilares: Apéndices sensoriales cerca de la boca. Su longitud relativa a la cabeza es diagnóstica.
 
 Pecíolo: Nódulo o segmento que conecta el mesosoma con el gáster (la "cintura" de la hormiga).
@@ -1768,7 +1766,6 @@ window.addEventListener('beforeunload', function() {
           {id:"mandibulas", label:"Mandibulas", def:"Estructuras bucales para cortar, transportar y defender.", px:17, py:66},
           {id:"clipeo", label:"Clipeo", def:"Placa frontal sobre las mandibulas. Puede presentar un surco pre-sutural o ser liso.", px:21, py:60},
           {id:"margen", label:"Margen posterior de la cabeza", def:"Borde occipital. Puede ser recto, concavo o profundamente concavo.", px:36, py:47},
-          {id:"ocelos", label:"Ocelos", def:"Ojos simples en la parte superior de la cabeza. Presentes en machos y reinas.", px:22, py:40},
           {id:"escapo", label:"Escapo", def:"Primer segmento de la antena, generalmente el mas largo. Caracter diagnostico.", px:21, py:33},
           {id:"mesosoma", label:"Mesosoma", def:"Torax, region donde se insertan las tres pares de patas.", px:48, py:42},
           {id:"pronoto", label:"Pronoto", def:"Primera parte del torax. La presencia o ausencia de setas es clave.", px:40, py:40},
@@ -1878,7 +1875,7 @@ window.addEventListener('beforeunload', function() {
             }
         }
 
-        // Foto de referencia con los 16 pines numerados y su leyenda (usa las posiciones calibradas por el admin)
+        // Foto de referencia con los 15 pines numerados y su leyenda (usa las posiciones calibradas por el admin)
         function descargarImagenPines() {
             const img = document.getElementById('diagramaImg');
             if (!img || !img.complete || !img.naturalWidth) { alert('La imagen todavía se está cargando. Espera un momento e inténtalo de nuevo.'); return; }
@@ -1901,13 +1898,13 @@ window.addEventListener('beforeunload', function() {
             });
             g.textAlign = 'left'; g.textBaseline = 'middle';
             g.fillStyle = '#00D4FF'; g.font = 'bold 24px Arial';
-            g.fillText('Partes de la hormiga (Linepithema)', W + 22, 40);
+            g.fillText('Partes de la hormiga (Linepithema)', W + 22, 40, LEG - 40);   // se encoge si no cabe
             PARTES_HORMIGA.forEach((p, i) => {
                 const y = 96 + i * 38;
                 g.beginPath(); g.arc(W + 36, y, 13, 0, Math.PI * 2); g.fillStyle = '#7B61FF'; g.fill();
                 g.fillStyle = '#FFFFFF'; g.font = 'bold 14px Arial'; g.textAlign = 'center'; g.fillText(String(i + 1), W + 36, y + 1);
                 g.textAlign = 'left'; g.fillStyle = '#E0E0E0'; g.font = '20px Arial';
-                g.fillText(acentos[p.label] || p.label, W + 62, y + 1);
+                g.fillText(acentos[p.label] || p.label, W + 62, y + 1, LEG - 80);
             });
             cv.toBlob(blob => {
                 const a = document.createElement('a');
