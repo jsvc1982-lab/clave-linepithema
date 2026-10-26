@@ -734,6 +734,30 @@
     </div>
 
     <script>
+// ===== Reintentos al guardar: si la base de datos tiene una interrupción momentánea, el dato NO se pierde =====
+// Solo para las llamadas que guardan respuestas (guardar_resultado, guardar_paso, guardar_reflexion, guardar_encuesta).
+// Si el servidor responde con error (5xx) o no hay conexión, se reintenta hasta 4 veces con una espera creciente.
+(function () {
+    const fetchOriginal = window.fetch.bind(window);
+    window.fetch = async function (url, opciones) {
+        const guarda = typeof url === 'string' && /\/api\/experimento\/guardar_/.test(url) && opciones && opciones.method === 'POST';
+        if (!guarda) return fetchOriginal(url, opciones);
+        let ultima = null;
+        for (let intento = 1; intento <= 4; intento++) {
+            try {
+                ultima = await fetchOriginal(url, opciones);
+                if (ultima.status < 500) return ultima;
+                console.warn(`Guardado: el servidor respondió ${ultima.status}; reintento ${intento} de 4`);
+            } catch (e) {
+                ultima = null;
+                console.warn(`Guardado: sin conexión; reintento ${intento} de 4`);
+            }
+            await new Promise(r => setTimeout(r, 700 * intento));
+        }
+        if (ultima) return ultima;
+        throw new Error('No se pudo guardar tras varios intentos');
+    };
+})();
         // ===== CONFIGURACIÓN DE LA CLAVE =====
          const CLAVE = {
     1: {
