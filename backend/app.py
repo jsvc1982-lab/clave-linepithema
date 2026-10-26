@@ -47,7 +47,8 @@ CORS(app, supports_credentials=True, origins=os.getenv('ALLOWED_ORIGIN', 'http:/
 # creó (o se restauró de un respaldo) con una versión vieja, esta función completa las columnas que falten.
 COLUMNAS_NUEVAS = {
     'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)')],
-    'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER')],
+    'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER'),
+                   ('ayuda_encuadre_usos', 'INTEGER DEFAULT 0'), ('ayuda_encuadre_detalle', 'TEXT')],
     'reflexiones': [('orden_especimen', 'INTEGER')],
 }
 
@@ -492,6 +493,8 @@ def get_resultados_me():
                 'tiempo': r.tiempo_segundos,
                 'tiempo_reflexion': r.tiempo_reflexion_segundos,
                 'primera_pregunta_desvio': r.primera_pregunta_desvio,
+                'ayuda_encuadre_usos': r.ayuda_encuadre_usos or 0,
+                'ayuda_encuadre_detalle': r.ayuda_encuadre_detalle,
                 'orden': r.orden
             })
     return jsonify(resultados)
@@ -602,6 +605,8 @@ def get_resultados_usuario(usuario_id):
                 'tiempo': r.tiempo_segundos,
                 'tiempo_reflexion': r.tiempo_reflexion_segundos,
                 'primera_pregunta_desvio': r.primera_pregunta_desvio,
+                'ayuda_encuadre_usos': r.ayuda_encuadre_usos or 0,
+                'ayuda_encuadre_detalle': r.ayuda_encuadre_detalle,
                 'orden': r.orden
             })
     return jsonify(resultados)
@@ -793,6 +798,8 @@ def ver_datos():
                 'tiempo': r.tiempo_segundos,
                 'tiempo_reflexion': r.tiempo_reflexion_segundos,
                 'primera_pregunta_desvio': r.primera_pregunta_desvio,
+                'ayuda_encuadre_usos': r.ayuda_encuadre_usos or 0,
+                'ayuda_encuadre_detalle': r.ayuda_encuadre_detalle,
                 'orden': r.orden
             })
     return jsonify(resultados)
@@ -1031,7 +1038,7 @@ def exportar_csv():
 
     columnas = [
         'participante', 'grupo', 'rol', 'institucion', 'sesion_id', 'especie', 'orden', 'acierto',
-        'tiempo_clave_s', 'tiempo_reflexion_s', 'primera_pregunta_desvio',
+        'tiempo_clave_s', 'tiempo_reflexion_s', 'primera_pregunta_desvio', 'ayuda_encuadre_usos', 'ayuda_encuadre_rasgos',
         'confianza', 'dificultad', 'esfuerzo',
         'seguridad_media_durante', 'n_cambios_estrategia', 'registros_duplicados',
         'semestre', 'experiencia_taxonomica', 'conocimiento_genero',
@@ -1092,7 +1099,7 @@ def exportar_csv():
             filas.append([
                 usuario.nombre_usuario, sesion_exp.grupo, usuario.rol, usuario.institucion or usuario.curso, sesion_exp.id,
                 r.especie_correcta, orden, 1 if r.es_correcta else 0,
-                r.tiempo_segundos, r.tiempo_reflexion_segundos, r.primera_pregunta_desvio,
+                r.tiempo_segundos, r.tiempo_reflexion_segundos, r.primera_pregunta_desvio, r.ayuda_encuadre_usos or 0, r.ayuda_encuadre_detalle or '',
                 numero(tp, r'Acierto autopercibido:\s*(\d+(?:\.\d+)?)'),
                 numero(tp, r'Dificultad:\s*(\d+(?:\.\d+)?)'),
                 numero(tp, r'Esfuerzo mental:\s*(\d+(?:\.\d+)?)'),
@@ -1230,6 +1237,8 @@ def guardar_resultado():
             tiempo_segundos=data['tiempo_segundos'],
             tiempo_reflexion_segundos=data.get('tiempo_reflexion_segundos'),
             primera_pregunta_desvio=data.get('primera_pregunta_desvio'),
+            ayuda_encuadre_usos=int(data.get('ayuda_encuadre_usos') or 0),
+            ayuda_encuadre_detalle=(str(data.get('ayuda_encuadre_detalle'))[:500] if data.get('ayuda_encuadre_detalle') else None),
             orden=data['orden']
         )
         db.session.add(resultado)

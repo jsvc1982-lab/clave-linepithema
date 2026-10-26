@@ -49,6 +49,8 @@ class ResultadoIdentificacion(db.Model):
     tiempo_segundos = db.Column(db.Float)              # tiempo en la clave (sin reflexión)
     tiempo_reflexion_segundos = db.Column(db.Float)    # tiempo en pantallas de reflexión "durante", aparte
     primera_pregunta_desvio = db.Column(db.Integer)    # número de pareado donde se desvió por primera vez (null si acertó)
+    ayuda_encuadre_usos = db.Column(db.Integer, default=0)       # veces que usó "¿Dónde mirar?" con este espécimen
+    ayuda_encuadre_detalle = db.Column(db.Text)                   # rasgo@segundos;rasgo@segundos…
     orden = db.Column(db.Integer)
 class ResultadoEncuesta(db.Model):
     __tablename__ = 'encuestas'
