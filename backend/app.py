@@ -7,7 +7,10 @@ import random
 import json
 import os
 import re
-from sqlalchemy import func
+from sqlalchemy import func, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.pool import NullPool
 
 try:
     from backend.models import db, Usuario, SesionExperimental, ResultadoIdentificacion, ResultadoEncuesta, ReflexionMetacognitiva, Configuracion, PasoClave
@@ -36,11 +39,49 @@ if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# Render cierra las conexiones inactivas de la base: se comprueban antes de usarlas y se renuevan cada ~5 minutos.
-# Evita errores como "SSL error: decryption failed or bad record mac" tras una pausa o un reinicio de la base.
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 280}
+# Conexión a PostgreSQL. Render y los proveedores en la nube cierran las conexiones inactivas o las cortan sin avisar:
+# se comprueban antes de usarlas (pre_ping), se renuevan cada ~5 minutos, se avisa al servidor que seguimos vivos
+# (keepalives) y se limita la espera para conectar. Evita "SSL error: decryption failed or bad record mac",
+# "SSL SYSCALL error: EOF detected" y "error with status PGRES_TUPLES_OK and no message from the libpq".
+def opciones_motor(url):
+    if not url.startswith('postgresql'):
+        return {}                                   # SQLite (pruebas locales): sin opciones especiales
+    conexion = {'connect_timeout': 15, 'keepalives': 1, 'keepalives_idle': 30, 'keepalives_interval': 10, 'keepalives_count': 5}
+    # Neon "pooled" (-pooler) ya reutiliza las conexiones en el servidor (PgBouncer): se abre una conexión por petición
+    # y no se guarda un segundo pool encima, que es una fuente conocida de conexiones dañadas.
+    if '-pooler' in url.split('@')[-1].split('/')[0]:
+        return {'poolclass': NullPool, 'connect_args': conexion}
+    return {'pool_pre_ping': True, 'pool_recycle': 280, 'connect_args': conexion}
+
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = opciones_motor(database_url)
+MODO_POOL = 'sin pool propio (Neon pooler)' if 'poolclass' in app.config['SQLALCHEMY_ENGINE_OPTIONS'] else ('pool con comprobación' if database_url.startswith('postgresql') else 'SQLite')
+print(f'[bd] Conexión a la base: {MODO_POOL}', flush=True)
+
+# SQLAlchemy solo descarta una conexión dañada si reconoce el mensaje de error. Estos mensajes de libpq/psycopg2 no estaban
+# en su lista: la conexión rota volvía al pool y las peticiones siguientes fallaban igual hasta reiniciar el servicio.
+MENSAJES_CONEXION_ROTA = ('no message from the libpq', 'PGRES_TUPLES_OK', 'bad record mac', 'SSL SYSCALL', 'EOF detected',
+                          'server closed the connection', 'connection already closed', 'terminating connection',
+                          'could not receive data', 'could not send data', 'connection not open', 'connection has been closed')
+
+@event.listens_for(Engine, 'handle_error')
+def descartar_conexion_rota(contexto):
+    if any(m in str(contexto.original_exception or '') for m in MENSAJES_CONEXION_ROTA):
+        contexto.is_disconnect = True
 
 CORS(app, supports_credentials=True, origins=os.getenv('ALLOWED_ORIGIN', 'http://127.0.0.1:5000'))
+
+@app.errorhandler(DBAPIError)
+def error_de_base_de_datos(e):
+    """Una interrupción momentánea de la base no debe verse como un error de código: se limpia la sesión y se pide reintentar."""
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+    print(f'[bd] Error de base de datos en {request.method} {request.path}: {str(e).splitlines()[0][:200]}', flush=True)
+    mensaje = 'La base de datos tuvo una interrupción momentánea. Intenta de nuevo en unos segundos.'
+    if request.path.startswith('/api/'):
+        return jsonify({'error': mensaje, 'codigo': 'bd_temporal'}), 503
+    return mensaje, 503
 
 # ===== ESQUEMA: agrega columnas nuevas a una base creada con una versión anterior =====
 # db.create_all() solo crea tablas que NO existen; no agrega columnas a las que ya existen. Por eso, si la base se
@@ -1009,7 +1050,7 @@ def reparar_esquema():
             faltan[tabla] = [n for n, _ in columnas if n not in existentes] if insp.has_table(tabla) else ['(la tabla no existe)']
         return jsonify({
             'ok': not errores and not any(faltan.values()),
-            'base_de_datos': {'tipo': db.engine.dialect.name, 'servidor': url.host, 'nombre': url.database, 'usuario': url.username},
+            'base_de_datos': {'tipo': db.engine.dialect.name, 'servidor': url.host, 'nombre': url.database, 'usuario': url.username, 'conexion': MODO_POOL},
             'columnas_agregadas_ahora': agregadas,
             'errores': errores,
             'columnas_que_aun_faltan': faltan,
