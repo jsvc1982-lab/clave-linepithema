@@ -551,6 +551,16 @@
         .orientacion-grid { grid-template-columns: 1fr; gap: 16px; }
         .orientacion-visor { height: clamp(240px, 42vh, 400px); }
     }
+    
+    /* ===== Ayuda opcional "¿Dónde mirar?" ===== */
+    .ayuda-encuadre-btn { width:100%; padding:10px; border:1px solid #FFB02080; border-radius:10px; background:#FFB02014; color:#FFB020; font-weight:600; cursor:pointer; font-size:0.9rem; }
+    .ayuda-encuadre-btn:hover { background:#FFB02026; }
+    .ayuda-rasgo { padding:7px 12px; margin:6px 6px 0 0; border-radius:8px; border:1px solid #00D4FF50; background:#1A1F36; color:#E0E0E0; font-size:0.8rem; cursor:pointer; text-align:left; }
+    .ayuda-rasgo:hover { border-color:#00D4FF; }
+    .ayuda-rasgo.activo { border-color:#FFB020; color:#FFB020; background:#FFB02014; }
+    .ayuda-rasgo.normal { border-color:#7B61FF80; color:#A0A0F0; }
+    @keyframes pulsoAyuda { 0%,100% { box-shadow:0 0 0 0 rgba(255,176,32,0.75); } 50% { box-shadow:0 0 0 14px rgba(255,176,32,0); } }
+    #marcadorAyuda { position:absolute; width:38px; height:38px; border:3px solid #FFB020; border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; animation:pulsoAyuda 1.4s infinite; z-index:5; }
     </style>
 </head>
 <body>
@@ -868,8 +878,116 @@
         let tiempoInicioReflexionActual = null;
         let previaSlidersTocados = { reflexion1: false, reflexion2: false, reflexion3: false, reflexion4: false };
         let seguridadDuranteTocada = false;
+        // ===== "¿Dónde mirar?": ayuda OPCIONAL con el encuadre calibrado por el administrador (un encuadre por rasgo) =====
+        // Se registra cuántas veces la usa el estudiante con cada espécimen y en qué rasgos (columnas ayuda_encuadre_* del resultado).
+        const FORMATO_AYUDA = '2d';
         let zoomCaracteresConfig = {};
-        fetch('/api/config/zoom_caracteres').then(r => r.json()).then(d => { zoomCaracteresConfig = d; }).catch(() => {});
+        function normalizarCalibraciones(d) {
+            // Calibraciones antiguas (una por pregunta 1–8): la pregunta N era el primer rasgo del pareado N (pNa)
+            const salida = {};
+            Object.entries(d || {}).forEach(([k, v]) => {
+                if (/^\d+$/.test(k)) { if (!(('p' + k + 'a') in d)) salida['p' + k + 'a'] = v; }
+                else salida[k] = v;
+            });
+            return salida;
+        }
+        fetch('/api/config/zoom_caracteres').then(r => r.json()).then(d => { zoomCaracteresConfig = normalizarCalibraciones(d); }).catch(() => {});
+
+        let ayudaEncuadreActiva = false;
+        let ayudaEncuadreUsos = [];      // [{rasgo, t}] del espécimen actual
+        let ayudaMarca = null;           // 2D: punto marcado, en % de la foto
+
+        function calibracionDe(id) {
+            const c = zoomCaracteresConfig[id];
+            const cfg = c && c[FORMATO_AYUDA];
+            if (!cfg) return null;
+            if (FORMATO_AYUDA === '3d') return (cfg.orbit || cfg.theta !== undefined) ? cfg : null;
+            return (typeof cfg.x === 'number' && typeof cfg.y === 'number') ? cfg : null;
+        }
+        function rasgosConAyuda(par) {
+            return (typeof GALERIA_RASGOS !== 'undefined' ? GALERIA_RASGOS : []).filter(r => r.pareado === par && calibracionDe(r.id));
+        }
+        function htmlAyudaEncuadre(par) {
+            const rasgos = rasgosConAyuda(par);
+            if (!rasgos.length) return '';
+            return `<div id="ayudaEncuadre" style="margin-bottom:12px;">
+                <button class="ayuda-encuadre-btn" id="btnAyudaEncuadre" onclick="toggleAyudaEncuadre()">💡 ¿Dónde mirar?</button>
+                <div id="ayudaEncuadreLista" style="display:none;margin-top:6px;">
+                    <div style="font-size:0.75rem;color:#A0A0B0;">¿Qué carácter quieres ubicar en el espécimen?</div>
+                    ${rasgos.map(r => `<button class="ayuda-rasgo" data-rasgo="${r.id}" onclick="verRasgoEncuadre('${r.id}')">${r.nombre}</button>`).join('')}
+                    <button class="ayuda-rasgo normal" onclick="volverVistaNormal()">↩ Vista normal</button>
+                    <div id="ayudaEncuadreMsg" style="font-size:0.75rem;color:#FFB020;margin-top:8px;min-height:1em;"></div>
+                </div>
+            </div>`;
+        }
+        function toggleAyudaEncuadre() {
+            const l = document.getElementById('ayudaEncuadreLista'); if (!l) return;
+            l.style.display = l.style.display === 'none' ? 'block' : 'none';
+        }
+        function marcarBotonAyuda(id) {
+            document.querySelectorAll('.ayuda-rasgo[data-rasgo]').forEach(b => b.classList.toggle('activo', b.dataset.rasgo === id));
+        }
+        async function verRasgoEncuadre(id) {
+            const cfg = calibracionDe(id); if (!cfg) return;
+            ayudaEncuadreUsos.push({ rasgo: id, t: Math.round((Date.now() - tiempoInicioEspecimen) / 1000) });
+            ayudaEncuadreActiva = true;
+            marcarBotonAyuda(id);
+            const r = (typeof GALERIA_RASGOS !== 'undefined' ? GALERIA_RASGOS : []).find(x => x.id === id);
+            const msg = document.getElementById('ayudaEncuadreMsg');
+            if (msg) msg.textContent = `Mostrando: ${r ? r.nombre : id}. ${FORMATO_AYUDA === '3d' ? 'Gira el modelo para explorar la zona.' : 'Usa la rueda o arrastra para explorar la zona.'}`;
+            await aplicarEncuadreRasgo(cfg);
+        }
+        function detalleAyudaParaGuardar() {
+            return ayudaEncuadreUsos.map(u => `${u.rasgo}@${u.t}s`).join(';');
+        }
+
+        function posicionarMarcadorAyuda() {
+            let m = document.getElementById('marcadorAyuda');
+            const img = document.getElementById('specimenImage'), cont = document.getElementById('specimenImageContainer');
+            if (!ayudaMarca || !img || !cont) { if (m) m.remove(); return; }
+            if (!m) { m = document.createElement('div'); m.id = 'marcadorAyuda'; cont.appendChild(m); }
+            const W = img.offsetWidth, H = img.offsetHeight, s = zoomEspecimenState.scale;
+            const cx = img.offsetLeft + W / 2, cy = img.offsetTop + H / 2;   // centro de la foto sin zoom
+            m.style.left = (cx + zoomEspecimenState.x + s * (ayudaMarca.x / 100 * W - W / 2)) + 'px';
+            m.style.top = (cy + zoomEspecimenState.y + s * (ayudaMarca.y / 100 * H - H / 2)) + 'px';
+        }
+        // Cambia a la vista pedida (cabeza / lateral / dorsal) y espera a que cargue la foto
+        function mostrarVistaFoto(vista) {
+            return new Promise(resolve => {
+                const img = document.getElementById('specimenImage');
+                if (!img || !especimenes[indiceActual]) { resolve(); return; }
+                vistaActual = vista;
+                document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', (t.getAttribute('onclick') || '').includes(`'${vista}'`)));
+                const esp = especimenes[indiceActual].especie, codigo = CODIGO_ESPECIE[esp] || esp;
+                const ruta = `/foto/${codigo}/${vista}.jpg`;
+                if (img.getAttribute('src') === ruta && img.complete && img.naturalWidth) { resolve(); return; }
+                img.onload = () => { img.onload = null; resolve(); };
+                img.src = ruta;
+                setTimeout(resolve, 3500);
+            });
+        }
+        async function aplicarEncuadreRasgo(cfg) {
+            ayudaMarca = null;
+            const vista = cfg.vista || 'lateral';
+            if (vista !== vistaActual) { resetZoomImagen(); await mostrarVistaFoto(vista); }
+            const img = document.getElementById('specimenImage'); if (!img) return;
+            const s = cfg.scale || 2.2, W = img.offsetWidth, H = img.offsetHeight;
+            const maxX = Math.max(0, (s * W - W) / 2), maxY = Math.max(0, (s * H - H) / 2);
+            zoomEspecimenState.scale = s;
+            zoomEspecimenState.x = Math.min(maxX, Math.max(-maxX, -s * (cfg.x / 100 * W - W / 2)));
+            zoomEspecimenState.y = Math.min(maxY, Math.max(-maxY, -s * (cfg.y / 100 * H - H / 2)));
+            ayudaMarca = { x: cfg.x, y: cfg.y };
+            img.style.transition = 'transform 0.5s ease';
+            aplicarTransformEspecimen();
+            setTimeout(() => { img.style.transition = ''; }, 550);
+        }
+        function volverVistaNormal(silencioso) {
+            ayudaMarca = null;
+            ayudaEncuadreActiva = false;
+            resetZoomImagen();
+            marcarBotonAyuda(null);
+            const msg = document.getElementById('ayudaEncuadreMsg'); if (msg) msg.textContent = '';
+        }
         let vistaActual = 'lateral';
 
         // ===== INICIALIZACIÓN =====
@@ -1382,6 +1500,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
         }
 
         function cambiarVista(vista) {
+            ayudaMarca = null;
             vistaActual = vista;
             document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
@@ -1406,7 +1525,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
                         es_correcta: esCorrecta,
                         tiempo_segundos: tiempo,
                         tiempo_reflexion_segundos: tiempoReflexion,
-                        primera_pregunta_desvio: primeraPreguntaDesvio,
+                        primera_pregunta_desvio: primeraPreguntaDesvio, ayuda_encuadre_usos: ayudaEncuadreUsos.length, ayuda_encuadre_detalle: detalleAyudaParaGuardar(),
                         orden: indiceActual + 1
                     })
                 });
@@ -1444,6 +1563,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
     especimenFinalizado = false;
     tiempoReflexionAcumulado = 0;
     tiempoInicioEspecimen = Date.now();
+    ayudaEncuadreUsos = []; ayudaEncuadreActiva = false; ayudaMarca = null;
     
     document.getElementById('specimenCounter').textContent = `ESPÉCIMEN ${index+1}/${especimenes.length}`;
     document.getElementById('progressBar').style.width = `${((index+1)/especimenes.length)*100}%`;
@@ -1478,6 +1598,7 @@ if (especimenes[index]) {
         mostrarFeedback('🔍 Observa el espécimen con atención y responde las preguntas', '#00D4FF');
     }
             if (!paso) return;
+            if (ayudaEncuadreActiva) volverVistaNormal(true);
             
             if (numero > 1 && pasoActual !== numero && MOMENTOS_MONITOREO.includes(caminoRecorrido.length)) {
                 await mostrarReflexionDurante(numero);
@@ -1491,6 +1612,7 @@ if (especimenes[index]) {
                 html += `<div style="font-size:0.75rem;color:#7B61FF;margin-bottom:10px;background:#1A1F36;padding:8px 12px;border-radius:8px;">🧭 Tu camino: ${partes.join(' → ')} → <strong>Pregunta ${numero}</strong></div>`;
             }
             html += `<div style="font-size:0.75rem;color:#A0A0B0;margin-bottom:10px;">📸 Esta clave no incluye imágenes de referencia por carácter. Guíate por la descripción morfológica de cada opción y por la guía que descargaste.</div>`;
+            if (!(respuestas[indiceActual] && respuestas[indiceActual] !== 'pendiente')) html += htmlAyudaEncuadre(numero);
             html += `<div class="options-grid">`;
             paso.opciones.forEach((opcion, idx) => {
                 const letra = idx === 0 ? 'A' : 'B';
@@ -2470,6 +2592,7 @@ function verCaracterEnfocado(preguntaNum) {
             if (!img) return;
             img.style.transform = `translate(${zoomEspecimenState.x}px, ${zoomEspecimenState.y}px) scale(${zoomEspecimenState.scale})`;
             img.style.cursor = zoomEspecimenState.scale > 1 ? 'grab' : 'zoom-in';
+            if (typeof posicionarMarcadorAyuda === 'function') posicionarMarcadorAyuda();   // el círculo de "¿Dónde mirar?" sigue al zoom y al arrastre
         }
 
         function inicializarZoomEspecimen() {

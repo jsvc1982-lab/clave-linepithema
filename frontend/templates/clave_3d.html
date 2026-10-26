@@ -497,6 +497,16 @@
         .orientacion-grid { grid-template-columns: 1fr; gap: 16px; }
         .orientacion-visor { height: clamp(240px, 42vh, 400px); }
     }
+    
+    /* ===== Ayuda opcional "¿Dónde mirar?" ===== */
+    .ayuda-encuadre-btn { width:100%; padding:10px; border:1px solid #FFB02080; border-radius:10px; background:#FFB02014; color:#FFB020; font-weight:600; cursor:pointer; font-size:0.9rem; }
+    .ayuda-encuadre-btn:hover { background:#FFB02026; }
+    .ayuda-rasgo { padding:7px 12px; margin:6px 6px 0 0; border-radius:8px; border:1px solid #00D4FF50; background:#1A1F36; color:#E0E0E0; font-size:0.8rem; cursor:pointer; text-align:left; }
+    .ayuda-rasgo:hover { border-color:#00D4FF; }
+    .ayuda-rasgo.activo { border-color:#FFB020; color:#FFB020; background:#FFB02014; }
+    .ayuda-rasgo.normal { border-color:#7B61FF80; color:#A0A0F0; }
+    @keyframes pulsoAyuda { 0%,100% { box-shadow:0 0 0 0 rgba(255,176,32,0.75); } 50% { box-shadow:0 0 0 14px rgba(255,176,32,0); } }
+    #marcadorAyuda { position:absolute; width:38px; height:38px; border:3px solid #FFB020; border-radius:50%; transform:translate(-50%,-50%); pointer-events:none; animation:pulsoAyuda 1.4s infinite; z-index:5; }
     </style>
 </head>
 <body>
@@ -815,8 +825,94 @@
         let reflexionDuranteEnviada = false;
         let reflexionPostEnviada = false;
         let comentarioFinalEnviado = false;
+        // ===== "¿Dónde mirar?": ayuda OPCIONAL con el encuadre calibrado por el administrador (un encuadre por rasgo) =====
+        // Se registra cuántas veces la usa el estudiante con cada espécimen y en qué rasgos (columnas ayuda_encuadre_* del resultado).
+        const FORMATO_AYUDA = '3d';
         let zoomCaracteresConfig = {};
-        fetch('/api/config/zoom_caracteres').then(r => r.json()).then(d => { zoomCaracteresConfig = d; }).catch(() => {});
+        function normalizarCalibraciones(d) {
+            // Calibraciones antiguas (una por pregunta 1–8): la pregunta N era el primer rasgo del pareado N (pNa)
+            const salida = {};
+            Object.entries(d || {}).forEach(([k, v]) => {
+                if (/^\d+$/.test(k)) { if (!(('p' + k + 'a') in d)) salida['p' + k + 'a'] = v; }
+                else salida[k] = v;
+            });
+            return salida;
+        }
+        fetch('/api/config/zoom_caracteres').then(r => r.json()).then(d => { zoomCaracteresConfig = normalizarCalibraciones(d); }).catch(() => {});
+
+        let ayudaEncuadreActiva = false;
+        let ayudaEncuadreUsos = [];      // [{rasgo, t}] del espécimen actual
+        let ayudaMarca = null;           // 2D: punto marcado, en % de la foto
+
+        function calibracionDe(id) {
+            const c = zoomCaracteresConfig[id];
+            const cfg = c && c[FORMATO_AYUDA];
+            if (!cfg) return null;
+            if (FORMATO_AYUDA === '3d') return (cfg.orbit || cfg.theta !== undefined) ? cfg : null;
+            return (typeof cfg.x === 'number' && typeof cfg.y === 'number') ? cfg : null;
+        }
+        function rasgosConAyuda(par) {
+            return (typeof GALERIA_RASGOS !== 'undefined' ? GALERIA_RASGOS : []).filter(r => r.pareado === par && calibracionDe(r.id));
+        }
+        function htmlAyudaEncuadre(par) {
+            const rasgos = rasgosConAyuda(par);
+            if (!rasgos.length) return '';
+            return `<div id="ayudaEncuadre" style="margin-bottom:12px;">
+                <button class="ayuda-encuadre-btn" id="btnAyudaEncuadre" onclick="toggleAyudaEncuadre()">💡 ¿Dónde mirar?</button>
+                <div id="ayudaEncuadreLista" style="display:none;margin-top:6px;">
+                    <div style="font-size:0.75rem;color:#A0A0B0;">¿Qué carácter quieres ubicar en el espécimen?</div>
+                    ${rasgos.map(r => `<button class="ayuda-rasgo" data-rasgo="${r.id}" onclick="verRasgoEncuadre('${r.id}')">${r.nombre}</button>`).join('')}
+                    <button class="ayuda-rasgo normal" onclick="volverVistaNormal()">↩ Vista normal</button>
+                    <div id="ayudaEncuadreMsg" style="font-size:0.75rem;color:#FFB020;margin-top:8px;min-height:1em;"></div>
+                </div>
+            </div>`;
+        }
+        function toggleAyudaEncuadre() {
+            const l = document.getElementById('ayudaEncuadreLista'); if (!l) return;
+            l.style.display = l.style.display === 'none' ? 'block' : 'none';
+        }
+        function marcarBotonAyuda(id) {
+            document.querySelectorAll('.ayuda-rasgo[data-rasgo]').forEach(b => b.classList.toggle('activo', b.dataset.rasgo === id));
+        }
+        async function verRasgoEncuadre(id) {
+            const cfg = calibracionDe(id); if (!cfg) return;
+            ayudaEncuadreUsos.push({ rasgo: id, t: Math.round((Date.now() - tiempoInicioEspecimen) / 1000) });
+            ayudaEncuadreActiva = true;
+            marcarBotonAyuda(id);
+            const r = (typeof GALERIA_RASGOS !== 'undefined' ? GALERIA_RASGOS : []).find(x => x.id === id);
+            const msg = document.getElementById('ayudaEncuadreMsg');
+            if (msg) msg.textContent = `Mostrando: ${r ? r.nombre : id}. ${FORMATO_AYUDA === '3d' ? 'Gira el modelo para explorar la zona.' : 'Usa la rueda o arrastra para explorar la zona.'}`;
+            await aplicarEncuadreRasgo(cfg);
+        }
+        function detalleAyudaParaGuardar() {
+            return ayudaEncuadreUsos.map(u => `${u.rasgo}@${u.t}s`).join(';');
+        }
+
+        function visor3DAyuda() { return document.querySelector('#sketchfab-container model-viewer'); }
+        // El encuadre se calibró sobre un modelo de referencia; para las demás especies se traslada según el tamaño y el centro de su propio modelo.
+        function aplicarEncuadreRasgo(cfg) {
+            const mv = visor3DAyuda(); if (!mv) return;
+            if (cfg.ref && cfg.ref.center && cfg.ref.size && cfg.theta !== undefined && mv.loaded) {
+                const c = mv.getBoundingBoxCenter(), d = mv.getDimensions();
+                const k = [d.x / (cfg.ref.size[0] || d.x || 1), d.y / (cfg.ref.size[1] || d.y || 1), d.z / (cfg.ref.size[2] || d.z || 1)];
+                const kMedia = (k[0] + k[1] + k[2]) / 3;
+                const tx = c.x + (cfg.tx - cfg.ref.center[0]) * k[0], ty = c.y + (cfg.ty - cfg.ref.center[1]) * k[1], tz = c.z + (cfg.tz - cfg.ref.center[2]) * k[2];
+                mv.cameraTarget = `${tx}m ${ty}m ${tz}m`;
+                mv.cameraOrbit = `${cfg.theta}rad ${cfg.phi}rad ${cfg.radius * kMedia}m`;
+                mv.fieldOfView = `${cfg.fovGrados}deg`;
+            } else if (cfg.orbit) {
+                if (cfg.target) mv.cameraTarget = cfg.target;
+                mv.cameraOrbit = cfg.orbit;
+                if (cfg.fov) mv.fieldOfView = cfg.fov;
+            }
+        }
+        function volverVistaNormal(silencioso) {
+            ayudaEncuadreActiva = false;
+            const mv = visor3DAyuda();
+            if (mv) { mv.cameraTarget = 'auto auto auto'; mv.cameraOrbit = 'auto auto auto'; mv.fieldOfView = 'auto'; }
+            marcarBotonAyuda(null);
+            const msg = document.getElementById('ayudaEncuadreMsg'); if (msg) msg.textContent = '';
+        }
 
         // ===== INICIALIZACIÓN =====
         document.addEventListener('DOMContentLoaded', async () => {
@@ -918,6 +1014,7 @@ function verCaracterEnfocado(preguntaNum) {
                     alt="Modelo 3D de espécimen Linepithema"
                     camera-controls
                     touch-action="pan-y"
+                    min-camera-orbit="auto auto 5%"
                     shadow-intensity="1"
                     exposure="1"
                     style="width:100%; height:100%; background-color: transparent; --poster-color: transparent;">
@@ -1021,6 +1118,7 @@ if (cargarProgresoLocal()) {  // ← NUEVA LÍNEA 2
     ordenPasoActual = 0;
     especimenFinalizado = false;
     tiempoInicioEspecimen = Date.now();
+    ayudaEncuadreUsos = []; ayudaEncuadreActiva = false; ayudaMarca = null;
     
     document.getElementById('specimenCounter').textContent = `ESPÉCIMEN ${index+1}/${especimenes.length}`;
     document.getElementById('progressBar').style.width = `${((index+1)/especimenes.length)*100}%`;
@@ -1036,6 +1134,7 @@ if (cargarProgresoLocal()) {  // ← NUEVA LÍNEA 2
         mostrarFeedback('🔍 Observa el espécimen con atención y responde las preguntas', '#00D4FF');
     }
             if (!paso) return;
+            if (ayudaEncuadreActiva) volverVistaNormal(true);
             tiempoInicioPaso = Date.now();
             pasoActual = numero;
             let html = `<div class="current-question">Pareado ${numero}</div>`;
@@ -1044,6 +1143,7 @@ if (cargarProgresoLocal()) {  // ← NUEVA LÍNEA 2
                 html += `<div style="font-size:0.75rem;color:#7B61FF;margin-bottom:10px;background:#1A1F36;padding:8px 12px;border-radius:8px;">🧭 Tu camino: ${partes.join(' → ')} → <strong>Pregunta ${numero}</strong></div>`;
             }
             html += `<div style="font-size:0.75rem;color:#A0A0B0;margin-bottom:10px;">📸 Esta clave no incluye imágenes de referencia por carácter. Guíate por la descripción morfológica de cada opción y por la guía que descargaste.</div>`;
+            if (!(respuestas[indiceActual] && respuestas[indiceActual] !== 'pendiente')) html += htmlAyudaEncuadre(numero);
             html += `<div class="options-grid">`;
             paso.opciones.forEach((opcion, idx) => {
                 const letra = idx === 0 ? 'A' : 'B';
@@ -1141,7 +1241,7 @@ if (cargarProgresoLocal()) {  // ← NUEVA LÍNEA 2
                         especie_seleccionada: especieSeleccionada,
                         es_correcta: esCorrecta,
                         tiempo_segundos: tiempo,
-                        primera_pregunta_desvio: primeraPreguntaDesvio,
+                        primera_pregunta_desvio: primeraPreguntaDesvio, ayuda_encuadre_usos: ayudaEncuadreUsos.length, ayuda_encuadre_detalle: detalleAyudaParaGuardar(),
                         orden: indiceActual + 1
                     })
                 });

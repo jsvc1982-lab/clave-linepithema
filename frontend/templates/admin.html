@@ -584,46 +584,60 @@
         mostrarMensaje('✅ Recorrido detallado exportado');
     }
 
-    // ===== CALIBRAR EL ENCUADRE DE CADA CARÁCTER (2D: elegir vista lateral/frontal/dorsal; 3D: orientar el modelo) =====
-    const PREGUNTAS_CLAVE_TEXTO = {
-        1: "¿Pelos adpresos en la glándula metapleural?",
-        2: "¿El pronoto tiene un par de setas erectas?",
-        3: "¿Escapos antenales cortos?",
-        4: "¿Surco pre-sutural del clípeo marcado?",
-        5: "¿Dorso de la cabeza con más de 5 setas?",
-        6: "¿Pronoto con más de 10 setas erectas?",
-        7: "¿Margen posterior de la cabeza cóncavo?",
-        8: "¿Escapos antenales cortos (vs. pedicelo)?"
-    };
-    let zoomCaracteresEdicion = {};
-    let preguntaZoomActual = 1;
-    let vista2dActual = 'lateral';
+    // ===== CALIBRAR EL ENCUADRE DE CADA RASGO (2D: vista + punto + escala; 3D: orientar el modelo) =====
+    // Hay un encuadre por RASGO (19), no por pareado: cada pareado compara varios rasgos y cada uno se mira en un lugar distinto.
+    const RASGOS_CALIBRACION = [{"id": "p1a", "pareado": 1, "nombre": "Pelos adpresos en la bula de la glándula metapleural", "A": "pelos adpresos en cantidad moderada a abundante", "B": "unos pocos o careciendo de pelos adpresos"}, {"id": "p2a", "pareado": 2, "nombre": "Setas erectas en el pronoto", "A": "Pronoto con un par de setas erectas (pueden estar caídas)", "B": "Pronoto usualmente sin setas erectas, raras veces un par"}, {"id": "p2b", "pareado": 2, "nombre": "Longitud de los palpos maxilares", "A": "palpos maxilares largos, más de la mitad de la longitud de la cabeza", "B": "palpos maxilares con una longitud máxima igual o inferior a la longitud de la cabeza"}, {"id": "p2c", "pareado": 2, "nombre": "Surco metanotal", "A": "surco metanotal ligeramente marcado o no marcado", "B": "surco metanotal marcado ligeramente o de manera moderada"}, {"id": "p2d", "pareado": 2, "nombre": "Forma del propodeo", "A": "propodeo bajo y redondeado", "B": "propodeo inclinado hacia adelante, con una cara dorsal y una posterior formando un ángulo obtuso"}, {"id": "p3a", "pareado": 3, "nombre": "Longitud de los escapos antenales", "A": "Escapos antenales relativamente cortos, usualmente con un tamaño inferior a la longitud de la cabeza", "B": "Escapos antenales largos, iguales o mayores a la longitud de la cabeza"}, {"id": "p3b", "pareado": 3, "nombre": "Setas en el pronoto y el primer terguito del gáster", "A": "pronoto y primer terguito del gáster con setas (a veces pueden estar perdidas)", "B": "pronoto y primer terguito del gáster sin setas"}, {"id": "p3c", "pareado": 3, "nombre": "Forma del mesonoto", "A": "mesonoto angular, con un declive posterior y en ocasiones abultado", "B": "mesonoto recto, no angular o abultado"}, {"id": "p4a", "pareado": 4, "nombre": "Surco pre-sutural del clípeo", "A": "Porción posterior del clípeo con un surco débil o sin surco (surco pre-sutural del clípeo)", "B": "Surco pre-sutural del clípeo presente y bien marcado"}, {"id": "p5a", "pareado": 5, "nombre": "Cantidad de setas en el dorso de la cabeza", "A": "Dorso de la cabeza con más de 5 setas erectas", "B": "Dorso de la cabeza nunca con más de 5 setas"}, {"id": "p5b", "pareado": 5, "nombre": "Forma del mesosoma", "A": "mesosoma esbelto", "B": "mesosoma más robusto"}, {"id": "p5c", "pareado": 5, "nombre": "Impresión media del mesonoto", "A": "dorso del mesonoto con una impresión media moderada a fuerte", "B": "mesonoto con una impresión media ligeramente impresa o ausente"}, {"id": "p5d", "pareado": 5, "nombre": "Brillo de la superficie del cuerpo", "A": "superficie del cuerpo brillante y lustrosa", "B": "cuerpo no tan brillante y lustroso como arriba"}, {"id": "p6a", "pareado": 6, "nombre": "Densidad de setas erectas", "A": "Pronoto con más de 10 setas erectas, superficie de todo el cuerpo con setas erectas largas o cortas", "B": "Pronoto con menos de 10 setas erectas, superficie de todo el cuerpo nunca cubierto con muchas setas erectas"}, {"id": "p7a", "pareado": 7, "nombre": "Margen posterior de la cabeza", "A": "Margen posterior de la cabeza profundamente cóncavo", "B": "Margen posterior de la cabeza recto a ligeramente cóncavo"}, {"id": "p7b", "pareado": 7, "nombre": "Impresión media del mesonoto", "A": "dorso del mesonoto nunca con una impresión media", "B": "dorso del mesonoto con una ligera impresión media o sin impresión"}, {"id": "p7c", "pareado": 7, "nombre": "Setas en el pronoto", "A": "pronoto usualmente con 4 (2–8) setas erectas a suberectas", "B": "pronoto nunca con más de 4 setas erectas"}, {"id": "p8a", "pareado": 8, "nombre": "Escapos antenales frente al pedicelo", "A": "Escapos antenales cortos, sobrepasando el margen posterior de la cabeza por una longitud inferior a la del pedicelo", "B": "Escapos antenales relativamente largos, sobrepasando el margen posterior de la cabeza por una longitud igual o superior a la del pedicelo"}, {"id": "p8b", "pareado": 8, "nombre": "Forma del propodeo", "A": "propodeo relativamente alto, con caras anterior dorsal y posterior distinguibles, a veces la cara dorsal ligeramente deprimida", "B": "propodeo usualmente redondeado, no como arriba"}];
     const VISTAS_2D = [{ id: 'lateral', t: 'Lateral' }, { id: 'cabeza', t: 'Frontal (cabeza)' }, { id: 'dorsal', t: 'Dorsal' }];
+    let zoomCaracteresEdicion = {};
+    let rasgoZoomActual = 'p1a';
+    let vista2dActual = 'lateral';
+
+    function rasgoPorId(id) { return RASGOS_CALIBRACION.find(r => r.id === id); }
+
+    // Calibraciones antiguas (una por pregunta 1–8): la pregunta N correspondía al primer rasgo del pareado N (pNa)
+    function migrarCalibracionesAntiguas(d) {
+        const salida = {};
+        Object.entries(d || {}).forEach(([k, v]) => {
+            if (/^\d+$/.test(k)) { if (!(('p' + k + 'a') in d)) salida['p' + k + 'a'] = v; }
+            else salida[k] = v;
+        });
+        return salida;
+    }
 
     async function mostrarZoomCaracteres() {
         let guardado = {};
         try {
             const res = await fetch('/api/config/zoom_caracteres');
             if (res.ok) guardado = await res.json();
-        } catch(e) { /* sin datos guardados aún */ }
-        zoomCaracteresEdicion = guardado || {};
+        } catch (e) { /* sin datos guardados aún */ }
+        zoomCaracteresEdicion = migrarCalibracionesAntiguas(guardado || {});
+        const porPareado = {};
+        RASGOS_CALIBRACION.forEach(r => (porPareado[r.pareado] = porPareado[r.pareado] || []).push(r));
 
         document.getElementById('tabContent').innerHTML = `
             <div class="card">
-                <div class="card-title">🔬 Calibrar el encuadre de cada carácter (2D y 3D)</div>
+                <div class="card-title">🔬 Calibrar el encuadre de cada rasgo (2D y 3D)</div>
                 <p style="color:#A0A0B0;font-size:0.85rem;margin-bottom:10px;">
-                    Elige la pregunta (pareado), luego la <strong>vista de la foto</strong> donde el carácter se ve mejor
-                    (lateral, frontal o dorsal), toca el punto exacto y ajusta la escala: abajo ves cómo quedaría el encuadre.
-                    En 3D, orienta el modelo y guarda la vista. Usamos <em>L. humile</em> como referencia; el encuadre se aplica
-                    proporcionalmente a cualquier especie.
+                    Cada rasgo de la clave tiene su propio encuadre. Elige el rasgo; en <strong>2D</strong> elige la vista de la foto donde se ve mejor
+                    (lateral, frontal o dorsal), toca el punto exacto y ajusta la escala; en <strong>3D</strong> orienta el modelo y guarda la vista.
+                    Usamos <em>L. humile</em> como referencia; el encuadre se aplica proporcionalmente a las demás especies.
                 </p>
-                <p style="background:#FFB02018;border-left:4px solid #FFB020;border-radius:6px;padding:8px 12px;font-size:0.82rem;color:#E0E0E0;margin-bottom:15px;">
-                    ⚠️ Estos encuadres <strong>se guardan</strong>, pero hoy la plataforma todavía <strong>no los muestra</strong> a los estudiantes.
+                <p style="background:#00D4FF14;border-left:4px solid #00D4FF;border-radius:6px;padding:8px 12px;font-size:0.82rem;color:#E0E0E0;margin-bottom:12px;">
+                    💡 Con estos encuadres, el estudiante puede pulsar <strong>«¿Dónde mirar?»</strong> durante la identificación. El botón solo aparece
+                    para los rasgos que calibres, en el formato (2D o 3D) que hayas calibrado. Se registra cuántas veces lo usa cada estudiante.
                 </p>
-                <div id="botonesPreguntaZoom" style="margin-bottom:15px;display:flex;gap:8px;flex-wrap:wrap;">
-                    ${[1,2,3,4,5,6,7,8].map(n => `<button class="btn ${n===preguntaZoomActual?'btn-success':'btn-secondary'}" onclick="cambiarPreguntaZoom(${n})" style="padding:8px 14px;">P${n}</button>`).join('')}
+                <div id="resumenCalibracion" style="font-size:0.82rem;color:#A0A0B0;margin-bottom:12px;"></div>
+                <div id="botonesRasgoZoom" style="margin-bottom:15px;">
+                    ${Object.entries(porPareado).map(([p, rs]) => `
+                        <div style="margin-bottom:10px;">
+                            <div style="font-size:0.78rem;color:#7B61FF;font-weight:700;margin-bottom:4px;">Pareado ${p}</div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                ${rs.map(r => `<button class="btn btn-secondary" data-rasgo="${r.id}" onclick="cambiarRasgoZoom('${r.id}')" style="padding:6px 12px;font-size:0.8rem;">${r.id} · ${r.nombre}<span class="marca-calib"></span></button>`).join('')}
+                            </div>
+                        </div>`).join('')}
                 </div>
-                <div id="preguntaZoomTexto" style="color:#00D4FF;margin-bottom:15px;font-weight:600;"></div>
+                <div id="rasgoZoomTitulo" style="color:#00D4FF;margin-bottom:6px;font-weight:600;"></div>
+                <div id="rasgoZoomFrases" style="font-size:0.8rem;color:#A0A0B0;margin-bottom:15px;"></div>
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;">
                     <div class="stat-card">
@@ -648,15 +662,20 @@
                                 <img id="zoom2dPreviaImg" alt="Vista previa" draggable="false" onload="actualizarPrevia2D()" style="width:100%;height:100%;object-fit:contain;transform-origin:center center;user-select:none;">
                             </div>
                         </div>
+                        <button class="btn btn-secondary" onclick="quitarEncuadre('2d')" style="margin-top:10px;font-size:0.8rem;padding:6px 12px;">🗑 Quitar el punto 2D de este rasgo</button>
                     </div>
-
                     <div class="stat-card">
                         <strong style="color:#00D4FF;">🧊 Encuadre 3D</strong>
                         <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">Gira/acerca el modelo con el mouse hasta el encuadre deseado, luego guarda esta vista.</p>
+                        <div id="zoom3dEstado" style="font-size:0.78rem;color:#A0A0B0;margin-bottom:8px;min-height:1.1em;"></div>
                         <div style="height:280px;border-radius:10px;overflow:hidden;border:2px solid #00D4FF40;">
-                            <model-viewer id="zoom3dViewer" src="/static/modelos3d/esp2.glb" camera-controls style="width:100%;height:100%;background:#0A0E17;"></model-viewer>
+                            <model-viewer id="zoom3dViewer" src="/static/modelos3d/esp2.glb" camera-controls min-camera-orbit="auto auto 5%" style="width:100%;height:100%;background:#0A0E17;"></model-viewer>
                         </div>
-                        <button class="btn btn-secondary" onclick="capturarVista3D()" style="margin-top:10px;width:100%;">📸 Guardar esta vista para P${preguntaZoomActual}</button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                            <button class="btn btn-secondary" id="btnCapturar3D" onclick="capturarVista3D()" style="flex:1;min-width:200px;">📸 Guardar esta vista</button>
+                            <button class="btn btn-secondary" onclick="ver3DGuardada()" style="font-size:0.8rem;padding:8px 12px;">▶ Ver la guardada</button>
+                            <button class="btn btn-secondary" onclick="quitarEncuadre('3d')" style="font-size:0.8rem;padding:8px 12px;">🗑 Quitar</button>
+                        </div>
                     </div>
                 </div>
 
@@ -670,27 +689,43 @@
             const px = ((e.clientX - rect.left) / rect.width) * 100;
             const py = ((e.clientY - rect.top) / rect.height) * 100;
             const escala = parseFloat(document.getElementById('zoom2dEscala').value);
-            if (!zoomCaracteresEdicion[preguntaZoomActual]) zoomCaracteresEdicion[preguntaZoomActual] = {};
-            zoomCaracteresEdicion[preguntaZoomActual]['2d'] = { vista: vista2dActual, x: Math.round(px*10)/10, y: Math.round(py*10)/10, scale: escala };
+            if (!zoomCaracteresEdicion[rasgoZoomActual]) zoomCaracteresEdicion[rasgoZoomActual] = {};
+            zoomCaracteresEdicion[rasgoZoomActual]['2d'] = { vista: vista2dActual, x: Math.round(px * 10) / 10, y: Math.round(py * 10) / 10, scale: escala };
             mostrarMarcador2D();
+            refrescarMarcasCalibracion();
         });
 
-        cambiarPreguntaZoom(preguntaZoomActual);
+        cambiarRasgoZoom(rasgoZoomActual);
     }
 
-    function cambiarPreguntaZoom(n) {
-        preguntaZoomActual = n;
-        document.getElementById('preguntaZoomTexto').textContent = `Pregunta ${n}: ${PREGUNTAS_CLAVE_TEXTO[n] || ''}`;
-        const botones = document.querySelectorAll('#botonesPreguntaZoom button.btn');
-        botones.forEach(b => {
-            const esActivo = b.textContent.trim() === `P${n}`;
-            b.classList.toggle('btn-success', esActivo);
-            b.classList.toggle('btn-secondary', !esActivo);
+    function refrescarMarcasCalibracion() {
+        let n2d = 0, n3d = 0;
+        RASGOS_CALIBRACION.forEach(r => {
+            const c = zoomCaracteresEdicion[r.id] || {};
+            const tiene2d = !!c['2d'], tiene3d = !!c['3d'];
+            if (tiene2d) n2d++; if (tiene3d) n3d++;
+            const b = document.querySelector(`#botonesRasgoZoom button[data-rasgo="${r.id}"]`);
+            if (!b) return;
+            b.querySelector('.marca-calib').textContent = tiene2d && tiene3d ? ' ✅' : (tiene2d ? ' · solo 2D' : (tiene3d ? ' · solo 3D' : ''));
+            const activo = r.id === rasgoZoomActual;
+            b.classList.toggle('btn-success', activo);
+            b.classList.toggle('btn-secondary', !activo);
         });
-        const btnCapturar = document.querySelector('button[onclick="capturarVista3D()"]');
-        if (btnCapturar) btnCapturar.textContent = `📸 Guardar esta vista para P${n}`;
-        // al cambiar de pregunta se abre la vista que se guardó para ella (o la lateral si aún no hay)
-        const cfg = zoomCaracteresEdicion[n] && zoomCaracteresEdicion[n]['2d'];
+        const res = document.getElementById('resumenCalibracion');
+        if (res) res.innerHTML = `Calibrados: <strong>${n2d} de ${RASGOS_CALIBRACION.length}</strong> en 2D · <strong>${n3d} de ${RASGOS_CALIBRACION.length}</strong> en 3D &nbsp;(✅ = ambos formatos)`;
+    }
+
+    function cambiarRasgoZoom(id) {
+        rasgoZoomActual = id;
+        const r = rasgoPorId(id);
+        document.getElementById('rasgoZoomTitulo').textContent = `${id} — ${r ? r.nombre : ''}  (Pareado ${r ? r.pareado : ''})`;
+        document.getElementById('rasgoZoomFrases').innerHTML = r ? `<strong style="color:#00D4FF;">A:</strong> ${r.A}<br><strong style="color:#FFB020;">B:</strong> ${r.B}` : '';
+        const btnCap = document.getElementById('btnCapturar3D');
+        if (btnCap) btnCap.textContent = `📸 Guardar esta vista para ${id}`;
+        // se abre la vista que se guardó para este rasgo (o la lateral si aún no hay)
+        const cfg = zoomCaracteresEdicion[id] && zoomCaracteresEdicion[id]['2d'];
+        refrescarMarcasCalibracion();
+        mostrarEstado3D();
         cambiarVista2D(cfg && cfg.vista ? cfg.vista : 'lateral');
     }
 
@@ -710,13 +745,13 @@
 
     function cambiarEscala2D(valor) {
         document.getElementById('zoom2dEscalaVal').textContent = valor;
-        const cfg = zoomCaracteresEdicion[preguntaZoomActual] && zoomCaracteresEdicion[preguntaZoomActual]['2d'];
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['2d'];
         if (cfg) cfg.scale = parseFloat(valor);
         actualizarPrevia2D();
     }
 
     function mostrarMarcador2D() {
-        const cfg = zoomCaracteresEdicion[preguntaZoomActual] && zoomCaracteresEdicion[preguntaZoomActual]['2d'];
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['2d'];
         const marcador = document.getElementById('zoom2dMarcador');
         if (!marcador) return;
         const nombreVista = v => (VISTAS_2D.find(x => x.id === v) || { t: v }).t.toLowerCase();
@@ -736,7 +771,7 @@
             }
         } else {
             marcador.style.display = 'none';
-            estado.textContent = `Sin punto guardado para P${preguntaZoomActual}.`;
+            estado.textContent = `Sin punto guardado para ${rasgoZoomActual}.`;
         }
         actualizarPrevia2D();
     }
@@ -745,7 +780,7 @@
     function actualizarPrevia2D() {
         const cont = document.getElementById('zoom2dPrevia'), img = document.getElementById('zoom2dPreviaImg');
         if (!cont || !img) return;
-        const cfg = zoomCaracteresEdicion[preguntaZoomActual] && zoomCaracteresEdicion[preguntaZoomActual]['2d'];
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['2d'];
         const ruta = rutaVista2D(cfg ? (cfg.vista || 'lateral') : vista2dActual);
         if (!img.src.endsWith(ruta)) img.src = ruta;
         if (!cfg) { img.style.transform = 'none'; return; }
@@ -759,16 +794,45 @@
         img.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
     }
 
+    function mostrarEstado3D() {
+        const el = document.getElementById('zoom3dEstado');
+        if (!el) return;
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['3d'];
+        el.innerHTML = cfg ? `✅ Vista 3D guardada para <strong>${rasgoZoomActual}</strong>. Usa «Ver la guardada» para comprobarla.` : `Sin vista 3D guardada para ${rasgoZoomActual}.`;
+    }
+
+    // Se guardan los valores REALES de la cámara (lo que ves tras mover el modelo con el mouse) y las dimensiones del modelo de referencia,
+    // para poder trasladar el encuadre a las demás especies (que tienen tamaño y centro distintos).
     function capturarVista3D() {
         const mv = document.getElementById('zoom3dViewer');
-        if (!mv) return;
-        if (!zoomCaracteresEdicion[preguntaZoomActual]) zoomCaracteresEdicion[preguntaZoomActual] = {};
-        zoomCaracteresEdicion[preguntaZoomActual]['3d'] = {
-            orbit: mv.cameraOrbit,
-            target: mv.cameraTarget,
-            fov: mv.fieldOfView
-        };
-        mostrarMensaje(`✅ Vista 3D guardada para Pregunta ${preguntaZoomActual}`);
+        if (!mv || !mv.loaded) { mostrarMensaje('⏳ Espera a que el modelo termine de cargar', '#FFB020'); return; }
+        const o = mv.getCameraOrbit(), t = mv.getCameraTarget(), fov = mv.getFieldOfView();
+        const c = mv.getBoundingBoxCenter(), d = mv.getDimensions();
+        const r4 = v => Math.round(v * 10000) / 10000;
+        const cfg = { theta: r4(o.theta), phi: r4(o.phi), radius: r4(o.radius), tx: r4(t.x), ty: r4(t.y), tz: r4(t.z), fovGrados: r4(fov),
+                      ref: { center: [r4(c.x), r4(c.y), r4(c.z)], size: [r4(d.x), r4(d.y), r4(d.z)] } };
+        cfg.orbit = `${cfg.theta}rad ${cfg.phi}rad ${cfg.radius}m`;
+        cfg.target = `${cfg.tx}m ${cfg.ty}m ${cfg.tz}m`;
+        cfg.fov = `${cfg.fovGrados}deg`;
+        if (!zoomCaracteresEdicion[rasgoZoomActual]) zoomCaracteresEdicion[rasgoZoomActual] = {};
+        zoomCaracteresEdicion[rasgoZoomActual]['3d'] = cfg;
+        mostrarEstado3D();
+        refrescarMarcasCalibracion();
+        mostrarMensaje(`✅ Vista 3D guardada para ${rasgoZoomActual}`);
+    }
+
+    function ver3DGuardada() {
+        const mv = document.getElementById('zoom3dViewer');
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['3d'];
+        if (!mv || !cfg) { mostrarMensaje('Aún no hay vista 3D guardada para este rasgo', '#FFB020'); return; }
+        mv.cameraTarget = cfg.target; mv.cameraOrbit = cfg.orbit; mv.fieldOfView = cfg.fov;
+    }
+
+    function quitarEncuadre(formato) {
+        const c = zoomCaracteresEdicion[rasgoZoomActual];
+        if (c && c[formato]) delete c[formato];
+        if (c && !c['2d'] && !c['3d']) delete zoomCaracteresEdicion[rasgoZoomActual];
+        refrescarMarcasCalibracion(); mostrarMarcador2D(); mostrarEstado3D();
     }
 
     async function guardarZoomCaracteres() {
