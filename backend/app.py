@@ -7,9 +7,10 @@ import random
 import json
 import os
 import re
+import time
 from sqlalchemy import func, event
 from sqlalchemy.engine import Engine
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, DisconnectionError
 from sqlalchemy.pool import NullPool
 
 try:
@@ -51,7 +52,10 @@ def opciones_motor(url):
     # y no se guarda un segundo pool encima, que es una fuente conocida de conexiones dañadas.
     if '-pooler' in url.split('@')[-1].split('/')[0]:
         return {'poolclass': NullPool, 'connect_args': conexion}
-    return {'pool_pre_ping': True, 'pool_recycle': 280, 'connect_args': conexion}
+    # pre_ping DESACTIVADO a propósito: el de SQLAlchemy solo reconoce algunos textos de error y, con otros (p. ej. la redacción de
+    # OpenSSL 3 "ssl/tls alert bad record mac"), falla en vez de abrir otra conexión. Lo reemplaza comprobar_conexion_al_prestarla().
+    # Neon pausa el cómputo tras 5 minutos sin uso y corta las conexiones: se renuevan cada 4 minutos y el pool es pequeño.
+    return {'pool_pre_ping': False, 'pool_recycle': 240, 'pool_size': 3, 'max_overflow': 3, 'connect_args': conexion}
 
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = opciones_motor(database_url)
 MODO_POOL = 'sin pool propio (Neon pooler)' if 'poolclass' in app.config['SQLALCHEMY_ENGINE_OPTIONS'] else ('pool con comprobación' if database_url.startswith('postgresql') else 'SQLite')
@@ -63,10 +67,57 @@ MENSAJES_CONEXION_ROTA = ('no message from the libpq', 'PGRES_TUPLES_OK', 'bad r
                           'server closed the connection', 'connection already closed', 'terminating connection',
                           'could not receive data', 'could not send data', 'connection not open', 'connection has been closed')
 
+@event.listens_for(Engine, 'do_connect')
+def conectar_con_reintentos(dialect, registro, cargs, cparams):
+    """Neon pausa el cómputo tras 5 minutos sin uso y tarda un instante en despertarlo: la primera conexión puede fallar con un error
+    de TLS aunque la base esté bien. Se reintenta hasta 3 veces (con una pausa creciente) antes de rendirse."""
+    if dialect.name != 'postgresql':
+        return None
+    ultimo = None
+    for intento in range(3):
+        try:
+            return dialect.loaded_dbapi.connect(*cargs, **cparams)
+        except dialect.loaded_dbapi.OperationalError as e:
+            ultimo = e
+            print(f'[bd] No se pudo abrir la conexión (intento {intento + 1} de 3): {str(e).splitlines()[0][:120]}', flush=True)
+            if intento < 2:
+                time.sleep(0.5 * (intento + 1))
+    raise ultimo
+
+try:
+    import psycopg2.extensions as _pg_ext
+except ImportError:          # SQLite en pruebas locales
+    _pg_ext = None
+
+@event.listens_for(Engine, 'checkout')
+def comprobar_conexion_al_prestarla(dbapi_con, registro, proxy):
+    """Antes de usar una conexión del pool se hace un SELECT 1. Si falla por CUALQUIER motivo, la conexión no sirve (la base se
+    pausó, la red la cortó, TLS se rompió...): se lanza DisconnectionError y SQLAlchemy descarta esa conexión y abre otra, hasta 3
+    veces, sin que el estudiante ni el administrador vean un error. No depende del texto del mensaje, que cambia según la versión
+    de OpenSSL ("decryption failed or bad record mac" / "ssl/tls alert bad record mac")."""
+    if _pg_ext is None or not isinstance(dbapi_con, _pg_ext.connection):
+        return
+    cursor = None
+    try:
+        cursor = dbapi_con.cursor()
+        cursor.execute('SELECT 1')
+        dbapi_con.rollback()
+    except Exception:
+        raise DisconnectionError('conexión inservible: se abre una nueva')
+    finally:
+        try:
+            if cursor is not None:
+                cursor.close()
+        except Exception:
+            pass
+
 @event.listens_for(Engine, 'handle_error')
 def descartar_conexion_rota(contexto):
-    if any(m in str(contexto.original_exception or '') for m in MENSAJES_CONEXION_ROTA):
+    mensaje = str(contexto.original_exception or '')
+    if any(m in mensaje for m in MENSAJES_CONEXION_ROTA):
         contexto.is_disconnect = True
+        fase = 'sondeo previo' if getattr(contexto, 'is_pre_ping', False) else ('al conectar' if contexto.connection is None else 'durante una consulta')
+        print(f'[bd] Conexión descartada ({fase}): {mensaje.splitlines()[0][:120]}', flush=True)
 
 CORS(app, supports_credentials=True, origins=os.getenv('ALLOWED_ORIGIN', 'http://127.0.0.1:5000'))
 
@@ -80,8 +131,42 @@ def error_de_base_de_datos(e):
     print(f'[bd] Error de base de datos en {request.method} {request.path}: {str(e).splitlines()[0][:200]}', flush=True)
     mensaje = 'La base de datos tuvo una interrupción momentánea. Intenta de nuevo en unos segundos.'
     if request.path.startswith('/api/'):
-        return jsonify({'error': mensaje, 'codigo': 'bd_temporal'}), 503
+        respuesta = jsonify({'error': mensaje, 'codigo': 'bd_temporal'})
+        respuesta.status_code = 503
+        respuesta.headers['X-BD-Temporal'] = '1'
+        return respuesta
     return mensaje, 503
+
+class ReintentarApiGetBD:
+    """Si una petición GET de /api/ falla por una interrupción momentánea de la base (error marcado como temporal), se repite UNA vez
+    de forma automática: con la conexión ya renovada casi siempre funciona, y el usuario no ve ningún error. Solo GET (no cambian
+    datos), nunca POST: los guardados los reintenta la pantalla del estudiante."""
+    def __init__(self, wsgi):
+        self.wsgi = wsgi
+
+    def __call__(self, environ, start_response):
+        if environ.get('REQUEST_METHOD') != 'GET' or not environ.get('PATH_INFO', '').startswith('/api/'):
+            return self.wsgi(environ, start_response)
+        for intento in (1, 2):
+            captura = {}
+            def sr(status, headers, exc_info=None):
+                captura['status'], captura['headers'] = status, headers
+                return lambda data: None
+            iterador = self.wsgi(environ, sr)
+            try:
+                cuerpo = b''.join(iterador)
+            finally:
+                if hasattr(iterador, 'close'):
+                    iterador.close()
+            temporal = captura['status'].startswith('503') and any(k.lower() == 'x-bd-temporal' for k, _ in captura['headers'])
+            if temporal and intento == 1:
+                print(f"[bd] Se repite automáticamente GET {environ.get('PATH_INFO', '')}", flush=True)
+                continue
+            break
+        start_response(captura['status'], captura['headers'])
+        return [cuerpo]
+
+app.wsgi_app = ReintentarApiGetBD(app.wsgi_app)
 
 # ===== ESQUEMA: agrega columnas nuevas a una base creada con una versión anterior =====
 # db.create_all() solo crea tablas que NO existen; no agrega columnas a las que ya existen. Por eso, si la base se
