@@ -91,6 +91,12 @@
         <button class="btn btn-secondary" onclick="exportarJSON()">📥 JSON</button>
         <button class="btn btn-secondary" onclick="window.location.href='/estadisticas'">📊 Estadísticas avanzadas</button>
         <button class="btn btn-secondary" onclick="window.open('/prueba-niveles-ayuda', '_blank')">🧪 Probar niveles de ayuda</button>
+        <button class="btn btn-secondary" onclick="descargarCopiaConfig()" title="Descarga las especies activas, los pines y los encuadres de zoom">💾 Copia de configuración</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('archivoCopiaConfig').click()" title="Restaura la configuración desde un archivo descargado antes">♻️ Restaurar configuración</button>
+        <input type="file" id="archivoCopiaConfig" accept=".json,application/json" style="display:none" onchange="restaurarCopiaConfig(this)">
+        <button class="btn btn-primary" onclick="descargarCopiaCompleta()" title="Descarga TODO: cuentas, resultados, pasos, reflexiones, encuestas y configuración">🗄️ Copia COMPLETA de la base</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('archivoCopiaCompleta').click()" title="Solo en una base nueva y vacía (por ejemplo, tras pasar a Neon)">📥 Restaurar copia completa</button>
+        <input type="file" id="archivoCopiaCompleta" accept=".json,application/json" style="display:none" onchange="restaurarCopiaCompleta(this)">
         <button class="btn btn-danger"    onclick="cerrarSesionAdmin()" style="background:#FF375F20;border:1px solid #FF375F40;color:#FF375F;">🔓 Cerrar sesión</button>
     </div>
 
@@ -124,6 +130,87 @@
         d.style.background = c;
         document.body.appendChild(d);
         setTimeout(() => d.remove(), 3500);
+    }
+
+    // ===== Copia COMPLETA de la base (cuentas, sesiones, resultados, pasos, reflexiones, encuestas y configuración) =====
+    async function descargarCopiaCompleta() {
+        try {
+            mostrarMensaje('⏳ Preparando la copia completa…', '#FFB020');
+            const res = await fetch('/api/admin/migracion/exportar');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const datos = await res.json();
+            const c = datos.conteos || {};
+            const blob = new Blob([JSON.stringify(datos)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob), a = document.createElement('a');
+            a.href = url; a.download = `copia_completa_base_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            mostrarMensaje(`✅ Copia completa descargada: ${c.usuarios || 0} cuentas, ${c.sesiones || 0} sesiones, ${c.resultados || 0} resultados, ${c.pasos_clave || 0} pasos`);
+        } catch (e) {
+            mostrarMensaje('❌ No se pudo descargar la copia completa', '#FF375F');
+        }
+    }
+
+    async function restaurarCopiaCompleta(input) {
+        const archivo = input.files && input.files[0];
+        input.value = '';
+        if (!archivo) return;
+        let datos;
+        try { datos = JSON.parse(await archivo.text()); }
+        catch (e) { mostrarMensaje('❌ El archivo no es un JSON válido', '#FF375F'); return; }
+        const c = datos.conteos || {};
+        if (!confirm(`Se restaurará la copia completa: ${c.usuarios || 0} cuentas, ${c.sesiones || 0} sesiones, ${c.resultados || 0} resultados, ${c.pasos_clave || 0} pasos.\n\nSolo funciona en una base NUEVA y VACÍA. ¿Continuar?`)) return;
+        try {
+            mostrarMensaje('⏳ Restaurando…', '#FFB020');
+            const res = await fetch('/api/admin/migracion/importar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+            const r = await res.json().catch(() => ({}));
+            if (res.ok) {
+                const t = r.restaurado || {};
+                alert(`✅ Copia restaurada.\nCuentas: ${t.usuarios}\nSesiones: ${t.sesiones}\nResultados: ${t.resultados}\nPasos: ${t.pasos_clave}\nReflexiones: ${t.reflexiones}\nEncuestas: ${t.encuestas}`);
+                location.reload();
+            } else {
+                alert('❌ ' + (r.error || 'No se pudo restaurar'));
+            }
+        } catch (e) {
+            mostrarMensaje('❌ No se pudo restaurar la copia completa', '#FF375F');
+        }
+    }
+
+    // ===== Copia de seguridad de la configuración (especies activas, pines, encuadres de zoom) =====
+    async function descargarCopiaConfig() {
+        try {
+            const res = await fetch('/api/admin/config/copia');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const datos = await res.json();
+            const bloques = Object.keys(datos.configuracion || {});
+            const blob = new Blob([JSON.stringify(datos, null, 1)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob), a = document.createElement('a');
+            a.href = url; a.download = `copia_configuracion_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            mostrarMensaje(bloques.length ? `✅ Copia descargada (${bloques.join(', ')})` : '⚠️ La copia está vacía: todavía no hay configuración guardada', bloques.length ? '#00D4FF' : '#FFB020');
+        } catch (e) {
+            mostrarMensaje('❌ No se pudo descargar la copia', '#FF375F');
+        }
+    }
+
+    async function restaurarCopiaConfig(input) {
+        const archivo = input.files && input.files[0];
+        input.value = '';
+        if (!archivo) return;
+        let datos;
+        try { datos = JSON.parse(await archivo.text()); }
+        catch (e) { mostrarMensaje('❌ El archivo no es un JSON válido', '#FF375F'); return; }
+        const bloques = Object.keys((datos && datos.configuracion) || {});
+        if (!confirm(`Se restaurarán estos bloques de configuración: ${bloques.join(', ') || '(ninguno)'}.\nReemplazan a los actuales. ¿Continuar?`)) return;
+        try {
+            const res = await fetch('/api/admin/config/restaurar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+            const r = await res.json().catch(() => ({}));
+            if (res.ok) { mostrarMensaje('✅ Configuración restaurada: ' + r.restauradas.join(', ')); setTimeout(() => location.reload(), 1500); }
+            else mostrarMensaje('❌ ' + (r.error || 'No se pudo restaurar'), '#FF375F');
+        } catch (e) {
+            mostrarMensaje('❌ No se pudo restaurar la configuración', '#FF375F');
+        }
     }
 
     function cambiarTab(tab) {
