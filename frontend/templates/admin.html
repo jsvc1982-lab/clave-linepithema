@@ -90,7 +90,13 @@
         <button class="btn btn-secondary" onclick="exportarCSVServidor()">📥 CSV (servidor)</button>
         <button class="btn btn-secondary" onclick="exportarJSON()">📥 JSON</button>
         <button class="btn btn-secondary" onclick="window.location.href='/estadisticas'">📊 Estadísticas avanzadas</button>
-        <button class="btn btn-secondary" onclick="window.open('/prueba-niveles-ayuda', '_blank')">🧪 Probar niveles de ayuda</button>
+        <button class="btn btn-secondary" onclick="window.open('/prueba-niveles-ayuda', '_blank')">🧪 Probar la ayuda «¿Dónde mirar?»</button>
+        <button class="btn btn-secondary" onclick="descargarCopiaConfig()" title="Descarga las especies activas, los pines y los encuadres de zoom">💾 Copia de configuración</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('archivoCopiaConfig').click()" title="Restaura la configuración desde un archivo descargado antes">♻️ Restaurar configuración</button>
+        <input type="file" id="archivoCopiaConfig" accept=".json,application/json" style="display:none" onchange="restaurarCopiaConfig(this)">
+        <button class="btn btn-primary" onclick="descargarCopiaCompleta()" title="Descarga TODO: cuentas, resultados, pasos, reflexiones, encuestas y configuración">🗄️ Copia COMPLETA de la base</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('archivoCopiaCompleta').click()" title="Solo en una base nueva y vacía (por ejemplo, tras pasar a Neon)">📥 Restaurar copia completa</button>
+        <input type="file" id="archivoCopiaCompleta" accept=".json,application/json" style="display:none" onchange="restaurarCopiaCompleta(this)">
         <button class="btn btn-danger"    onclick="cerrarSesionAdmin()" style="background:#FF375F20;border:1px solid #FF375F40;color:#FF375F;">🔓 Cerrar sesión</button>
     </div>
 
@@ -124,6 +130,87 @@
         d.style.background = c;
         document.body.appendChild(d);
         setTimeout(() => d.remove(), 3500);
+    }
+
+    // ===== Copia COMPLETA de la base (cuentas, sesiones, resultados, pasos, reflexiones, encuestas y configuración) =====
+    async function descargarCopiaCompleta() {
+        try {
+            mostrarMensaje('⏳ Preparando la copia completa…', '#FFB020');
+            const res = await fetch('/api/admin/migracion/exportar');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const datos = await res.json();
+            const c = datos.conteos || {};
+            const blob = new Blob([JSON.stringify(datos)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob), a = document.createElement('a');
+            a.href = url; a.download = `copia_completa_base_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            mostrarMensaje(`✅ Copia completa descargada: ${c.usuarios || 0} cuentas, ${c.sesiones || 0} sesiones, ${c.resultados || 0} resultados, ${c.pasos_clave || 0} pasos`);
+        } catch (e) {
+            mostrarMensaje('❌ No se pudo descargar la copia completa', '#FF375F');
+        }
+    }
+
+    async function restaurarCopiaCompleta(input) {
+        const archivo = input.files && input.files[0];
+        input.value = '';
+        if (!archivo) return;
+        let datos;
+        try { datos = JSON.parse(await archivo.text()); }
+        catch (e) { mostrarMensaje('❌ El archivo no es un JSON válido', '#FF375F'); return; }
+        const c = datos.conteos || {};
+        if (!confirm(`Se restaurará la copia completa: ${c.usuarios || 0} cuentas, ${c.sesiones || 0} sesiones, ${c.resultados || 0} resultados, ${c.pasos_clave || 0} pasos.\n\nSolo funciona en una base NUEVA y VACÍA. ¿Continuar?`)) return;
+        try {
+            mostrarMensaje('⏳ Restaurando…', '#FFB020');
+            const res = await fetch('/api/admin/migracion/importar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+            const r = await res.json().catch(() => ({}));
+            if (res.ok) {
+                const t = r.restaurado || {};
+                alert(`✅ Copia restaurada.\nCuentas: ${t.usuarios}\nSesiones: ${t.sesiones}\nResultados: ${t.resultados}\nPasos: ${t.pasos_clave}\nReflexiones: ${t.reflexiones}\nEncuestas: ${t.encuestas}`);
+                location.reload();
+            } else {
+                alert('❌ ' + (r.error || 'No se pudo restaurar'));
+            }
+        } catch (e) {
+            mostrarMensaje('❌ No se pudo restaurar la copia completa', '#FF375F');
+        }
+    }
+
+    // ===== Copia de seguridad de la configuración (especies activas, pines, encuadres de zoom) =====
+    async function descargarCopiaConfig() {
+        try {
+            const res = await fetch('/api/admin/config/copia');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const datos = await res.json();
+            const bloques = Object.keys(datos.configuracion || {});
+            const blob = new Blob([JSON.stringify(datos, null, 1)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob), a = document.createElement('a');
+            a.href = url; a.download = `copia_configuracion_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            mostrarMensaje(bloques.length ? `✅ Copia descargada (${bloques.join(', ')})` : '⚠️ La copia está vacía: todavía no hay configuración guardada', bloques.length ? '#00D4FF' : '#FFB020');
+        } catch (e) {
+            mostrarMensaje('❌ No se pudo descargar la copia', '#FF375F');
+        }
+    }
+
+    async function restaurarCopiaConfig(input) {
+        const archivo = input.files && input.files[0];
+        input.value = '';
+        if (!archivo) return;
+        let datos;
+        try { datos = JSON.parse(await archivo.text()); }
+        catch (e) { mostrarMensaje('❌ El archivo no es un JSON válido', '#FF375F'); return; }
+        const bloques = Object.keys((datos && datos.configuracion) || {});
+        if (!confirm(`Se restaurarán estos bloques de configuración: ${bloques.join(', ') || '(ninguno)'}.\nReemplazan a los actuales. ¿Continuar?`)) return;
+        try {
+            const res = await fetch('/api/admin/config/restaurar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) });
+            const r = await res.json().catch(() => ({}));
+            if (res.ok) { mostrarMensaje('✅ Configuración restaurada: ' + r.restauradas.join(', ')); setTimeout(() => location.reload(), 1500); }
+            else mostrarMensaje('❌ ' + (r.error || 'No se pudo restaurar'), '#FF375F');
+        } catch (e) {
+            mostrarMensaje('❌ No se pudo restaurar la configuración', '#FF375F');
+        }
     }
 
     function cambiarTab(tab) {
@@ -335,11 +422,16 @@
     function seleccionarTodas()   { especiesConfig.activas = especiesConfig.todas.map(e=>e.id); renderEspeciesConfig(); }
     function deseleccionarTodas() { especiesConfig.activas = []; renderEspeciesConfig(); }
     async function guardarEspecies() {
+        if (especiesConfig.activas.length < 2) {
+            mostrarMensaje('⚠️ Activa al menos 2 especies: cada participante identifica 2 distintas', '#FF375F');
+            return;
+        }
         const res = await fetch('/api/admin/config/especies', {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ activas: especiesConfig.activas })
         });
-        mostrarMensaje(res.ok ? '✅ Configuración guardada' : '❌ Error al guardar', res.ok ? '#00D4FF' : '#FF375F');
+        let detalle = ''; if (!res.ok) { try { detalle = (await res.json()).error || ''; } catch (e) {} }
+        mostrarMensaje(res.ok ? '✅ Configuración guardada' : '❌ ' + (detalle || 'Error al guardar'), res.ok ? '#00D4FF' : '#FF375F');
     }
 
     // ===== ESTADÍSTICAS =====
@@ -579,45 +671,69 @@
         mostrarMensaje('✅ Recorrido detallado exportado');
     }
 
-    // ===== CALIBRAR ZOOM DE CARACTERES (botón "Ver este carácter") =====
-    const PREGUNTAS_CLAVE_TEXTO = {
-        1: "¿Pelos adpresos en la glándula metapleural?",
-        2: "¿El pronoto tiene un par de setas erectas?",
-        3: "¿Escapos antenales cortos?",
-        4: "¿Surco pre-sutural del clípeo marcado?",
-        5: "¿Dorso de la cabeza con más de 5 setas?",
-        6: "¿Pronoto con más de 10 setas erectas?",
-        7: "¿Margen posterior de la cabeza cóncavo?",
-        8: "¿Escapos antenales cortos (vs. pedicelo)?"
-    };
+    // ===== CALIBRAR EL ENCUADRE DE CADA RASGO (2D: vista + punto + escala; 3D: orientar el modelo) =====
+    // Hay un encuadre por RASGO (19), no por pareado: cada pareado compara varios rasgos y cada uno se mira en un lugar distinto.
+    const RASGOS_CALIBRACION = [{"id": "p1a", "pareado": 1, "nombre": "Pelos adpresos en la bula de la glándula metapleural", "A": "pelos adpresos en cantidad moderada a abundante", "B": "unos pocos o careciendo de pelos adpresos"}, {"id": "p2a", "pareado": 2, "nombre": "Setas erectas en el pronoto", "A": "Pronoto con un par de setas erectas (pueden estar caídas)", "B": "Pronoto usualmente sin setas erectas, raras veces un par"}, {"id": "p2b", "pareado": 2, "nombre": "Longitud de los palpos maxilares", "A": "palpos maxilares largos, más de la mitad de la longitud de la cabeza", "B": "palpos maxilares con una longitud máxima igual o inferior a la longitud de la cabeza"}, {"id": "p2c", "pareado": 2, "nombre": "Surco metanotal", "A": "surco metanotal ligeramente marcado o no marcado", "B": "surco metanotal marcado ligeramente o de manera moderada"}, {"id": "p2d", "pareado": 2, "nombre": "Forma del propodeo", "A": "propodeo bajo y redondeado", "B": "propodeo inclinado hacia adelante, con una cara dorsal y una posterior formando un ángulo obtuso"}, {"id": "p3a", "pareado": 3, "nombre": "Longitud de los escapos antenales", "A": "Escapos antenales relativamente cortos, usualmente con un tamaño inferior a la longitud de la cabeza", "B": "Escapos antenales largos, iguales o mayores a la longitud de la cabeza"}, {"id": "p3b", "pareado": 3, "nombre": "Setas en el pronoto y el primer terguito del gáster", "A": "pronoto y primer terguito del gáster con setas (a veces pueden estar perdidas)", "B": "pronoto y primer terguito del gáster sin setas"}, {"id": "p3c", "pareado": 3, "nombre": "Forma del mesonoto", "A": "mesonoto angular, con un declive posterior y en ocasiones abultado", "B": "mesonoto recto, no angular o abultado"}, {"id": "p4a", "pareado": 4, "nombre": "Surco pre-sutural del clípeo", "A": "Porción posterior del clípeo con un surco débil o sin surco (surco pre-sutural del clípeo)", "B": "Surco pre-sutural del clípeo presente y bien marcado"}, {"id": "p5a", "pareado": 5, "nombre": "Cantidad de setas en el dorso de la cabeza", "A": "Dorso de la cabeza con más de 5 setas erectas", "B": "Dorso de la cabeza nunca con más de 5 setas"}, {"id": "p5b", "pareado": 5, "nombre": "Forma del mesosoma", "A": "mesosoma esbelto", "B": "mesosoma más robusto"}, {"id": "p5c", "pareado": 5, "nombre": "Impresión media del mesonoto", "A": "dorso del mesonoto con una impresión media moderada a fuerte", "B": "mesonoto con una impresión media ligeramente impresa o ausente"}, {"id": "p5d", "pareado": 5, "nombre": "Brillo de la superficie del cuerpo", "A": "superficie del cuerpo brillante y lustrosa", "B": "cuerpo no tan brillante y lustroso como arriba"}, {"id": "p6a", "pareado": 6, "nombre": "Densidad de setas erectas", "A": "Pronoto con más de 10 setas erectas, superficie de todo el cuerpo con setas erectas largas o cortas", "B": "Pronoto con menos de 10 setas erectas, superficie de todo el cuerpo nunca cubierto con muchas setas erectas"}, {"id": "p7a", "pareado": 7, "nombre": "Margen posterior de la cabeza", "A": "Margen posterior de la cabeza profundamente cóncavo", "B": "Margen posterior de la cabeza recto a ligeramente cóncavo"}, {"id": "p7b", "pareado": 7, "nombre": "Impresión media del mesonoto", "A": "dorso del mesonoto nunca con una impresión media", "B": "dorso del mesonoto con una ligera impresión media o sin impresión"}, {"id": "p7c", "pareado": 7, "nombre": "Setas en el pronoto", "A": "pronoto usualmente con 4 (2–8) setas erectas a suberectas", "B": "pronoto nunca con más de 4 setas erectas"}, {"id": "p8a", "pareado": 8, "nombre": "Escapos antenales frente al pedicelo", "A": "Escapos antenales cortos, sobrepasando el margen posterior de la cabeza por una longitud inferior a la del pedicelo", "B": "Escapos antenales relativamente largos, sobrepasando el margen posterior de la cabeza por una longitud igual o superior a la del pedicelo"}, {"id": "p8b", "pareado": 8, "nombre": "Forma del propodeo", "A": "propodeo relativamente alto, con caras anterior dorsal y posterior distinguibles, a veces la cara dorsal ligeramente deprimida", "B": "propodeo usualmente redondeado, no como arriba"}];
+    const VISTAS_2D = [{ id: 'lateral', t: 'Lateral' }, { id: 'cabeza', t: 'Frontal (cabeza)' }, { id: 'dorsal', t: 'Dorsal' }];
     let zoomCaracteresEdicion = {};
-    let preguntaZoomActual = 1;
+    let rasgoZoomActual = 'p1a';
+    let vista2dActual = 'lateral';
+
+    function rasgoPorId(id) { return RASGOS_CALIBRACION.find(r => r.id === id); }
+
+    // Calibraciones antiguas (una por pregunta 1–8): la pregunta N correspondía al primer rasgo del pareado N (pNa)
+    function migrarCalibracionesAntiguas(d) {
+        const salida = {};
+        Object.entries(d || {}).forEach(([k, v]) => {
+            if (/^\d+$/.test(k)) { if (!(('p' + k + 'a') in d)) salida['p' + k + 'a'] = v; }
+            else salida[k] = v;
+        });
+        return salida;
+    }
 
     async function mostrarZoomCaracteres() {
         let guardado = {};
         try {
             const res = await fetch('/api/config/zoom_caracteres');
             if (res.ok) guardado = await res.json();
-        } catch(e) { /* sin datos guardados aún */ }
-        zoomCaracteresEdicion = guardado || {};
+        } catch (e) { /* sin datos guardados aún */ }
+        zoomCaracteresEdicion = migrarCalibracionesAntiguas(guardado || {});
+        const porPareado = {};
+        RASGOS_CALIBRACION.forEach(r => (porPareado[r.pareado] = porPareado[r.pareado] || []).push(r));
 
         document.getElementById('tabContent').innerHTML = `
             <div class="card">
-                <div class="card-title">🔬 Calibrar "Ver este carácter" (2D y 3D)</div>
-                <p style="color:#A0A0B0;font-size:0.85rem;margin-bottom:15px;">
-                    Elige la pregunta, encuadra la foto (2D) y orienta el modelo (3D) como quieres que
-                    vea el estudiante al tocar "🔍 Ver este carácter". Usamos <em>L. humile</em> como
-                    referencia para calibrar; el encuadre se aplica proporcionalmente a cualquier especie.
+                <div class="card-title">🔬 Calibrar el encuadre de cada rasgo (2D y 3D)</div>
+                <p style="color:#A0A0B0;font-size:0.85rem;margin-bottom:10px;">
+                    Cada rasgo de la clave tiene su propio encuadre. Elige el rasgo; en <strong>2D</strong> elige la vista de la foto donde se ve mejor
+                    (lateral, frontal o dorsal), toca el punto exacto y ajusta la escala; en <strong>3D</strong> orienta el modelo y guarda la vista.
+                    Usamos <em>L. humile</em> como referencia; el encuadre se aplica proporcionalmente a las demás especies.
                 </p>
-                <div id="botonesPreguntaZoom" style="margin-bottom:15px;display:flex;gap:8px;flex-wrap:wrap;">
-                    ${[1,2,3,4,5,6,7,8].map(n => `<button class="btn ${n===preguntaZoomActual?'btn-success':'btn-secondary'}" onclick="cambiarPreguntaZoom(${n})" style="padding:8px 14px;">P${n}</button>`).join('')}
+                <p style="background:#00D4FF14;border-left:4px solid #00D4FF;border-radius:6px;padding:8px 12px;font-size:0.82rem;color:#E0E0E0;margin-bottom:12px;">
+                    💡 Con estos encuadres, el estudiante puede pulsar <strong>«¿Dónde mirar?»</strong> durante la identificación. El botón solo aparece
+                    para los rasgos que calibres, en el formato (2D o 3D) que hayas calibrado. Se registra cuántas veces lo usa cada estudiante.
+                </p>
+                <div id="resumenCalibracion" style="font-size:0.82rem;color:#A0A0B0;margin-bottom:12px;"></div>
+                <div id="botonesRasgoZoom" style="margin-bottom:15px;">
+                    ${Object.entries(porPareado).map(([p, rs]) => `
+                        <div style="margin-bottom:10px;">
+                            <div style="font-size:0.78rem;color:#7B61FF;font-weight:700;margin-bottom:4px;">Pareado ${p}</div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                ${rs.map(r => `<button class="btn btn-secondary" data-rasgo="${r.id}" onclick="cambiarRasgoZoom('${r.id}')" style="padding:6px 12px;font-size:0.8rem;">${r.id} · ${r.nombre}<span class="marca-calib"></span></button>`).join('')}
+                            </div>
+                        </div>`).join('')}
                 </div>
-                <div id="preguntaZoomTexto" style="color:#00D4FF;margin-bottom:15px;font-weight:600;"></div>
+                <div id="rasgoZoomTitulo" style="color:#00D4FF;margin-bottom:6px;font-weight:600;"></div>
+                <div id="rasgoZoomFrases" style="font-size:0.8rem;color:#A0A0B0;margin-bottom:15px;"></div>
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;">
                     <div class="stat-card">
                         <strong style="color:#00D4FF;">📷 Encuadre 2D</strong>
-                        <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">Toca el punto exacto del carácter en la foto.</p>
+                        <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">1) Elige la vista. 2) Toca el punto exacto del carácter en la foto.</p>
+                        <div id="vista2dBtns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+                            ${VISTAS_2D.map(v => `<button class="btn btn-secondary" data-vista="${v.id}" onclick="cambiarVista2D('${v.id}')" style="padding:6px 12px;font-size:0.82rem;">${v.t}</button>`).join('')}
+                        </div>
+                        <div id="zoom2dEstado" style="font-size:0.78rem;color:#A0A0B0;margin-bottom:8px;min-height:1.1em;"></div>
                         <div style="position:relative;display:inline-block;max-width:100%;" id="zoom2dContainer">
                             <img id="zoom2dImg" src="/foto/esp2/lateral.jpg"
                                  style="max-width:100%;display:block;border-radius:10px;border:2px solid #00D4FF40;" draggable="false">
@@ -625,17 +741,28 @@
                         </div>
                         <div style="margin-top:10px;">
                             <label style="font-size:0.8rem;color:#A0A0B0;">Escala (zoom): <span id="zoom2dEscalaVal">2.2</span>x</label>
-                            <input type="range" id="zoom2dEscala" min="1.2" max="4" step="0.1" value="2.2" style="width:100%;" oninput="document.getElementById('zoom2dEscalaVal').textContent=this.value">
+                            <input type="range" id="zoom2dEscala" min="1.2" max="4" step="0.1" value="2.2" style="width:100%;" oninput="cambiarEscala2D(this.value)">
                         </div>
+                        <div style="margin-top:12px;">
+                            <div style="font-size:0.8rem;color:#00D4FF;font-weight:600;margin-bottom:4px;">Así quedaría el encuadre</div>
+                            <div id="zoom2dPrevia" style="position:relative;width:100%;max-width:340px;height:220px;overflow:hidden;border-radius:10px;border:2px solid #00D4FF40;background:#0A0E17;">
+                                <img id="zoom2dPreviaImg" alt="Vista previa" draggable="false" onload="actualizarPrevia2D()" style="width:100%;height:100%;object-fit:contain;transform-origin:center center;user-select:none;">
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="quitarEncuadre('2d')" style="margin-top:10px;font-size:0.8rem;padding:6px 12px;">🗑 Quitar el punto 2D de este rasgo</button>
                     </div>
-
                     <div class="stat-card">
                         <strong style="color:#00D4FF;">🧊 Encuadre 3D</strong>
                         <p style="font-size:0.8rem;color:#A0A0B0;margin:6px 0;">Gira/acerca el modelo con el mouse hasta el encuadre deseado, luego guarda esta vista.</p>
+                        <div id="zoom3dEstado" style="font-size:0.78rem;color:#A0A0B0;margin-bottom:8px;min-height:1.1em;"></div>
                         <div style="height:280px;border-radius:10px;overflow:hidden;border:2px solid #00D4FF40;">
-                            <model-viewer id="zoom3dViewer" src="/static/modelos3d/esp2.glb" camera-controls style="width:100%;height:100%;background:#0A0E17;"></model-viewer>
+                            <model-viewer id="zoom3dViewer" src="/static/modelos3d/esp2.glb" camera-controls min-camera-orbit="auto auto 5%" style="width:100%;height:100%;background:#0A0E17;"></model-viewer>
                         </div>
-                        <button class="btn btn-secondary" onclick="capturarVista3D()" style="margin-top:10px;width:100%;">📸 Guardar esta vista para P${preguntaZoomActual}</button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                            <button class="btn btn-secondary" id="btnCapturar3D" onclick="capturarVista3D()" style="flex:1;min-width:200px;">📸 Guardar esta vista</button>
+                            <button class="btn btn-secondary" onclick="ver3DGuardada()" style="font-size:0.8rem;padding:8px 12px;">▶ Ver la guardada</button>
+                            <button class="btn btn-secondary" onclick="quitarEncuadre('3d')" style="font-size:0.8rem;padding:8px 12px;">🗑 Quitar</button>
+                        </div>
                     </div>
                 </div>
 
@@ -649,53 +776,150 @@
             const px = ((e.clientX - rect.left) / rect.width) * 100;
             const py = ((e.clientY - rect.top) / rect.height) * 100;
             const escala = parseFloat(document.getElementById('zoom2dEscala').value);
-            if (!zoomCaracteresEdicion[preguntaZoomActual]) zoomCaracteresEdicion[preguntaZoomActual] = {};
-            zoomCaracteresEdicion[preguntaZoomActual]['2d'] = { x: Math.round(px*10)/10, y: Math.round(py*10)/10, scale: escala };
+            if (!zoomCaracteresEdicion[rasgoZoomActual]) zoomCaracteresEdicion[rasgoZoomActual] = {};
+            zoomCaracteresEdicion[rasgoZoomActual]['2d'] = { vista: vista2dActual, x: Math.round(px * 10) / 10, y: Math.round(py * 10) / 10, scale: escala };
             mostrarMarcador2D();
+            refrescarMarcasCalibracion();
         });
 
-        cambiarPreguntaZoom(preguntaZoomActual);
+        cambiarRasgoZoom(rasgoZoomActual);
     }
 
-    function cambiarPreguntaZoom(n) {
-        preguntaZoomActual = n;
-        document.getElementById('preguntaZoomTexto').textContent = `Pregunta ${n}: ${PREGUNTAS_CLAVE_TEXTO[n] || ''}`;
-        const botones = document.querySelectorAll('#botonesPreguntaZoom button.btn');
-        botones.forEach(b => {
-            const esActivo = b.textContent.trim() === `P${n}`;
-            b.classList.toggle('btn-success', esActivo);
-            b.classList.toggle('btn-secondary', !esActivo);
+    function refrescarMarcasCalibracion() {
+        let n2d = 0, n3d = 0;
+        RASGOS_CALIBRACION.forEach(r => {
+            const c = zoomCaracteresEdicion[r.id] || {};
+            const tiene2d = !!c['2d'], tiene3d = !!c['3d'];
+            if (tiene2d) n2d++; if (tiene3d) n3d++;
+            const b = document.querySelector(`#botonesRasgoZoom button[data-rasgo="${r.id}"]`);
+            if (!b) return;
+            b.querySelector('.marca-calib').textContent = tiene2d && tiene3d ? ' ✅' : (tiene2d ? ' · solo 2D' : (tiene3d ? ' · solo 3D' : ''));
+            const activo = r.id === rasgoZoomActual;
+            b.classList.toggle('btn-success', activo);
+            b.classList.toggle('btn-secondary', !activo);
         });
-        const btnCapturar = document.querySelector('button[onclick="capturarVista3D()"]');
-        if (btnCapturar) btnCapturar.textContent = `📸 Guardar esta vista para P${n}`;
+        const res = document.getElementById('resumenCalibracion');
+        if (res) res.innerHTML = `Calibrados: <strong>${n2d} de ${RASGOS_CALIBRACION.length}</strong> en 2D · <strong>${n3d} de ${RASGOS_CALIBRACION.length}</strong> en 3D &nbsp;(✅ = ambos formatos)`;
+    }
+
+    function cambiarRasgoZoom(id) {
+        rasgoZoomActual = id;
+        const r = rasgoPorId(id);
+        document.getElementById('rasgoZoomTitulo').textContent = `${id} — ${r ? r.nombre : ''}  (Pareado ${r ? r.pareado : ''})`;
+        document.getElementById('rasgoZoomFrases').innerHTML = r ? `<strong style="color:#00D4FF;">A:</strong> ${r.A}<br><strong style="color:#FFB020;">B:</strong> ${r.B}` : '';
+        const btnCap = document.getElementById('btnCapturar3D');
+        if (btnCap) btnCap.textContent = `📸 Guardar esta vista para ${id}`;
+        // se abre la vista que se guardó para este rasgo (o la lateral si aún no hay)
+        const cfg = zoomCaracteresEdicion[id] && zoomCaracteresEdicion[id]['2d'];
+        refrescarMarcasCalibracion();
+        mostrarEstado3D();
+        cambiarVista2D(cfg && cfg.vista ? cfg.vista : 'lateral');
+    }
+
+    function rutaVista2D(v) { return `/foto/esp2/${v}.jpg`; }
+
+    function cambiarVista2D(v) {
+        vista2dActual = v;
+        const img = document.getElementById('zoom2dImg');
+        if (img && !img.src.endsWith(rutaVista2D(v))) img.src = rutaVista2D(v);
+        document.querySelectorAll('#vista2dBtns button').forEach(b => {
+            const activo = b.dataset.vista === v;
+            b.classList.toggle('btn-success', activo);
+            b.classList.toggle('btn-secondary', !activo);
+        });
         mostrarMarcador2D();
     }
 
-    function mostrarMarcador2D() {
-        const cfg = zoomCaracteresEdicion[preguntaZoomActual] && zoomCaracteresEdicion[preguntaZoomActual]['2d'];
-        const marcador = document.getElementById('zoom2dMarcador');
-        if (!marcador) return;
-        if (cfg) {
-            marcador.style.display = 'block';
-            marcador.style.left = cfg.x + '%';
-            marcador.style.top = cfg.y + '%';
-            document.getElementById('zoom2dEscala').value = cfg.scale || 2.2;
-            document.getElementById('zoom2dEscalaVal').textContent = cfg.scale || 2.2;
-        } else {
-            marcador.style.display = 'none';
-        }
+    function cambiarEscala2D(valor) {
+        document.getElementById('zoom2dEscalaVal').textContent = valor;
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['2d'];
+        if (cfg) cfg.scale = parseFloat(valor);
+        actualizarPrevia2D();
     }
 
+    function mostrarMarcador2D() {
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['2d'];
+        const marcador = document.getElementById('zoom2dMarcador');
+        if (!marcador) return;
+        const nombreVista = v => (VISTAS_2D.find(x => x.id === v) || { t: v }).t.toLowerCase();
+        const estado = document.getElementById('zoom2dEstado');
+        if (cfg) {
+            const vistaGuardada = cfg.vista || 'lateral';
+            document.getElementById('zoom2dEscala').value = cfg.scale || 2.2;
+            document.getElementById('zoom2dEscalaVal').textContent = cfg.scale || 2.2;
+            if (vistaGuardada === vista2dActual) {
+                marcador.style.display = 'block';
+                marcador.style.left = cfg.x + '%';
+                marcador.style.top = cfg.y + '%';
+                estado.innerHTML = `✅ Guardado en la vista <strong>${nombreVista(vistaGuardada)}</strong> (${cfg.x}%, ${cfg.y}%) · escala ${cfg.scale || 2.2}×`;
+            } else {
+                marcador.style.display = 'none';
+                estado.innerHTML = `Hay un punto guardado en la vista <strong>${nombreVista(vistaGuardada)}</strong>. Si tocas esta foto, se reemplaza por la vista ${nombreVista(vista2dActual)}.`;
+            }
+        } else {
+            marcador.style.display = 'none';
+            estado.textContent = `Sin punto guardado para ${rasgoZoomActual}.`;
+        }
+        actualizarPrevia2D();
+    }
+
+    // Vista previa: la foto se muestra completa (contain) y el punto elegido se lleva al centro con la escala indicada
+    function actualizarPrevia2D() {
+        const cont = document.getElementById('zoom2dPrevia'), img = document.getElementById('zoom2dPreviaImg');
+        if (!cont || !img) return;
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['2d'];
+        const ruta = rutaVista2D(cfg ? (cfg.vista || 'lateral') : vista2dActual);
+        if (!img.src.endsWith(ruta)) img.src = ruta;
+        if (!cfg) { img.style.transform = 'none'; return; }
+        const W = cont.clientWidth, H = cont.clientHeight;
+        const nw = img.naturalWidth || 4, nh = img.naturalHeight || 3, k = Math.min(W / nw, H / nh), w = nw * k, h = nh * k;
+        const px = (W - w) / 2 + cfg.x / 100 * w, py = (H - h) / 2 + cfg.y / 100 * h;
+        const s = cfg.scale || 2.2;
+        // cerca de los bordes no se sale de la foto (así tampoco lo hará el visor del estudiante)
+        const maxX = Math.max(0, (s * w - W) / 2), maxY = Math.max(0, (s * h - H) / 2);
+        const tx = Math.min(maxX, Math.max(-maxX, -s * (px - W / 2))), ty = Math.min(maxY, Math.max(-maxY, -s * (py - H / 2)));
+        img.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+    }
+
+    function mostrarEstado3D() {
+        const el = document.getElementById('zoom3dEstado');
+        if (!el) return;
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['3d'];
+        el.innerHTML = cfg ? `✅ Vista 3D guardada para <strong>${rasgoZoomActual}</strong>. Usa «Ver la guardada» para comprobarla.` : `Sin vista 3D guardada para ${rasgoZoomActual}.`;
+    }
+
+    // Se guardan los valores REALES de la cámara (lo que ves tras mover el modelo con el mouse) y las dimensiones del modelo de referencia,
+    // para poder trasladar el encuadre a las demás especies (que tienen tamaño y centro distintos).
     function capturarVista3D() {
         const mv = document.getElementById('zoom3dViewer');
-        if (!mv) return;
-        if (!zoomCaracteresEdicion[preguntaZoomActual]) zoomCaracteresEdicion[preguntaZoomActual] = {};
-        zoomCaracteresEdicion[preguntaZoomActual]['3d'] = {
-            orbit: mv.cameraOrbit,
-            target: mv.cameraTarget,
-            fov: mv.fieldOfView
-        };
-        mostrarMensaje(`✅ Vista 3D guardada para Pregunta ${preguntaZoomActual}`);
+        if (!mv || !mv.loaded) { mostrarMensaje('⏳ Espera a que el modelo termine de cargar', '#FFB020'); return; }
+        const o = mv.getCameraOrbit(), t = mv.getCameraTarget(), fov = mv.getFieldOfView();
+        const c = mv.getBoundingBoxCenter(), d = mv.getDimensions();
+        const r4 = v => Math.round(v * 10000) / 10000;
+        const cfg = { theta: r4(o.theta), phi: r4(o.phi), radius: r4(o.radius), tx: r4(t.x), ty: r4(t.y), tz: r4(t.z), fovGrados: r4(fov),
+                      ref: { center: [r4(c.x), r4(c.y), r4(c.z)], size: [r4(d.x), r4(d.y), r4(d.z)] } };
+        cfg.orbit = `${cfg.theta}rad ${cfg.phi}rad ${cfg.radius}m`;
+        cfg.target = `${cfg.tx}m ${cfg.ty}m ${cfg.tz}m`;
+        cfg.fov = `${cfg.fovGrados}deg`;
+        if (!zoomCaracteresEdicion[rasgoZoomActual]) zoomCaracteresEdicion[rasgoZoomActual] = {};
+        zoomCaracteresEdicion[rasgoZoomActual]['3d'] = cfg;
+        mostrarEstado3D();
+        refrescarMarcasCalibracion();
+        mostrarMensaje(`✅ Vista 3D guardada para ${rasgoZoomActual}`);
+    }
+
+    function ver3DGuardada() {
+        const mv = document.getElementById('zoom3dViewer');
+        const cfg = zoomCaracteresEdicion[rasgoZoomActual] && zoomCaracteresEdicion[rasgoZoomActual]['3d'];
+        if (!mv || !cfg) { mostrarMensaje('Aún no hay vista 3D guardada para este rasgo', '#FFB020'); return; }
+        mv.cameraTarget = cfg.target; mv.cameraOrbit = cfg.orbit; mv.fieldOfView = cfg.fov;
+    }
+
+    function quitarEncuadre(formato) {
+        const c = zoomCaracteresEdicion[rasgoZoomActual];
+        if (c && c[formato]) delete c[formato];
+        if (c && !c['2d'] && !c['3d']) delete zoomCaracteresEdicion[rasgoZoomActual];
+        refrescarMarcasCalibracion(); mostrarMarcador2D(); mostrarEstado3D();
     }
 
     async function guardarZoomCaracteres() {
@@ -704,7 +928,7 @@
             body: JSON.stringify({ datos: zoomCaracteresEdicion })
         });
         if (res.ok) {
-            mostrarMensaje('✅ Calibración guardada. Ya se aplica en las 4 claves.');
+            mostrarMensaje('✅ Calibración guardada.');
         } else {
             mostrarMensaje('❌ Error al guardar', '#FF375F');
         }
@@ -716,7 +940,6 @@
         {id:"mandibulas", label:"Mandíbulas", px:17, py:66},
         {id:"clipeo", label:"Clípeo", px:21, py:60},
         {id:"margen", label:"Margen posterior de la cabeza", px:36, py:47},
-        {id:"ocelos", label:"Ocelos", px:22, py:40},
         {id:"escapo", label:"Escapo", px:21, py:33},
         {id:"mesosoma", label:"Mesosoma", px:48, py:42},
         {id:"pronoto", label:"Pronoto", px:40, py:40},
