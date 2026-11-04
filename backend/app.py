@@ -821,6 +821,158 @@ def set_zoom_caracteres_admin():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== COPIA DE SEGURIDAD DE LA CONFIGURACIÓN (especies activas, pines y encuadres de zoom) =====
+# Las bases gratuitas de Render vencen a los 30 días y no tienen respaldos. Estos dos endpoints permiten descargar la
+# configuración a un archivo y restaurarla en una base nueva (por ejemplo, al pasar a Neon) sin recalibrar nada a mano.
+CLAVES_COPIA_CONFIG = {'especies_activas': list, 'posiciones_pines': dict, 'zoom_caracteres': dict}
+
+@app.route('/api/admin/config/copia', methods=['GET'])
+@admin_required
+def descargar_copia_config():
+    from datetime import datetime
+    contenido = {}
+    for clave in CLAVES_COPIA_CONFIG:
+        c = Configuracion.query.filter_by(clave=clave).first()
+        if c and c.valor:
+            try:
+                contenido[clave] = json.loads(c.valor)
+            except Exception:
+                pass
+    return jsonify({'tipo': 'copia_configuracion_clave_linepithema', 'version': 1,
+                    'fecha': datetime.utcnow().isoformat() + 'Z', 'configuracion': contenido})
+
+@app.route('/api/admin/config/restaurar', methods=['POST'])
+@admin_required
+def restaurar_copia_config():
+    d = request.get_json(silent=True) or {}
+    if d.get('tipo') != 'copia_configuracion_clave_linepithema' or not isinstance(d.get('configuracion'), dict):
+        return jsonify({'error': 'El archivo no es una copia de configuración de esta plataforma'}), 400
+    cfg, nuevos = d['configuracion'], {}
+    # Primero se valida TODO; solo si todo es correcto se guarda (no queda una restauración a medias)
+    for clave, tipo in CLAVES_COPIA_CONFIG.items():
+        if clave not in cfg:
+            continue
+        if not isinstance(cfg[clave], tipo):
+            return jsonify({'error': f'El bloque "{clave}" del archivo tiene un formato inválido'}), 400
+        if clave == 'especies_activas':
+            validos = {e['id'] for e in POOL_ESPECIES}
+            ids = [i for i in cfg[clave] if i in validos]
+            if len(ids) < 2:
+                return jsonify({'error': 'La copia trae menos de 2 especies activas válidas'}), 400
+            nuevos[clave] = ids
+        else:
+            nuevos[clave] = cfg[clave]
+    if not nuevos:
+        return jsonify({'error': 'La copia no contiene configuración para restaurar'}), 400
+    try:
+        for clave, valor in nuevos.items():
+            c = Configuracion.query.filter_by(clave=clave).first()
+            if c:
+                c.valor = json.dumps(valor)
+            else:
+                db.session.add(Configuracion(clave=clave, valor=json.dumps(valor)))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    return jsonify({'ok': True, 'restauradas': sorted(nuevos)})
+
+# ===== COPIA COMPLETA DE LA BASE (para cambiar de proveedor sin perder participantes ni resultados) =====
+# Exporta las 7 tablas con sus identificadores y las restaura en una base NUEVA y VACÍA (Neon, otra base de Render, etc.).
+# Conserva las cuentas con su contraseña, las sesiones, los resultados, los pasos, las reflexiones, las encuestas y la configuración,
+# así que ningún estudiante puede repetir el ejercicio ni pierde su certificado. El archivo contiene nombres, correos y contraseñas
+# cifradas: debe guardarse como datos de investigación (acceso restringido).
+ORDEN_COPIA_COMPLETA = [('usuarios', Usuario), ('sesiones', SesionExperimental), ('resultados', ResultadoIdentificacion),
+                        ('encuestas', ResultadoEncuesta), ('reflexiones', ReflexionMetacognitiva), ('pasos_clave', PasoClave),
+                        ('configuracion', Configuracion)]
+TABLAS_CON_SESION = ('resultados', 'encuestas', 'reflexiones', 'pasos_clave')
+
+def _a_json(valor):
+    from datetime import datetime
+    return valor.isoformat() if isinstance(valor, datetime) else valor
+
+@app.route('/api/admin/migracion/exportar', methods=['GET'])
+@admin_required
+def exportar_copia_completa():
+    from datetime import datetime
+    tablas = {}
+    for nombre, modelo in ORDEN_COPIA_COMPLETA:
+        columnas = [c.name for c in modelo.__table__.columns]
+        tablas[nombre] = [{c: _a_json(getattr(fila, c)) for c in columnas} for fila in modelo.query.order_by(modelo.id).all()]
+    return jsonify({'tipo': 'copia_completa_clave_linepithema', 'version': 1, 'fecha': datetime.utcnow().isoformat() + 'Z',
+                    'conteos': {n: len(f) for n, f in tablas.items()}, 'tablas': tablas})
+
+@app.route('/api/admin/migracion/importar', methods=['POST'])
+@admin_required
+def importar_copia_completa():
+    from datetime import datetime
+    d = request.get_json(silent=True) or {}
+    if d.get('tipo') != 'copia_completa_clave_linepithema' or not isinstance(d.get('tablas'), dict):
+        return jsonify({'error': 'El archivo no es una copia completa de esta plataforma'}), 400
+    tablas = d['tablas']
+    # 1) La base de destino debe estar VACÍA de participantes y resultados (si no, se duplicarían o se mezclarían)
+    ocupadas = [n for n, m in ORDEN_COPIA_COMPLETA if n != 'configuracion' and m.query.first() is not None]
+    if ocupadas:
+        return jsonify({'error': 'La base de destino ya tiene datos (' + ', '.join(ocupadas) + '). La restauración completa solo se hace en una base nueva y vacía, ANTES de crear cuentas.'}), 409
+    # 2) Se valida y se convierte todo antes de escribir nada
+    filas_por_tabla = {}
+    for nombre, modelo in ORDEN_COPIA_COMPLETA:
+        filas = tablas.get(nombre, [])
+        if not isinstance(filas, list):
+            return jsonify({'error': f'La tabla "{nombre}" del archivo tiene un formato inválido'}), 400
+        columnas = {c.name: c for c in modelo.__table__.columns}
+        convertidas, ids = [], set()
+        for i, fila in enumerate(filas):
+            if not isinstance(fila, dict) or not set(fila) <= set(columnas):
+                return jsonify({'error': f'Fila {i + 1} de "{nombre}": columnas desconocidas o formato inválido'}), 400
+            nueva = {}
+            for col, valor in fila.items():
+                tipo = str(columnas[col].type).upper()
+                if valor is not None and tipo.startswith('DATETIME') or (valor is not None and 'TIMESTAMP' in tipo):
+                    try:
+                        valor = datetime.fromisoformat(str(valor).replace('Z', ''))
+                    except ValueError:
+                        return jsonify({'error': f'Fila {i + 1} de "{nombre}": fecha inválida en "{col}"'}), 400
+                nueva[col] = valor
+            if nombre != 'configuracion':
+                if nueva.get('id') in ids or nueva.get('id') is None:
+                    return jsonify({'error': f'Fila {i + 1} de "{nombre}": identificador repetido o ausente'}), 400
+                ids.add(nueva['id'])
+            convertidas.append(nueva)
+        filas_por_tabla[nombre] = convertidas
+    ids_usuarios = {f['id'] for f in filas_por_tabla['usuarios']}
+    ids_sesiones = {f['id'] for f in filas_por_tabla['sesiones']}
+    if any(f.get('usuario_id') not in ids_usuarios for f in filas_por_tabla['sesiones']):
+        return jsonify({'error': 'Hay sesiones que apuntan a un usuario que no está en la copia'}), 400
+    for t in TABLAS_CON_SESION:
+        if any(f.get('sesion_id') not in ids_sesiones for f in filas_por_tabla[t]):
+            return jsonify({'error': f'Hay filas de "{t}" que apuntan a una sesión que no está en la copia'}), 400
+    # 3) Escritura en una sola transacción: o entra todo o no entra nada
+    try:
+        for nombre, modelo in ORDEN_COPIA_COMPLETA:
+            if nombre == 'configuracion':
+                for fila in filas_por_tabla[nombre]:
+                    existente = Configuracion.query.filter_by(clave=fila.get('clave')).first()
+                    if existente:
+                        existente.valor = fila.get('valor')
+                    else:
+                        fila = {k: v for k, v in fila.items() if k != 'id'}
+                        db.session.add(Configuracion(**fila))
+            elif filas_por_tabla[nombre]:
+                db.session.bulk_insert_mappings(modelo, filas_por_tabla[nombre])
+        db.session.flush()
+        # En PostgreSQL, los contadores automáticos de identificadores deben continuar DESPUÉS del último importado;
+        # si no, la siguiente cuenta o resultado nuevo chocaría con uno restaurado.
+        if db.engine.dialect.name == 'postgresql':
+            for nombre, modelo in ORDEN_COPIA_COMPLETA:
+                tabla = modelo.__table__.name
+                db.session.execute(db.text(f"SELECT setval(pg_get_serial_sequence('{tabla}', 'id'), COALESCE((SELECT MAX(id) FROM {tabla}), 1), (SELECT MAX(id) FROM {tabla}) IS NOT NULL)"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'No se pudo restaurar (no se guardó nada): ' + str(e).splitlines()[0][:200]}), 500
+    return jsonify({'ok': True, 'restaurado': {n: len(f) for n, f in filas_por_tabla.items()}})
+
 @app.route('/api/admin/datos', methods=['GET'])
 @admin_required
 def ver_datos():
