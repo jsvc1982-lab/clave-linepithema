@@ -7,7 +7,11 @@ import random
 import json
 import os
 import re
-from sqlalchemy import func
+import time
+from sqlalchemy import func, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import DBAPIError, DisconnectionError
+from sqlalchemy.pool import NullPool
 
 try:
     from backend.models import db, Usuario, SesionExperimental, ResultadoIdentificacion, ResultadoEncuesta, ReflexionMetacognitiva, Configuracion, PasoClave
@@ -36,26 +40,150 @@ if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# Render cierra las conexiones inactivas de la base: se comprueban antes de usarlas y se renuevan cada ~5 minutos.
-# Evita errores como "SSL error: decryption failed or bad record mac" tras una pausa o un reinicio de la base.
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 280}
+# Conexión a PostgreSQL. Render y los proveedores en la nube cierran las conexiones inactivas o las cortan sin avisar:
+# se comprueban antes de usarlas (pre_ping), se renuevan cada ~5 minutos, se avisa al servidor que seguimos vivos
+# (keepalives) y se limita la espera para conectar. Evita "SSL error: decryption failed or bad record mac",
+# "SSL SYSCALL error: EOF detected" y "error with status PGRES_TUPLES_OK and no message from the libpq".
+def opciones_motor(url):
+    if not url.startswith('postgresql'):
+        return {}                                   # SQLite (pruebas locales): sin opciones especiales
+    conexion = {'connect_timeout': 15, 'keepalives': 1, 'keepalives_idle': 30, 'keepalives_interval': 10, 'keepalives_count': 5}
+    # Neon "pooled" (-pooler) ya reutiliza las conexiones en el servidor (PgBouncer): se abre una conexión por petición
+    # y no se guarda un segundo pool encima, que es una fuente conocida de conexiones dañadas.
+    if '-pooler' in url.split('@')[-1].split('/')[0]:
+        return {'poolclass': NullPool, 'connect_args': conexion}
+    # pre_ping DESACTIVADO a propósito: el de SQLAlchemy solo reconoce algunos textos de error y, con otros (p. ej. la redacción de
+    # OpenSSL 3 "ssl/tls alert bad record mac"), falla en vez de abrir otra conexión. Lo reemplaza comprobar_conexion_al_prestarla().
+    # Neon pausa el cómputo tras 5 minutos sin uso y corta las conexiones: se renuevan cada 4 minutos y el pool es pequeño.
+    return {'pool_pre_ping': False, 'pool_recycle': 240, 'pool_size': 3, 'max_overflow': 3, 'connect_args': conexion}
+
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = opciones_motor(database_url)
+MODO_POOL = 'sin pool propio (Neon pooler)' if 'poolclass' in app.config['SQLALCHEMY_ENGINE_OPTIONS'] else ('pool con comprobación' if database_url.startswith('postgresql') else 'SQLite')
+print(f'[bd] Conexión a la base: {MODO_POOL}', flush=True)
+
+# SQLAlchemy solo descarta una conexión dañada si reconoce el mensaje de error. Estos mensajes de libpq/psycopg2 no estaban
+# en su lista: la conexión rota volvía al pool y las peticiones siguientes fallaban igual hasta reiniciar el servicio.
+MENSAJES_CONEXION_ROTA = ('no message from the libpq', 'PGRES_TUPLES_OK', 'bad record mac', 'SSL SYSCALL', 'EOF detected',
+                          'server closed the connection', 'connection already closed', 'terminating connection',
+                          'could not receive data', 'could not send data', 'connection not open', 'connection has been closed')
+
+@event.listens_for(Engine, 'do_connect')
+def conectar_con_reintentos(dialect, registro, cargs, cparams):
+    """Neon pausa el cómputo tras 5 minutos sin uso y tarda un instante en despertarlo: la primera conexión puede fallar con un error
+    de TLS aunque la base esté bien. Se reintenta hasta 3 veces (con una pausa creciente) antes de rendirse."""
+    if dialect.name != 'postgresql':
+        return None
+    ultimo = None
+    for intento in range(3):
+        try:
+            return dialect.loaded_dbapi.connect(*cargs, **cparams)
+        except dialect.loaded_dbapi.OperationalError as e:
+            ultimo = e
+            print(f'[bd] No se pudo abrir la conexión (intento {intento + 1} de 3): {str(e).splitlines()[0][:120]}', flush=True)
+            if intento < 2:
+                time.sleep(0.5 * (intento + 1))
+    raise ultimo
+
+try:
+    import psycopg2.extensions as _pg_ext
+except ImportError:          # SQLite en pruebas locales
+    _pg_ext = None
+
+@event.listens_for(Engine, 'checkout')
+def comprobar_conexion_al_prestarla(dbapi_con, registro, proxy):
+    """Antes de usar una conexión del pool se hace un SELECT 1. Si falla por CUALQUIER motivo, la conexión no sirve (la base se
+    pausó, la red la cortó, TLS se rompió...): se lanza DisconnectionError y SQLAlchemy descarta esa conexión y abre otra, hasta 3
+    veces, sin que el estudiante ni el administrador vean un error. No depende del texto del mensaje, que cambia según la versión
+    de OpenSSL ("decryption failed or bad record mac" / "ssl/tls alert bad record mac")."""
+    if _pg_ext is None or not isinstance(dbapi_con, _pg_ext.connection):
+        return
+    cursor = None
+    try:
+        cursor = dbapi_con.cursor()
+        cursor.execute('SELECT 1')
+        dbapi_con.rollback()
+    except Exception:
+        raise DisconnectionError('conexión inservible: se abre una nueva')
+    finally:
+        try:
+            if cursor is not None:
+                cursor.close()
+        except Exception:
+            pass
+
+@event.listens_for(Engine, 'handle_error')
+def descartar_conexion_rota(contexto):
+    mensaje = str(contexto.original_exception or '')
+    if any(m in mensaje for m in MENSAJES_CONEXION_ROTA):
+        contexto.is_disconnect = True
+        fase = 'sondeo previo' if getattr(contexto, 'is_pre_ping', False) else ('al conectar' if contexto.connection is None else 'durante una consulta')
+        print(f'[bd] Conexión descartada ({fase}): {mensaje.splitlines()[0][:120]}', flush=True)
 
 CORS(app, supports_credentials=True, origins=os.getenv('ALLOWED_ORIGIN', 'http://127.0.0.1:5000'))
+
+@app.errorhandler(DBAPIError)
+def error_de_base_de_datos(e):
+    """Una interrupción momentánea de la base no debe verse como un error de código: se limpia la sesión y se pide reintentar."""
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+    print(f'[bd] Error de base de datos en {request.method} {request.path}: {str(e).splitlines()[0][:200]}', flush=True)
+    mensaje = 'La base de datos tuvo una interrupción momentánea. Intenta de nuevo en unos segundos.'
+    if request.path.startswith('/api/'):
+        respuesta = jsonify({'error': mensaje, 'codigo': 'bd_temporal'})
+        respuesta.status_code = 503
+        respuesta.headers['X-BD-Temporal'] = '1'
+        return respuesta
+    return mensaje, 503
+
+class ReintentarApiGetBD:
+    """Si una petición GET de /api/ falla por una interrupción momentánea de la base (error marcado como temporal), se repite UNA vez
+    de forma automática: con la conexión ya renovada casi siempre funciona, y el usuario no ve ningún error. Solo GET (no cambian
+    datos), nunca POST: los guardados los reintenta la pantalla del estudiante."""
+    def __init__(self, wsgi):
+        self.wsgi = wsgi
+
+    def __call__(self, environ, start_response):
+        if environ.get('REQUEST_METHOD') != 'GET' or not environ.get('PATH_INFO', '').startswith('/api/'):
+            return self.wsgi(environ, start_response)
+        for intento in (1, 2):
+            captura = {}
+            def sr(status, headers, exc_info=None):
+                captura['status'], captura['headers'] = status, headers
+                return lambda data: None
+            iterador = self.wsgi(environ, sr)
+            try:
+                cuerpo = b''.join(iterador)
+            finally:
+                if hasattr(iterador, 'close'):
+                    iterador.close()
+            temporal = captura['status'].startswith('503') and any(k.lower() == 'x-bd-temporal' for k, _ in captura['headers'])
+            if temporal and intento == 1:
+                print(f"[bd] Se repite automáticamente GET {environ.get('PATH_INFO', '')}", flush=True)
+                continue
+            break
+        start_response(captura['status'], captura['headers'])
+        return [cuerpo]
+
+app.wsgi_app = ReintentarApiGetBD(app.wsgi_app)
 
 # ===== ESQUEMA: agrega columnas nuevas a una base creada con una versión anterior =====
 # db.create_all() solo crea tablas que NO existen; no agrega columnas a las que ya existen. Por eso, si la base se
 # creó (o se restauró de un respaldo) con una versión vieja, esta función completa las columnas que falten.
 COLUMNAS_NUEVAS = {
     'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)')],
-    'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER')],
+    'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER'),
+                   ('ayuda_encuadre_usos', 'INTEGER DEFAULT 0'), ('ayuda_encuadre_detalle', 'TEXT')],
     'reflexiones': [('orden_especimen', 'INTEGER')],
 }
 
 def asegurar_esquema():
+    """Completa las columnas que falten. Devuelve (columnas_agregadas, errores)."""
     from sqlalchemy import inspect, text
     insp = inspect(db.engine)
     es_postgres = db.engine.dialect.name == 'postgresql'
-    agregadas = []
+    agregadas, errores = [], []
     for tabla, columnas in COLUMNAS_NUEVAS.items():
         if not insp.has_table(tabla):
             continue
@@ -68,14 +196,22 @@ def asegurar_esquema():
                 db.session.execute(text(f'ALTER TABLE {tabla} ADD COLUMN {si_no_existe}{nombre} {tipo}'))
                 db.session.commit()
                 agregadas.append(f'{tabla}.{nombre}')
-            except Exception:
-                db.session.rollback()   # otro worker pudo agregarla primero
+            except Exception as e:
+                db.session.rollback()
+                errores.append(f'{tabla}.{nombre}: {str(e).splitlines()[0][:200]}')
     # Los usuarios de versiones anteriores quedan como estudiantes
-    if insp.has_table('usuarios'):
-        db.session.execute(text("UPDATE usuarios SET rol = 'estudiante' WHERE rol IS NULL OR rol = 'usuario'"))
-        db.session.commit()
+    try:
+        if insp.has_table('usuarios'):
+            db.session.execute(text("UPDATE usuarios SET rol = 'estudiante' WHERE rol IS NULL OR rol = 'usuario'"))
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        errores.append(f'usuarios.rol: {str(e).splitlines()[0][:200]}')
     if agregadas:
         print('[esquema] Columnas agregadas: ' + ', '.join(agregadas), flush=True)
+    if errores:
+        print('[esquema] NO se pudieron agregar: ' + ' | '.join(errores), flush=True)
+    return agregadas, errores
 
 db.init_app(app)
 with app.app_context():
@@ -89,6 +225,7 @@ with app.app_context():
         db.create_all()
     try:
         asegurar_esquema()
+        print('[esquema] Esquema verificado al arrancar', flush=True)
     except Exception as e:
         db.session.rollback()
         print(f'[esquema] No se pudo verificar el esquema: {e}', flush=True)
@@ -160,10 +297,19 @@ def calcular_sus(respuestas):
         return None
 
 def get_especies_activas():
+    """Especies que se sortean. Si la configuración guardada tiene menos de 2 especies válidas (cada participante
+    necesita 2 distintas), se ignora y se usan las activas por defecto, para que el ejercicio nunca quede bloqueado."""
+    por_defecto = [e['id'] for e in POOL_ESPECIES if e['activa']]
     config = Configuracion.query.filter_by(clave='especies_activas').first()
     if config:
-        return json.loads(config.valor)
-    return [e['id'] for e in POOL_ESPECIES if e['activa']]
+        try:
+            validas = [i for i in json.loads(config.valor) if i in {e['id'] for e in POOL_ESPECIES}]
+        except Exception:
+            validas = []
+        if len(validas) >= 2:
+            return validas
+        print('[especies] Configuración guardada con menos de 2 especies válidas: se usan las de por defecto', flush=True)
+    return por_defecto
 
 def set_especies_activas(especies_ids):
     config = Configuracion.query.filter_by(clave='especies_activas').first()
@@ -473,6 +619,8 @@ def get_resultados_me():
                 'tiempo': r.tiempo_segundos,
                 'tiempo_reflexion': r.tiempo_reflexion_segundos,
                 'primera_pregunta_desvio': r.primera_pregunta_desvio,
+                'ayuda_encuadre_usos': r.ayuda_encuadre_usos or 0,
+                'ayuda_encuadre_detalle': r.ayuda_encuadre_detalle,
                 'orden': r.orden
             })
     return jsonify(resultados)
@@ -583,6 +731,8 @@ def get_resultados_usuario(usuario_id):
                 'tiempo': r.tiempo_segundos,
                 'tiempo_reflexion': r.tiempo_reflexion_segundos,
                 'primera_pregunta_desvio': r.primera_pregunta_desvio,
+                'ayuda_encuadre_usos': r.ayuda_encuadre_usos or 0,
+                'ayuda_encuadre_detalle': r.ayuda_encuadre_detalle,
                 'orden': r.orden
             })
     return jsonify(resultados)
@@ -718,6 +868,8 @@ def set_especies_config():
         data = request.json
         ids_validos = [e['id'] for e in POOL_ESPECIES]
         activas = [e for e in data.get('activas', []) if e in ids_validos]
+        if len(activas) < 2:
+            return jsonify({'error': 'Activa al menos 2 especies: cada participante identifica 2 especies distintas'}), 400
         set_especies_activas(activas)
         return jsonify({'mensaje': 'Configuración actualizada'})
     except Exception as e:
@@ -754,6 +906,158 @@ def set_zoom_caracteres_admin():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ===== COPIA DE SEGURIDAD DE LA CONFIGURACIÓN (especies activas, pines y encuadres de zoom) =====
+# Las bases gratuitas de Render vencen a los 30 días y no tienen respaldos. Estos dos endpoints permiten descargar la
+# configuración a un archivo y restaurarla en una base nueva (por ejemplo, al pasar a Neon) sin recalibrar nada a mano.
+CLAVES_COPIA_CONFIG = {'especies_activas': list, 'posiciones_pines': dict, 'zoom_caracteres': dict}
+
+@app.route('/api/admin/config/copia', methods=['GET'])
+@admin_required
+def descargar_copia_config():
+    from datetime import datetime
+    contenido = {}
+    for clave in CLAVES_COPIA_CONFIG:
+        c = Configuracion.query.filter_by(clave=clave).first()
+        if c and c.valor:
+            try:
+                contenido[clave] = json.loads(c.valor)
+            except Exception:
+                pass
+    return jsonify({'tipo': 'copia_configuracion_clave_linepithema', 'version': 1,
+                    'fecha': datetime.utcnow().isoformat() + 'Z', 'configuracion': contenido})
+
+@app.route('/api/admin/config/restaurar', methods=['POST'])
+@admin_required
+def restaurar_copia_config():
+    d = request.get_json(silent=True) or {}
+    if d.get('tipo') != 'copia_configuracion_clave_linepithema' or not isinstance(d.get('configuracion'), dict):
+        return jsonify({'error': 'El archivo no es una copia de configuración de esta plataforma'}), 400
+    cfg, nuevos = d['configuracion'], {}
+    # Primero se valida TODO; solo si todo es correcto se guarda (no queda una restauración a medias)
+    for clave, tipo in CLAVES_COPIA_CONFIG.items():
+        if clave not in cfg:
+            continue
+        if not isinstance(cfg[clave], tipo):
+            return jsonify({'error': f'El bloque "{clave}" del archivo tiene un formato inválido'}), 400
+        if clave == 'especies_activas':
+            validos = {e['id'] for e in POOL_ESPECIES}
+            ids = [i for i in cfg[clave] if i in validos]
+            if len(ids) < 2:
+                return jsonify({'error': 'La copia trae menos de 2 especies activas válidas'}), 400
+            nuevos[clave] = ids
+        else:
+            nuevos[clave] = cfg[clave]
+    if not nuevos:
+        return jsonify({'error': 'La copia no contiene configuración para restaurar'}), 400
+    try:
+        for clave, valor in nuevos.items():
+            c = Configuracion.query.filter_by(clave=clave).first()
+            if c:
+                c.valor = json.dumps(valor)
+            else:
+                db.session.add(Configuracion(clave=clave, valor=json.dumps(valor)))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+    return jsonify({'ok': True, 'restauradas': sorted(nuevos)})
+
+# ===== COPIA COMPLETA DE LA BASE (para cambiar de proveedor sin perder participantes ni resultados) =====
+# Exporta las 7 tablas con sus identificadores y las restaura en una base NUEVA y VACÍA (Neon, otra base de Render, etc.).
+# Conserva las cuentas con su contraseña, las sesiones, los resultados, los pasos, las reflexiones, las encuestas y la configuración,
+# así que ningún estudiante puede repetir el ejercicio ni pierde su certificado. El archivo contiene nombres, correos y contraseñas
+# cifradas: debe guardarse como datos de investigación (acceso restringido).
+ORDEN_COPIA_COMPLETA = [('usuarios', Usuario), ('sesiones', SesionExperimental), ('resultados', ResultadoIdentificacion),
+                        ('encuestas', ResultadoEncuesta), ('reflexiones', ReflexionMetacognitiva), ('pasos_clave', PasoClave),
+                        ('configuracion', Configuracion)]
+TABLAS_CON_SESION = ('resultados', 'encuestas', 'reflexiones', 'pasos_clave')
+
+def _a_json(valor):
+    from datetime import datetime
+    return valor.isoformat() if isinstance(valor, datetime) else valor
+
+@app.route('/api/admin/migracion/exportar', methods=['GET'])
+@admin_required
+def exportar_copia_completa():
+    from datetime import datetime
+    tablas = {}
+    for nombre, modelo in ORDEN_COPIA_COMPLETA:
+        columnas = [c.name for c in modelo.__table__.columns]
+        tablas[nombre] = [{c: _a_json(getattr(fila, c)) for c in columnas} for fila in modelo.query.order_by(modelo.id).all()]
+    return jsonify({'tipo': 'copia_completa_clave_linepithema', 'version': 1, 'fecha': datetime.utcnow().isoformat() + 'Z',
+                    'conteos': {n: len(f) for n, f in tablas.items()}, 'tablas': tablas})
+
+@app.route('/api/admin/migracion/importar', methods=['POST'])
+@admin_required
+def importar_copia_completa():
+    from datetime import datetime
+    d = request.get_json(silent=True) or {}
+    if d.get('tipo') != 'copia_completa_clave_linepithema' or not isinstance(d.get('tablas'), dict):
+        return jsonify({'error': 'El archivo no es una copia completa de esta plataforma'}), 400
+    tablas = d['tablas']
+    # 1) La base de destino debe estar VACÍA de participantes y resultados (si no, se duplicarían o se mezclarían)
+    ocupadas = [n for n, m in ORDEN_COPIA_COMPLETA if n != 'configuracion' and m.query.first() is not None]
+    if ocupadas:
+        return jsonify({'error': 'La base de destino ya tiene datos (' + ', '.join(ocupadas) + '). La restauración completa solo se hace en una base nueva y vacía, ANTES de crear cuentas.'}), 409
+    # 2) Se valida y se convierte todo antes de escribir nada
+    filas_por_tabla = {}
+    for nombre, modelo in ORDEN_COPIA_COMPLETA:
+        filas = tablas.get(nombre, [])
+        if not isinstance(filas, list):
+            return jsonify({'error': f'La tabla "{nombre}" del archivo tiene un formato inválido'}), 400
+        columnas = {c.name: c for c in modelo.__table__.columns}
+        convertidas, ids = [], set()
+        for i, fila in enumerate(filas):
+            if not isinstance(fila, dict) or not set(fila) <= set(columnas):
+                return jsonify({'error': f'Fila {i + 1} de "{nombre}": columnas desconocidas o formato inválido'}), 400
+            nueva = {}
+            for col, valor in fila.items():
+                tipo = str(columnas[col].type).upper()
+                if valor is not None and tipo.startswith('DATETIME') or (valor is not None and 'TIMESTAMP' in tipo):
+                    try:
+                        valor = datetime.fromisoformat(str(valor).replace('Z', ''))
+                    except ValueError:
+                        return jsonify({'error': f'Fila {i + 1} de "{nombre}": fecha inválida en "{col}"'}), 400
+                nueva[col] = valor
+            if nombre != 'configuracion':
+                if nueva.get('id') in ids or nueva.get('id') is None:
+                    return jsonify({'error': f'Fila {i + 1} de "{nombre}": identificador repetido o ausente'}), 400
+                ids.add(nueva['id'])
+            convertidas.append(nueva)
+        filas_por_tabla[nombre] = convertidas
+    ids_usuarios = {f['id'] for f in filas_por_tabla['usuarios']}
+    ids_sesiones = {f['id'] for f in filas_por_tabla['sesiones']}
+    if any(f.get('usuario_id') not in ids_usuarios for f in filas_por_tabla['sesiones']):
+        return jsonify({'error': 'Hay sesiones que apuntan a un usuario que no está en la copia'}), 400
+    for t in TABLAS_CON_SESION:
+        if any(f.get('sesion_id') not in ids_sesiones for f in filas_por_tabla[t]):
+            return jsonify({'error': f'Hay filas de "{t}" que apuntan a una sesión que no está en la copia'}), 400
+    # 3) Escritura en una sola transacción: o entra todo o no entra nada
+    try:
+        for nombre, modelo in ORDEN_COPIA_COMPLETA:
+            if nombre == 'configuracion':
+                for fila in filas_por_tabla[nombre]:
+                    existente = Configuracion.query.filter_by(clave=fila.get('clave')).first()
+                    if existente:
+                        existente.valor = fila.get('valor')
+                    else:
+                        fila = {k: v for k, v in fila.items() if k != 'id'}
+                        db.session.add(Configuracion(**fila))
+            elif filas_por_tabla[nombre]:
+                db.session.bulk_insert_mappings(modelo, filas_por_tabla[nombre])
+        db.session.flush()
+        # En PostgreSQL, los contadores automáticos de identificadores deben continuar DESPUÉS del último importado;
+        # si no, la siguiente cuenta o resultado nuevo chocaría con uno restaurado.
+        if db.engine.dialect.name == 'postgresql':
+            for nombre, modelo in ORDEN_COPIA_COMPLETA:
+                tabla = modelo.__table__.name
+                db.session.execute(db.text(f"SELECT setval(pg_get_serial_sequence('{tabla}', 'id'), COALESCE((SELECT MAX(id) FROM {tabla}), 1), (SELECT MAX(id) FROM {tabla}) IS NOT NULL)"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'No se pudo restaurar (no se guardó nada): ' + str(e).splitlines()[0][:200]}), 500
+    return jsonify({'ok': True, 'restaurado': {n: len(f) for n, f in filas_por_tabla.items()}})
+
 @app.route('/api/admin/datos', methods=['GET'])
 @admin_required
 def ver_datos():
@@ -772,6 +1076,8 @@ def ver_datos():
                 'tiempo': r.tiempo_segundos,
                 'tiempo_reflexion': r.tiempo_reflexion_segundos,
                 'primera_pregunta_desvio': r.primera_pregunta_desvio,
+                'ayuda_encuadre_usos': r.ayuda_encuadre_usos or 0,
+                'ayuda_encuadre_detalle': r.ayuda_encuadre_detalle,
                 'orden': r.orden
             })
     return jsonify(resultados)
@@ -966,6 +1272,31 @@ def habilitar_reintento(usuario_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/reparar_esquema', methods=['GET', 'POST'])
+@admin_required
+def reparar_esquema():
+    """Diagnóstico y reparación: completa las columnas que falten y muestra a qué base está conectada la app."""
+    try:
+        from sqlalchemy import inspect
+        agregadas, errores = asegurar_esquema()
+        insp = inspect(db.engine)
+        url = db.engine.url
+        faltan = {}
+        for tabla, columnas in COLUMNAS_NUEVAS.items():
+            existentes = {c['name'] for c in insp.get_columns(tabla)} if insp.has_table(tabla) else set()
+            faltan[tabla] = [n for n, _ in columnas if n not in existentes] if insp.has_table(tabla) else ['(la tabla no existe)']
+        return jsonify({
+            'ok': not errores and not any(faltan.values()),
+            'base_de_datos': {'tipo': db.engine.dialect.name, 'servidor': url.host, 'nombre': url.database, 'usuario': url.username, 'conexion': MODO_POOL},
+            'columnas_agregadas_ahora': agregadas,
+            'errores': errores,
+            'columnas_que_aun_faltan': faltan,
+            'tablas': sorted(insp.get_table_names())
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
 @app.route('/api/admin/exportar_csv', methods=['GET'])
 @admin_required
 def exportar_csv():
@@ -985,7 +1316,7 @@ def exportar_csv():
 
     columnas = [
         'participante', 'grupo', 'rol', 'institucion', 'sesion_id', 'especie', 'orden', 'acierto',
-        'tiempo_clave_s', 'tiempo_reflexion_s', 'primera_pregunta_desvio',
+        'tiempo_clave_s', 'tiempo_reflexion_s', 'primera_pregunta_desvio', 'ayuda_encuadre_usos', 'ayuda_encuadre_rasgos',
         'confianza', 'dificultad', 'esfuerzo',
         'seguridad_media_durante', 'n_cambios_estrategia', 'registros_duplicados',
         'semestre', 'experiencia_taxonomica', 'conocimiento_genero',
@@ -1046,7 +1377,7 @@ def exportar_csv():
             filas.append([
                 usuario.nombre_usuario, sesion_exp.grupo, usuario.rol, usuario.institucion or usuario.curso, sesion_exp.id,
                 r.especie_correcta, orden, 1 if r.es_correcta else 0,
-                r.tiempo_segundos, r.tiempo_reflexion_segundos, r.primera_pregunta_desvio,
+                r.tiempo_segundos, r.tiempo_reflexion_segundos, r.primera_pregunta_desvio, r.ayuda_encuadre_usos or 0, r.ayuda_encuadre_detalle or '',
                 numero(tp, r'Acierto autopercibido:\s*(\d+(?:\.\d+)?)'),
                 numero(tp, r'Dificultad:\s*(\d+(?:\.\d+)?)'),
                 numero(tp, r'Esfuerzo mental:\s*(\d+(?:\.\d+)?)'),
@@ -1184,6 +1515,8 @@ def guardar_resultado():
             tiempo_segundos=data['tiempo_segundos'],
             tiempo_reflexion_segundos=data.get('tiempo_reflexion_segundos'),
             primera_pregunta_desvio=data.get('primera_pregunta_desvio'),
+            ayuda_encuadre_usos=int(data.get('ayuda_encuadre_usos') or 0),
+            ayuda_encuadre_detalle=(str(data.get('ayuda_encuadre_detalle'))[:500] if data.get('ayuda_encuadre_detalle') else None),
             orden=data['orden']
         )
         db.session.add(resultado)
