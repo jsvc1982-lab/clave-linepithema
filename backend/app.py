@@ -576,6 +576,50 @@ def verificar_sesion():
         })
     return jsonify({'activa': False}), 401
 
+# ===== CUENTAS DE PRUEBAS: recorren solas los 4 grupos (2D -> 2D+M -> 3D -> 3D+M -> 2D...) =====
+# Solo afecta a rol 'pruebas'. Un intento está TERMINADO cuando se guardaron las dos encuestas (SUS y carga cognitiva); en ese momento la cuenta
+# pasa al grupo siguiente, para que el próximo intento use otra versión. Si el administrador cambió el grupo a mano durante el intento, no se toca.
+GRUPOS_EN_ORDEN = ['2D', '2D_META', '3D', '3D_META']
+
+def siguiente_grupo_pruebas(grupo):
+    return GRUPOS_EN_ORDEN[(GRUPOS_EN_ORDEN.index(grupo) + 1) % len(GRUPOS_EN_ORDEN)] if grupo in GRUPOS_EN_ORDEN else GRUPOS_EN_ORDEN[0]
+
+def sesion_completa(sesion):
+    tipos = {e.tipo for e in ResultadoEncuesta.query.filter_by(sesion_id=sesion.id).all()}
+    return 'SUS' in tipos and 'COGNITIVE_LOAD' in tipos
+
+def sesion_visible_pruebas(usuario):
+    """Intento más reciente que ya tiene al menos un resultado: es el que muestra el panel (los anteriores quedan como historial)."""
+    for s in sorted(usuario.sesiones, key=lambda x: x.id, reverse=True):
+        if s.resultados:
+            return s
+    return None
+
+def sesiones_visibles(usuario):
+    if usuario.rol == 'pruebas':
+        s = sesion_visible_pruebas(usuario)
+        return [s] if s else []
+    return usuario.sesiones
+
+def progreso_pruebas(usuario):
+    if usuario.rol != 'pruebas':
+        return None
+    hechos = []
+    for s in sorted(usuario.sesiones, key=lambda x: x.id):
+        if s.grupo and s.grupo not in hechos and sesion_completa(s):
+            hechos.append(s.grupo)
+    return {'completados': hechos, 'siguiente': usuario.grupo_asignado, 'orden': GRUPOS_EN_ORDEN}
+
+def avanzar_grupo_pruebas(usuario_id, sesion_id):
+    usuario, sesion = db.session.get(Usuario, usuario_id), db.session.get(SesionExperimental, sesion_id)
+    if not usuario or not sesion or usuario.rol != 'pruebas' or sesion.usuario_id != usuario.id:
+        return None
+    if not sesion_completa(sesion) or usuario.grupo_asignado != sesion.grupo:
+        return None
+    usuario.grupo_asignado = siguiente_grupo_pruebas(sesion.grupo)
+    db.session.commit()
+    return usuario.grupo_asignado
+
 @app.route('/api/usuario/me', methods=['GET'])
 def get_usuario_me():
     """Devuelve los datos del usuario con sesión activa."""
@@ -598,6 +642,7 @@ def get_usuario_me():
         'puntaje_rotacion_mental': usuario.puntaje_rotacion_mental, 'rotacion_items': rotacion_items_dict(usuario),
         'rol': usuario.rol,
         'institucion': usuario.institucion,
+        'pruebas': progreso_pruebas(usuario),
     })
 
 @app.route('/api/usuario/me/resultados', methods=['GET'])
@@ -609,10 +654,11 @@ def get_resultados_me():
     if not usuario:
         return jsonify({'error': 'Usuario no encontrado'}), 404
     resultados = []
-    for sesion_exp in usuario.sesiones:
+    for sesion_exp in sesiones_visibles(usuario):
         for r in sesion_exp.resultados:
             resultados.append({
                 'sesion_id': sesion_exp.id,
+                'grupo': sesion_exp.grupo,
                 'especimen': r.especie_id,
                 'correcta': r.especie_correcta,
                 'seleccionada': r.especie_seleccionada,
@@ -635,6 +681,9 @@ def encuestas_completadas_me():
         sesion_exp = SesionExperimental.query.filter_by(
             usuario_id=session['usuario_id']
         ).order_by(SesionExperimental.id.desc()).first()
+        _u = db.session.get(Usuario, session['usuario_id'])
+        if _u and _u.rol == 'pruebas':
+            sesion_exp = sesion_visible_pruebas(_u) or sesion_exp
 
         if not sesion_exp:
             return jsonify({
@@ -669,7 +718,7 @@ def get_pasos_me():
     if not usuario:
         return jsonify({'error': 'Usuario no encontrado'}), 404
     pasos = []
-    for sesion_exp in usuario.sesiones:
+    for sesion_exp in sesiones_visibles(usuario):
         for p in sesion_exp.pasos:
             pasos.append({
                 'sesion_id': sesion_exp.id,
@@ -1709,7 +1758,12 @@ def guardar_encuesta():
         )
         db.session.add(encuesta)
         db.session.commit()
-        return jsonify({'mensaje': 'Encuesta guardada', 'puntaje': puntaje_total})
+        respuesta = {'mensaje': 'Encuesta guardada', 'puntaje': puntaje_total}
+        if tipo == 'COGNITIVE_LOAD':
+            siguiente = avanzar_grupo_pruebas(session['usuario_id'], data['sesion_id'])
+            if siguiente:
+                respuesta['siguiente_grupo'] = siguiente       # solo cuentas de pruebas
+        return jsonify(respuesta)
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
