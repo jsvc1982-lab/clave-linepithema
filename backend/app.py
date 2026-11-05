@@ -874,23 +874,32 @@ def get_usuarios():
     } for u in usuarios])
 
 # ===== PANTALLA DE GRACIAS: imágenes propias opcionales =====
-# Se suben al repositorio en frontend/static/imagenes/gracias/ (en Render los archivos subidos en ejecución se pierden al redesplegar,
-# por eso van en GitHub). Por el NOMBRE del archivo se sabe dónde se usa: principal* (reemplaza al 🎉 grande), fila* (reemplaza a 🙏🐜💙) y
-# confeti* (reemplaza al confeti de emojis). Si no hay imágenes, se usan los emojis.
+# Se suben al repositorio (en Render los archivos subidos en ejecución se pierden al redesplegar, por eso van en GitHub).
+# Se revisan DOS carpetas: frontend/static/gracias/ y frontend/static/imagenes/gracias/ (si un nombre está en las dos, vale la primera).
+# Por el NOMBRE del archivo se sabe dónde se usa: principal* (reemplaza al 🎉 grande), fila* (reemplaza a 🙏🐜💙) y confeti* (reemplaza al
+# confeti de emojis). Si no hay imágenes, se usan los emojis.
 EXT_IMAGENES_GRACIAS = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg')
+CARPETAS_GRACIAS = ('gracias', 'imagenes/gracias')
 
 @app.route('/api/config/gracias_imagenes', methods=['GET'])
 def gracias_imagenes():
     salida = {'principal': None, 'fila': [], 'confeti': []}
-    try:
-        nombres = sorted(os.listdir(os.path.join(app.static_folder, 'imagenes', 'gracias')), key=lambda n: n.lower())   # orden predecible, sin distinguir mayúsculas
-    except OSError:
-        return jsonify(salida)
-    for nombre in nombres:
+    archivos, vistos = [], set()
+    for carpeta in CARPETAS_GRACIAS:
+        ruta = os.path.join(app.static_folder, *carpeta.split('/'))
+        try:
+            nombres = os.listdir(ruta)
+        except OSError:
+            continue
+        for nombre in nombres:
+            if nombre.lower() in vistos or not os.path.isfile(os.path.join(ruta, nombre)):
+                continue
+            vistos.add(nombre.lower()); archivos.append((nombre, carpeta))
+    for nombre, carpeta in sorted(archivos, key=lambda x: x[0].lower()):        # orden predecible, sin distinguir mayúsculas
         base, ext = os.path.splitext(nombre)
         if ext.lower() not in EXT_IMAGENES_GRACIAS or not re.match(r'^[\w\- ]+$', base):
             continue
-        url = url_for('static', filename='imagenes/gracias/' + nombre)
+        url = url_for('static', filename=carpeta + '/' + nombre)
         bajo = base.lower()
         if bajo.startswith('principal') and salida['principal'] is None: salida['principal'] = url
         elif bajo.startswith('fila') and len(salida['fila']) < 6: salida['fila'].append(url)
