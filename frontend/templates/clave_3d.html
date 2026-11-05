@@ -1632,23 +1632,37 @@ function descargarImagenReferencia() {
         }
 
         // ===== Pantalla de gracias: aparece apenas el participante termina las encuestas y el comentario final =====
+        // Imágenes propias opcionales: se suben a frontend/static/imagenes/gracias/ con nombres principal*, fila* y confeti*.
+        // Si no hay imágenes (o fallan), se usan los emojis.
+        let graciasImagenes = { principal: null, fila: [], confeti: [] };
+        fetch('/api/config/gracias_imagenes').then(r => r.ok ? r.json() : null).then(d => {
+            if (d) graciasImagenes = { principal: d.principal || null, fila: d.fila || [], confeti: d.confeti || [] };
+        }).catch(() => {});
         function mostrarGraciasFinal() {
             ejercicioEnCurso = false;                         // ya no hace falta el aviso de "no cierres la ventana"
             const previa = document.getElementById('graciasFinal'); if (previa) previa.remove();
+            const gi = graciasImagenes;
             const ov = document.createElement('div');
             ov.id = 'graciasFinal';
             ov.style.cssText = 'position:fixed;inset:0;z-index:20000;background:radial-gradient(circle at 50% 28%, #13324d 0%, #0A0E17 72%);display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;';
-            const figuras = ['🎉', '✨', '🐜', '🌟', '🎊', '🙏'];
+            const figuras = ['🎉', '✨', '🐜', '🌟', '🎊', '🙏'], piezas = gi.confeti.length ? gi.confeti : figuras;
             let confeti = '';
             for (let i = 0; i < 20; i++) {
-                confeti += `<span class="gracias-confeti" style="left:${Math.round(Math.random() * 96)}%;font-size:${Math.round(16 + Math.random() * 20)}px;animation-duration:${(6 + Math.random() * 6).toFixed(1)}s;animation-delay:${(-Math.random() * 10).toFixed(1)}s;">${figuras[i % figuras.length]}</span>`;
+                const estilo = `left:${Math.round(Math.random() * 96)}%;animation-duration:${(6 + Math.random() * 6).toFixed(1)}s;animation-delay:${(-Math.random() * 10).toFixed(1)}s;`;
+                confeti += gi.confeti.length
+                    ? `<img class="gracias-confeti" src="${piezas[i % piezas.length]}" alt="" onerror="this.remove()" style="${estilo}width:${Math.round(28 + Math.random() * 24)}px;height:auto;">`
+                    : `<span class="gracias-confeti" style="${estilo}font-size:${Math.round(16 + Math.random() * 20)}px;">${piezas[i % piezas.length]}</span>`;
             }
+            const principal = gi.principal ? `<img src="${gi.principal}" alt="" onerror="this.outerHTML='🎉'" style="height:120px;max-width:70%;object-fit:contain;">` : '🎉';
+            const fila = gi.fila.length
+                ? `<div style="display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:12px;margin:8px 0 16px;">${gi.fila.map(u => `<img src="${u}" alt="" onerror="this.remove()" style="height:64px;max-width:96px;object-fit:contain;">`).join('')}</div>`
+                : '<div style="font-size:2.4rem;margin:6px 0 14px;">🙏🐜💙</div>';
             ov.innerHTML = `${confeti}
                 <div class="gracias-caja" style="position:relative;max-width:540px;width:100%;text-align:center;background:rgba(18,24,38,0.92);border:2px solid #00D4FF60;border-radius:24px;padding:34px 26px;box-shadow:0 16px 50px rgba(0,0,0,0.6);">
-                    <div class="gracias-emoji" style="font-size:5.2rem;line-height:1.1;">🎉</div>
+                    <div class="gracias-emoji" style="font-size:5.2rem;line-height:1.1;">${principal}</div>
                     <h1 style="color:#00D4FF;margin:12px 0 8px;font-size:2rem;">¡Muchas gracias!</h1>
                     <p style="color:#E0E0E0;line-height:1.6;margin-bottom:10px;">Terminaste el estudio. Tus respuestas quedaron guardadas y ayudarán a entender cómo aprendemos a identificar hormigas del género <em>Linepithema</em>.</p>
-                    <div style="font-size:2.4rem;margin:6px 0 14px;">🙏🐜💙</div>
+                    ${fila}
                     <button id="graciasBtnPanel" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(45deg,#00D4FF,#7B61FF);color:#fff;font-weight:700;font-size:1.05rem;cursor:pointer;">Ver mi panel y mi certificado →</button>
                     <p style="color:#A0A0B0;font-size:0.82rem;margin-top:12px;">Si prefieres, ya puedes cerrar esta ventana.</p>
                 </div>`;
