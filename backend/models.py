@@ -16,6 +16,7 @@ class Usuario(db.Model):
     familiaridad_3d = db.Column(db.Integer, default=3)
     conocimiento_genero = db.Column(db.Integer, default=1)  # conocimiento previo específico de Linepithema (1-5)
     puntaje_rotacion_mental = db.Column(db.Integer)          # puntaje 0-12 de la prueba objetiva de rotación mental
+    rotacion_items = db.Column(db.Text)   # JSON con las respuestas ítem por ítem de la prueba de rotación mental
     grupo_asignado = db.Column(db.String(20))  # '2D', '2D_META', '3D', '3D_META'
     institucion = db.Column(db.String(80))   # dominio del correo institucional (ej. pedagogica.edu.co)
     rol = db.Column(db.String(20), default='estudiante')  # 'estudiante', 'docente', 'validador' o 'pruebas'

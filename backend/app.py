@@ -172,7 +172,7 @@ app.wsgi_app = ReintentarApiGetBD(app.wsgi_app)
 # db.create_all() solo crea tablas que NO existen; no agrega columnas a las que ya existen. Por eso, si la base se
 # creó (o se restauró de un respaldo) con una versión vieja, esta función completa las columnas que falten.
 COLUMNAS_NUEVAS = {
-    'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)')],
+    'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)'), ('rotacion_items', 'TEXT')],
     'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER'),
                    ('ayuda_encuadre_usos', 'INTEGER DEFAULT 0'), ('ayuda_encuadre_detalle', 'TEXT')],
     'reflexiones': [('orden_especimen', 'INTEGER')],
@@ -525,7 +525,8 @@ def registro():
             habilidad_espacial=datos.get('habilidad_espacial', 12),
             familiaridad_3d=datos.get('familiaridad_3d', 3),
             conocimiento_genero=datos.get('conocimiento_genero', 1),
-            puntaje_rotacion_mental=datos.get('puntaje_rotacion_mental')
+            puntaje_rotacion_mental=datos.get('puntaje_rotacion_mental'),
+            rotacion_items=limpiar_rotacion_items(datos.get('rotacion_items'))
         )
         db.session.add(nuevo_usuario)
         db.session.commit()
@@ -594,7 +595,7 @@ def get_usuario_me():
         'habilidad_espacial': usuario.habilidad_espacial,
         'familiaridad_3d': usuario.familiaridad_3d,
         'conocimiento_genero': usuario.conocimiento_genero,
-        'puntaje_rotacion_mental': usuario.puntaje_rotacion_mental,
+        'puntaje_rotacion_mental': usuario.puntaje_rotacion_mental, 'rotacion_items': rotacion_items_dict(usuario),
         'rol': usuario.rol,
         'institucion': usuario.institucion,
     })
@@ -705,7 +706,7 @@ def get_usuario_by_nombre(nombre_usuario):
         'habilidad_espacial': usuario.habilidad_espacial,
         'familiaridad_3d': usuario.familiaridad_3d,
         'conocimiento_genero': usuario.conocimiento_genero,
-        'puntaje_rotacion_mental': usuario.puntaje_rotacion_mental,
+        'puntaje_rotacion_mental': usuario.puntaje_rotacion_mental, 'rotacion_items': rotacion_items_dict(usuario),
         'rol': usuario.rol,
         'institucion': usuario.institucion,
     })
@@ -814,7 +815,7 @@ def get_usuarios():
         'habilidad_espacial': u.habilidad_espacial,
         'familiaridad_3d': u.familiaridad_3d,
         'conocimiento_genero': u.conocimiento_genero,
-        'puntaje_rotacion_mental': u.puntaje_rotacion_mental,
+        'puntaje_rotacion_mental': u.puntaje_rotacion_mental, 'rotacion_items': rotacion_items_dict(u),
         'rol': u.rol,
         'institucion': u.institucion,
         'grupo_asignado': u.grupo_asignado,
@@ -905,6 +906,44 @@ def set_zoom_caracteres_admin():
         return jsonify({'mensaje': 'Encuadres de caracteres guardados'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ===== PRUEBA DE ROTACIÓN MENTAL: respuestas ítem por ítem =====
+# Se guardan para poder estimar la fiabilidad (KR-20), la dificultad y la discriminación de cada ítem con los datos reales.
+def limpiar_rotacion_items(obj):
+    """Valida y normaliza el detalle que envía el registro. Devuelve el texto JSON a guardar, o None si no es válido (el registro no se rechaza)."""
+    try:
+        if not isinstance(obj, dict) or not isinstance(obj.get('items'), list) or not (1 <= len(obj['items']) <= 12):
+            return None
+        items = []
+        for it in obj['items']:
+            sel, cor = str(it.get('sel', '')), str(it.get('cor', ''))
+            if not set(sel) <= set('ABCD') or not set(cor) <= set('ABCD') or len(sel) > 2 or len(cor) != 2:
+                return None
+            ok = 1 if (len(sel) == 2 and set(sel) <= set(cor)) else 0      # se recalcula aquí: 1 punto solo si marca exactamente las dos correctas
+            items.append({'i': int(it['i']), 's': int(it.get('s', 0)), 'sel': sel, 'cor': cor, 'ok': ok,
+                          'visto': bool(it.get('visto', False)), 't': round(min(max(float(it.get('t', 0)), 0), 600), 1)})
+        limpio = {'v': 1, 'items': items, 'total_s': round(min(max(float(obj.get('total_s', 0)), 0), 600), 1),
+                  'por_tiempo': bool(obj.get('por_tiempo', False)), 'alcanzados': sum(1 for x in items if x['visto'])}
+        return json.dumps(limpio, ensure_ascii=False)
+    except Exception:
+        return None
+
+def rotacion_items_dict(usuario):
+    try:
+        return json.loads(usuario.rotacion_items) if usuario.rotacion_items else None
+    except Exception:
+        return None
+
+ROT_COLUMNAS = [f'rot_i{n}' for n in range(1, 13)] + [f'rot_t{n}' for n in range(1, 13)] + ['rot_alcanzados', 'rot_total_s', 'rot_por_tiempo']
+
+def columnas_rotacion(usuario):
+    d = rotacion_items_dict(usuario)
+    if not d:
+        return [''] * len(ROT_COLUMNAS)
+    por_i = {x['i']: x for x in d['items']}
+    acierto = [(por_i[n]['ok'] if n in por_i and por_i[n]['visto'] else '') for n in range(1, 13)]
+    tiempos = [(por_i[n]['t'] if n in por_i and por_i[n]['visto'] else '') for n in range(1, 13)]
+    return acierto + tiempos + [d.get('alcanzados', ''), d.get('total_s', ''), 1 if d.get('por_tiempo') else 0]
 
 # ===== COPIA DE SEGURIDAD DE LA CONFIGURACIÓN (especies activas, pines y encuadres de zoom) =====
 # Las bases gratuitas de Render vencen a los 30 días y no tienen respaldos. Estos dos endpoints permiten descargar la
@@ -1297,6 +1336,46 @@ def reparar_esquema():
         db.session.rollback()
         return jsonify({'ok': False, 'error': str(e)}), 500
 
+@app.route('/api/admin/rotacion/psicometria', methods=['GET'])
+@admin_required
+def psicometria_rotacion():
+    """Fiabilidad (KR-20), dificultad y discriminación de la prueba de rotación mental con los datos reales.
+    Por defecto solo estudiantes; con ?todos=1 se incluyen todos los roles. Los ítems no alcanzados cuentan como incorrectos."""
+    import math
+    consulta = Usuario.query if request.args.get('todos') == '1' else Usuario.query.filter_by(rol='estudiante')
+    filas, no_alcanzo, por_tiempo, total_s = [], 0, 0, []
+    for u in consulta.all():
+        d = rotacion_items_dict(u)
+        if not d: continue
+        por_i = {x['i']: x for x in d['items']}
+        filas.append([por_i[n]['ok'] if n in por_i else 0 for n in range(1, 13)])
+        no_alcanzo += 1 if d.get('alcanzados', 12) < 12 else 0
+        por_tiempo += 1 if d.get('por_tiempo') else 0
+        total_s.append(d.get('total_s', 0))
+    n, k = len(filas), 12
+    if n < 3:
+        return jsonify({'n': n, 'aviso': 'Todavía hay muy pocos participantes con el detalle de la prueba (se necesitan al menos 3; para una estimación estable, 30 o más).'})
+    totales = [sum(f) for f in filas]
+    media = sum(totales) / n
+    var = lambda xs: (sum((x - sum(xs) / len(xs)) ** 2 for x in xs) / (len(xs) - 1)) if len(xs) > 1 else 0.0
+    var_total = var(totales)
+    items = []
+    suma_var_items = 0.0
+    for j in range(k):
+        col = [f[j] for f in filas]; p = sum(col) / n; suma_var_items += var(col)
+        resto = [t - c for t, c in zip(totales, col)]                 # puntaje sin este ítem (discriminación corregida)
+        sx, sy = var(col), var(resto)
+        cov = sum((c - p) * (r - sum(resto) / n) for c, r in zip(col, resto)) / (n - 1)
+        rpb = cov / math.sqrt(sx * sy) if sx > 0 and sy > 0 else None
+        items.append({'item': j + 1, 'dificultad_p': round(p, 3), 'discriminacion_rpb': None if rpb is None else round(rpb, 3)})
+    alfa = (k / (k - 1)) * (1 - suma_var_items / var_total) if var_total > 0 else None
+    aviso = None
+    if n < 30: aviso = f'Con {n} participantes la estimación es inestable: úsala solo como orientación hasta tener al menos 30.'
+    return jsonify({'n': n, 'k': k, 'media': round(media, 2), 'desviacion': round(math.sqrt(var_total), 2),
+                    'kr20': None if alfa is None else round(alfa, 3), 'items': items,
+                    'pct_no_alcanzo_12_items': round(100 * no_alcanzo / n, 1), 'pct_termino_por_tiempo': round(100 * por_tiempo / n, 1),
+                    'tiempo_medio_s': round(sum(total_s) / n, 1), 'aviso': aviso})
+
 @app.route('/api/admin/exportar_csv', methods=['GET'])
 @admin_required
 def exportar_csv():
@@ -1320,7 +1399,7 @@ def exportar_csv():
         'confianza', 'dificultad', 'esfuerzo',
         'seguridad_media_durante', 'n_cambios_estrategia', 'registros_duplicados',
         'semestre', 'experiencia_taxonomica', 'conocimiento_genero',
-        'habilidad_espacial_autoinforme', 'familiaridad_3d', 'puntaje_rotacion_mental',
+        'habilidad_espacial_autoinforme', 'familiaridad_3d', 'puntaje_rotacion_mental', *ROT_COLUMNAS,
         'sus', 'carga_intrinseca', 'carga_extrinseca', 'carga_germana'
     ]
     output = StringIO()
@@ -1385,7 +1464,7 @@ def exportar_csv():
                 cambios if durante.get(orden) else None,
                 len(lista) - 1,
                 usuario.semestre, usuario.experiencia_taxonomica, usuario.conocimiento_genero,
-                usuario.habilidad_espacial, usuario.familiaridad_3d, usuario.puntaje_rotacion_mental,
+                usuario.habilidad_espacial, usuario.familiaridad_3d, usuario.puntaje_rotacion_mental, *columnas_rotacion(usuario),
                 sus, ci, ce, cg
             ])
 
