@@ -210,6 +210,7 @@
         <div class="card-title">🎯 Tu grupo asignado</div>
         <p id="grupoAsignado" style="font-size:1.15rem; font-weight:bold; color:#7B61FF;">Cargando...</p>
         <p id="mensajeGrupo" style="color:#A0A0B0; margin-top:10px; font-size:0.9rem;"></p>
+<p id="pruebasProgreso" style="display:none; margin-top:10px; font-size:0.9rem; color:#E0E0E0;"></p>
         <div id="alertaEncuestas" class="alerta-encuestas" style="display:none;">
             ⚠️ Tienes encuestas pendientes por completar. Haz clic en "Completar encuestas" para finalizar.
         </div>
@@ -273,7 +274,8 @@
             nombreUsuario = sesion.usuario;
             document.getElementById('userName').textContent = nombreUsuario;
 
-            await Promise.all([cargarDatosUsuario(), cargarResultados()]);
+            await cargarDatosUsuario();      // primero los datos del usuario (se necesita saber si es una cuenta de pruebas)
+        await cargarResultados();
         } catch (e) {
             window.location.href = '/login';
         }
@@ -300,7 +302,17 @@
                     '3D_META':'Usarás modelos 3D con reflexiones metacognitivas.'
                 };
                 grupoEl.textContent   = datosUsuario.grupo_asignado;
-                mensajeEl.textContent = descripciones[datosUsuario.grupo_asignado] || '';
+mensajeEl.textContent = descripciones[datosUsuario.grupo_asignado] || '';
+if (datosUsuario.rol === 'pruebas' && datosUsuario.pruebas) {
+    // Cuenta de pruebas: avanza sola por los 4 grupos; aquí se ve cuál sigue y cuáles ya probó
+    const etiquetas = { '2D': '2D', '2D_META': '2D+M', '3D': '3D', '3D_META': '3D+M' }, hechos = datosUsuario.pruebas.completados || [];
+    grupoEl.textContent = datosUsuario.grupo_asignado + '  ·  tu próximo intento';
+    document.getElementById('btnEncuestas').style.display = 'none';      // en pruebas no se «retoman» encuestas: se oculta desde el primer instante
+    mensajeEl.textContent = '🧪 Cuenta de pruebas. ' + (descripciones[datosUsuario.grupo_asignado] || '');
+    const prog = document.getElementById('pruebasProgreso');
+    prog.style.display = 'block';
+    prog.innerHTML = 'Grupos ya probados: ' + datosUsuario.pruebas.orden.map(g => hechos.includes(g) ? `<strong style="color:#30D158;">✓ ${etiquetas[g]}</strong>` : `<span style="color:#A0A0B0;">○ ${etiquetas[g]}</span>`).join(' &nbsp;·&nbsp; ');
+}
             }
         } catch (e) { console.error('Error cargando datos de usuario:', e); }
     }
@@ -350,10 +362,13 @@
             }
 
             // Gráfico
-            if (total > 0) actualizarGrafico(aciertos, total - aciertos, porcentaje);
+            if (total > 0) {
+    try { actualizarGrafico(aciertos, total - aciertos, porcentaje); }
+    catch (e) { console.warn('No se pudo dibujar el gráfico (¿no cargó Chart.js?):', e); }      // un fallo del gráfico no debe romper la tabla, las encuestas ni el certificado
+}
 
             // Botón iniciar
-            if (total >= 2) {
+            if (total >= 2 && !(datosUsuario && datosUsuario.rol === 'pruebas')) {      // las cuentas de pruebas siempre pueden empezar otro intento
                 const btn = document.getElementById('btnIniciar');
                 btn.disabled = true;
                 btn.title    = 'Ya completaste las dos identificaciones';
@@ -457,6 +472,7 @@
             const estadoEl = document.getElementById('encuestasEstado');
             const btnEnc   = document.getElementById('btnEncuestas');
             const btnCert  = document.getElementById('btnCertificado');
+if (datosUsuario?.rol === 'pruebas') { btnEnc.style.display = 'none'; }      // en pruebas no se «retoman» encuestas: cada intento es nuevo
 
             if (data.ambas_completadas) {
                 estadoEl.textContent = '✅ OK';
@@ -464,7 +480,7 @@
                 btnEnc.disabled = true;
                 btnEnc.style.opacity = '0.45';
                 if (total >= 2) btnCert.style.display = 'inline-block';
-            } else if (total >= 2) {
+            } else if (total >= 2 && datosUsuario?.rol !== 'pruebas') {
                 estadoEl.textContent = '⚠️ Pendiente';
                 estadoEl.style.color = '#FFAA00';
                 document.getElementById('alertaEncuestas').style.display = 'block';
@@ -477,7 +493,7 @@
     }
 
     function iniciarIdentificacion() {
-        if (resultados.length >= 2) {
+        if (resultados.length >= 2 && datosUsuario?.rol !== 'pruebas') {
             alert('✅ Ya completaste las dos identificaciones. ¡Gracias!');
             return;
         }
@@ -515,7 +531,7 @@
         const total     = resultados.length;
         const precision = total > 0 ? Math.round((aciertos / total) * 100) : 0;
         const tiempo    = resultados.reduce((s, r) => s + (r.tiempo || 0), 0);
-        const grupo     = datosUsuario?.grupo_asignado || '—';
+        const grupo     = (resultados[0] && resultados[0].grupo) || datosUsuario?.grupo_asignado || '—';
         const grupoTextos = {
             '2D':     '2D (Imágenes estáticas)',
             '2D_META':'2D con reflexiones metacognitivas',

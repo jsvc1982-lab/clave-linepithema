@@ -1682,6 +1682,7 @@ function descargarImagenReferencia() {
                     <div class="gracias-emoji" style="font-size:5.2rem;line-height:1.1;">${principal}</div>
                     <h1 style="color:#00D4FF;margin:12px 0 8px;font-size:2rem;">¡Muchas gracias!</h1>
                     <p style="color:#E0E0E0;line-height:1.6;margin-bottom:10px;">Terminaste el estudio. Tus respuestas quedaron guardadas y ayudarán a entender cómo aprendemos a identificar hormigas del género <em>Linepithema</em>.</p>
+                    ${siguienteGrupoPruebas ? `<p style="color:#FFB020;font-size:0.92rem;margin:0 0 14px;">🧪 Cuenta de pruebas: tu próximo intento será en el grupo <strong>${({ '2D': '2D', '2D_META': '2D con metacognición', '3D': '3D', '3D_META': '3D con metacognición' })[siguienteGrupoPruebas] || siguienteGrupoPruebas}</strong>.</p>` : ''}
                     ${fila}
                     <button id="graciasBtnPanel" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(45deg,#00D4FF,#7B61FF);color:#fff;font-weight:700;font-size:1.05rem;cursor:pointer;">Ver mi panel y mi certificado →</button>
                     <p style="color:#A0A0B0;font-size:0.82rem;margin-top:12px;">Si prefieres, ya puedes cerrar esta ventana.</p>
@@ -1690,9 +1691,10 @@ function descargarImagenReferencia() {
             document.getElementById('graciasBtnPanel').onclick = () => { window.location.href = '/dashboard?usuario=' + usuario; };
         }
 
+        let siguienteGrupoPruebas = null;          // solo cuentas de pruebas: el servidor avisa a qué grupo pasan al terminar el intento
         async function guardarEncuesta(tipo, respuestasArr, puntaje) {
             try {
-                await fetch('/api/experimento/guardar_encuesta', {
+                const resp = await fetch('/api/experimento/guardar_encuesta', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
@@ -1702,6 +1704,7 @@ function descargarImagenReferencia() {
                         puntaje_total: puntaje 
                     })
                 });
+                try { const d = await resp.json(); if (d && d.siguiente_grupo) siguienteGrupoPruebas = d.siguiente_grupo; } catch (e2) {}
             } catch(e) { 
                 console.error('Error guardando encuesta:', e); 
             }
@@ -1942,6 +1945,7 @@ function guardarProgresoLocal() {
     const progreso = {
         especiesCompletadas: especiesCompletadas,
         respuestas: respuestas,
+        sesion_id: sesionId,   // el progreso pertenece a ESTA sesión
         timestamp: Date.now()
     };
     localStorage.setItem(`progreso_${usuarioId}`, JSON.stringify(progreso));
@@ -1952,6 +1956,8 @@ function cargarProgresoLocal() {
     const guardado = localStorage.getItem(`progreso_${usuarioId}`);
     if (guardado) {
         const progreso = JSON.parse(guardado);
+        // Un progreso de OTRA sesión (un intento anterior de la misma cuenta) no se restaura: dejaba la pantalla en negro o saltaba especímenes sin resultado en el servidor
+        if (progreso.sesion_id !== sesionId) { localStorage.removeItem(`progreso_${usuarioId}`); return false; }
         if (Date.now() - progreso.timestamp < 24 * 60 * 60 * 1000) {
             especiesCompletadas = progreso.especiesCompletadas;
             respuestas = progreso.respuestas;
