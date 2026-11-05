@@ -537,6 +537,15 @@
     .zona-pin:hover, .zona-leyenda:hover { background:rgba(255,176,32,0.20); }
     .zona-pin.activa, .zona-leyenda.activa { box-shadow:0 0 0 3px #FFB020; background:rgba(255,176,32,0.18); }
     @keyframes aparecerBarra { from { opacity:0; transform:translate(-50%,12px); } to { opacity:1; transform:translate(-50%,0); } }
+    
+    /* ===== Pantalla de gracias al terminar el estudio ===== */
+    @keyframes graciasRebote { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-14px) scale(1.08); } }
+    @keyframes graciasCae { 0% { transform: translateY(-12vh) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(112vh) rotate(360deg); opacity: 0.9; } }
+    @keyframes graciasAparece { from { opacity: 0; transform: translateY(18px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .gracias-emoji { display: inline-block; animation: graciasRebote 1.7s ease-in-out infinite; }
+    .gracias-confeti { position: absolute; top: 0; animation: graciasCae linear infinite; pointer-events: none; user-select: none; }
+    .gracias-caja { animation: graciasAparece 0.6s ease both; }
+    @media (prefers-reduced-motion: reduce) { .gracias-emoji, .gracias-confeti, .gracias-caja { animation: none !important; } .gracias-confeti { display: none; } }
     </style>
 </head>
 
@@ -1428,7 +1437,7 @@ if (especimenes[index]) {
                     <button class="action-btn btn-submit" onclick="mostrarEncuestas()" style="padding:15px 30px;">📝 Continuar a las encuestas ahora</button>
                 </div>`;
             clearInterval(timerInterval);
-            setTimeout(() => { if (typeof mostrarEncuestas === 'function') mostrarEncuestas(); }, 4000);
+            temporizadorEncuestas = setTimeout(() => { if (typeof mostrarEncuestas === 'function') mostrarEncuestas(); }, 4000);
         }
 
         function anteriorPregunta() { 
@@ -1465,7 +1474,13 @@ function descargarImagenReferencia() {
         }
 
         // ===== ENCUESTAS (SUS + Carga Cognitiva) =====
+        // Las encuestas se abren UNA sola vez: si el participante ya pulsó «Continuar a las encuestas ahora», el temporizador automático
+        // de 4 s no debe volver a dibujarlas encima de lo que esté respondiendo (borraba sus respuestas).
+        let encuestasIniciadas = false, temporizadorEncuestas = null;
         function mostrarEncuestas() {
+            if (encuestasIniciadas) return;
+            encuestasIniciadas = true;
+            if (temporizadorEncuestas) { clearTimeout(temporizadorEncuestas); temporizadorEncuestas = null; }
             document.getElementById('questionContainer').innerHTML = `
                 <div style="text-align: center; margin-bottom: 20px;">
                     <div style="font-size: 2rem;">📝</div>
@@ -1633,11 +1648,32 @@ function descargarImagenReferencia() {
                     console.error('Error guardando comentario final:', e);
                 }
             }
-            mostrarFeedback('✅ ¡Gracias por completar el estudio!', '#00D4FF');
-            setTimeout(() => {
-                ejercicioEnCurso = false;
-                window.location.href = '/dashboard?usuario=' + usuario;
-            }, 1500);
+            mostrarGraciasFinal();
+        }
+
+        // ===== Pantalla de gracias: aparece apenas el participante termina las encuestas y el comentario final =====
+        function mostrarGraciasFinal() {
+            ejercicioEnCurso = false;                         // ya no hace falta el aviso de "no cierres la ventana"
+            const previa = document.getElementById('graciasFinal'); if (previa) previa.remove();
+            const ov = document.createElement('div');
+            ov.id = 'graciasFinal';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:20000;background:radial-gradient(circle at 50% 28%, #13324d 0%, #0A0E17 72%);display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;';
+            const figuras = ['🎉', '✨', '🐜', '🌟', '🎊', '🙏'];
+            let confeti = '';
+            for (let i = 0; i < 20; i++) {
+                confeti += `<span class="gracias-confeti" style="left:${Math.round(Math.random() * 96)}%;font-size:${Math.round(16 + Math.random() * 20)}px;animation-duration:${(6 + Math.random() * 6).toFixed(1)}s;animation-delay:${(-Math.random() * 10).toFixed(1)}s;">${figuras[i % figuras.length]}</span>`;
+            }
+            ov.innerHTML = `${confeti}
+                <div class="gracias-caja" style="position:relative;max-width:540px;width:100%;text-align:center;background:rgba(18,24,38,0.92);border:2px solid #00D4FF60;border-radius:24px;padding:34px 26px;box-shadow:0 16px 50px rgba(0,0,0,0.6);">
+                    <div class="gracias-emoji" style="font-size:5.2rem;line-height:1.1;">🎉</div>
+                    <h1 style="color:#00D4FF;margin:12px 0 8px;font-size:2rem;">¡Muchas gracias!</h1>
+                    <p style="color:#E0E0E0;line-height:1.6;margin-bottom:10px;">Terminaste el estudio. Tus respuestas quedaron guardadas y ayudarán a entender cómo aprendemos a identificar hormigas del género <em>Linepithema</em>.</p>
+                    <div style="font-size:2.4rem;margin:6px 0 14px;">🙏🐜💙</div>
+                    <button id="graciasBtnPanel" style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(45deg,#00D4FF,#7B61FF);color:#fff;font-weight:700;font-size:1.05rem;cursor:pointer;">Ver mi panel y mi certificado →</button>
+                    <p style="color:#A0A0B0;font-size:0.82rem;margin-top:12px;">Si prefieres, ya puedes cerrar esta ventana.</p>
+                </div>`;
+            document.body.appendChild(ov);
+            document.getElementById('graciasBtnPanel').onclick = () => { window.location.href = '/dashboard?usuario=' + usuario; };
         }
 
         async function guardarEncuesta(tipo, respuestasArr, puntaje) {

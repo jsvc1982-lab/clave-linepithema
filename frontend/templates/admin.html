@@ -90,13 +90,14 @@
         <button class="btn btn-secondary" onclick="exportarCSVServidor()">📥 CSV (servidor)</button>
         <button class="btn btn-secondary" onclick="exportarJSON()">📥 JSON</button>
         <button class="btn btn-secondary" onclick="window.location.href='/estadisticas'">📊 Estadísticas avanzadas</button>
-        <button class="btn btn-secondary" onclick="window.open('/prueba-niveles-ayuda', '_blank')">🧪 Probar niveles de ayuda</button>
+        <button class="btn btn-secondary" onclick="window.open('/prueba-niveles-ayuda', '_blank')">🧪 Probar la ayuda «¿Dónde mirar?»</button>
         <button class="btn btn-secondary" onclick="descargarCopiaConfig()" title="Descarga las especies activas, los pines y los encuadres de zoom">💾 Copia de configuración</button>
         <button class="btn btn-secondary" onclick="document.getElementById('archivoCopiaConfig').click()" title="Restaura la configuración desde un archivo descargado antes">♻️ Restaurar configuración</button>
         <input type="file" id="archivoCopiaConfig" accept=".json,application/json" style="display:none" onchange="restaurarCopiaConfig(this)">
         <button class="btn btn-primary" onclick="descargarCopiaCompleta()" title="Descarga TODO: cuentas, resultados, pasos, reflexiones, encuestas y configuración">🗄️ Copia COMPLETA de la base</button>
         <button class="btn btn-secondary" onclick="document.getElementById('archivoCopiaCompleta').click()" title="Solo en una base nueva y vacía (por ejemplo, tras pasar a Neon)">📥 Restaurar copia completa</button>
         <input type="file" id="archivoCopiaCompleta" accept=".json,application/json" style="display:none" onchange="restaurarCopiaCompleta(this)">
+        <button class="btn btn-secondary" onclick="mostrarPsicometriaRotacion(false)" title="Fiabilidad (KR-20), dificultad y discriminación de la prueba de rotación mental con los datos reales">🧩 Fiabilidad rotación mental</button>
         <button class="btn btn-danger"    onclick="cerrarSesionAdmin()" style="background:#FF375F20;border:1px solid #FF375F40;color:#FF375F;">🔓 Cerrar sesión</button>
     </div>
 
@@ -130,6 +131,41 @@
         d.style.background = c;
         document.body.appendChild(d);
         setTimeout(() => d.remove(), 3500);
+    }
+
+    // ===== Psicometría de la prueba de rotación mental (con las respuestas ítem por ítem guardadas en el registro) =====
+    async function mostrarPsicometriaRotacion(todos) {
+        let d;
+        try {
+            const res = await fetch('/api/admin/rotacion/psicometria' + (todos ? '?todos=1' : ''));
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            d = await res.json();
+        } catch (e) { mostrarMensaje('❌ No se pudo calcular la fiabilidad', '#FF375F'); return; }
+        const viejo = document.getElementById('modalPsicometria'); if (viejo) viejo.remove();
+        const ov = document.createElement('div'); ov.id = 'modalPsicometria';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(5,7,12,0.9);display:flex;justify-content:center;align-items:flex-start;overflow-y:auto;padding:20px;';
+        const interpreta = k => k === null || k === undefined ? '—' : (k >= 0.8 ? 'buena' : k >= 0.7 ? 'aceptable' : k >= 0.6 ? 'baja (mejorable)' : 'insuficiente');
+        let cuerpo;
+        if (d.items) {
+            cuerpo = `<p style="line-height:1.7;">Participantes con detalle: <strong>${d.n}</strong> · Media: <strong>${d.media}</strong> de ${d.k} (DE ${d.desviacion})<br>
+                <strong>Fiabilidad KR-20: ${d.kr20 === null ? 'no calculable' : d.kr20}</strong> (${interpreta(d.kr20)})<br>
+                No alcanzó los 12 ítems: <strong>${d.pct_no_alcanzo_12_items}%</strong> · Terminó por tiempo: <strong>${d.pct_termino_por_tiempo}%</strong> · Tiempo medio: ${d.tiempo_medio_s} s de 180</p>
+                ${d.aviso ? `<p style="background:#FFB02018;border-left:4px solid #FFB020;padding:8px 12px;border-radius:6px;">⚠️ ${d.aviso}</p>` : ''}
+                <table style="width:100%;border-collapse:collapse;font-size:0.9rem;"><tr><th style="text-align:left;">Ítem</th><th>Dificultad (p)</th><th>Discriminación (r)</th><th style="text-align:left;">Observación</th></tr>
+                ${d.items.map(i => { const obs = []; if (i.dificultad_p < 0.2) obs.push('muy difícil'); if (i.dificultad_p > 0.9) obs.push('muy fácil'); if (i.discriminacion_rpb !== null && i.discriminacion_rpb < 0.2) obs.push('discrimina poco'); return `<tr style="border-top:1px solid #00D4FF20;"><td>${i.item}</td><td style="text-align:center;">${i.dificultad_p}</td><td style="text-align:center;">${i.discriminacion_rpb === null ? '—' : i.discriminacion_rpb}</td><td style="color:#FFB020;">${obs.join(', ')}</td></tr>`; }).join('')}</table>
+                <p style="color:#A0A0B0;font-size:0.8rem;margin-top:10px;">Dificultad p = proporción que acierta el ítem (ideal 0,2–0,9). Discriminación r = correlación del ítem con el resto de la prueba (ideal ≥ 0,2). Los ítems no alcanzados cuentan como incorrectos. KR-20 ≥ 0,70 suele considerarse aceptable.</p>`;
+        } else {
+            cuerpo = `<p style="background:#FFB02018;border-left:4px solid #FFB020;padding:8px 12px;border-radius:6px;">${d.aviso || 'Sin datos todavía.'}<br>Participantes con detalle: ${d.n}</p>`;
+        }
+        ov.innerHTML = `<div style="background:#121826;border:2px solid #00D4FF60;border-radius:16px;padding:22px;max-width:760px;width:100%;color:#E0E0E0;">
+            <h2 style="color:#00D4FF;margin:0 0 10px;">🧩 Prueba de rotación mental — psicometría</h2>
+            <p style="color:#A0A0B0;font-size:0.85rem;">${todos ? 'Incluye todos los roles (docentes, validadores y pruebas).' : 'Solo participantes de tipo estudiante.'}</p>
+            ${cuerpo}
+            <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="mostrarPsicometriaRotacion(${!todos})">${todos ? 'Ver solo estudiantes' : 'Incluir todos los roles'}</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('modalPsicometria').remove()">Cerrar</button>
+            </div></div>`;
+        document.body.appendChild(ov);
     }
 
     // ===== Copia COMPLETA de la base (cuentas, sesiones, resultados, pasos, reflexiones, encuestas y configuración) =====
