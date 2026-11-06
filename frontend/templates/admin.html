@@ -98,6 +98,7 @@
         <button class="btn btn-secondary" onclick="document.getElementById('archivoCopiaCompleta').click()" title="Solo en una base nueva y vacía (por ejemplo, tras pasar a Neon)">📥 Restaurar copia completa</button>
         <input type="file" id="archivoCopiaCompleta" accept=".json,application/json" style="display:none" onchange="restaurarCopiaCompleta(this)">
         <button class="btn btn-secondary" onclick="mostrarPsicometriaRotacion(false)" title="Fiabilidad (KR-20), dificultad y discriminación de la prueba de rotación mental con los datos reales">🧩 Fiabilidad rotación mental</button>
+        <button class="btn btn-secondary" onclick="mostrarBalanceGrupos()" title="Cuántos estudiantes hay por semestre y grupo, y el interruptor de la asignación automática">⚖️ Balance de grupos</button>
         <button class="btn btn-danger"    onclick="cerrarSesionAdmin()" style="background:#FF375F20;border:1px solid #FF375F40;color:#FF375F;">🔓 Cerrar sesión</button>
     </div>
 
@@ -131,6 +132,39 @@
         d.style.background = c;
         document.body.appendChild(d);
         setTimeout(() => d.remove(), 3500);
+    }
+
+    // ===== Balance de grupos por semestre + interruptor de la asignación automática al registrarse =====
+    async function mostrarBalanceGrupos() {
+        let d;
+        try {
+            const res = await fetch('/api/admin/balance_grupos'); if (!res.ok) throw new Error('HTTP ' + res.status); d = await res.json();
+        } catch (e) { mostrarMensaje('❌ No se pudo cargar el balance', '#FF375F'); return; }
+        const viejo = document.getElementById('modalBalance'); if (viejo) viejo.remove();
+        const ov = document.createElement('div'); ov.id = 'modalBalance';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(5,7,12,0.9);display:flex;justify-content:center;align-items:flex-start;overflow-y:auto;padding:20px;';
+        const et = { '2D': '2D', '2D_META': '2D+M', '3D': '3D', '3D_META': '3D+M' };
+        const celda = (c, max, min) => `<td style="text-align:center;padding:8px 6px;${c.registrados === max && max > min ? 'color:#FFB020;font-weight:700;' : ''}">${c.registrados}<span style="color:#A0A0B0;font-weight:400;"> (${c.completaron})</span></td>`;
+        const filas = d.filas.map(f => { const regs = d.grupos.map(g => f.grupos[g].registrados), max = Math.max(...regs), min = Math.min(...regs); return `<tr style="border-top:1px solid #00D4FF20;"><td style="padding:8px 6px;">${f.semestre === null ? 'sin semestre' : f.semestre + '°'}</td>${d.grupos.map(g => celda(f.grupos[g], max, min)).join('')}<td style="text-align:center;color:#A0A0B0;">${d.grupos.reduce((s, g) => s + f.grupos[g].registrados, 0)}</td></tr>`; }).join('');
+        const tot = d.grupos.map(g => `<td style="text-align:center;padding:8px 6px;font-weight:700;">${d.totales[g].registrados}<span style="color:#A0A0B0;font-weight:400;"> (${d.totales[g].completaron})</span></td>`).join('');
+        ov.innerHTML = `<div style="background:#121826;border:2px solid #00D4FF60;border-radius:16px;padding:22px;max-width:760px;width:100%;color:#E0E0E0;">
+            <h2 style="color:#00D4FF;margin:0 0 6px;">⚖️ Balance de grupos por semestre</h2>
+            <p style="color:#A0A0B0;font-size:0.85rem;margin:0 0 12px;">Solo estudiantes. Cada celda: <strong>registrados</strong> <span style="color:#A0A0B0;">(los que ya completaron la identificación)</span>. En amarillo, el grupo con más gente de un semestre, solo si ese semestre está desbalanceado.</p>
+            <table style="width:100%;border-collapse:collapse;font-size:0.92rem;"><tr><th style="text-align:left;padding:8px 6px;">Semestre</th>${d.grupos.map(g => `<th>${et[g]}</th>`).join('')}<th>Total</th></tr>${filas}
+            <tr style="border-top:2px solid #00D4FF50;"><td style="padding:8px 6px;font-weight:700;">Todos</td>${tot}<td></td></tr></table>
+            ${d.sin_grupo ? `<p style="color:#FFB020;margin-top:10px;">⚠️ ${d.sin_grupo} estudiante(s) sin grupo. Se asignan con el botón «Asignar grupos automáticamente».</p>` : ''}
+            <div style="background:#1A1F36;border-radius:10px;padding:12px 14px;margin-top:14px;">
+                <div style="margin-bottom:8px;">Asignación automática al registrarse: <strong style="color:${d.activa ? '#30D158' : '#FF375F'};">${d.activa ? '✅ ACTIVADA' : '⛔ DESACTIVADA'}</strong></div>
+                <div style="color:#A0A0B0;font-size:0.82rem;line-height:1.5;margin-bottom:10px;">Cada estudiante nuevo va al grupo con menos gente <strong>de su semestre</strong>; si hay empate, al que tenga menos de su mismo género, luego al de menos gente en total, y al final al azar. Quien se registra y no participa deja un hueco: si es necesario, bórralo o cámbialo de grupo desde la tabla de usuarios.</div>
+                <button class="btn btn-secondary" onclick="alternarAsignacionAutomatica(${!d.activa})">${d.activa ? 'Desactivar' : 'Activar'} la asignación automática</button>
+            </div>
+            <div style="margin-top:14px;"><button class="btn btn-secondary" onclick="document.getElementById('modalBalance').remove()">Cerrar</button></div></div>`;
+        document.body.appendChild(ov);
+    }
+    async function alternarAsignacionAutomatica(activa) {
+        const res = await fetch('/api/admin/asignacion_automatica', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activa }) });
+        if (res.ok) { mostrarMensaje(activa ? '✅ Asignación automática ACTIVADA' : '⛔ Asignación automática DESACTIVADA'); mostrarBalanceGrupos(); }
+        else mostrarMensaje('❌ No se pudo cambiar', '#FF375F');
     }
 
     // ===== Psicometría de la prueba de rotación mental (con las respuestas ítem por ítem guardadas en el registro) =====
@@ -361,7 +395,7 @@
     async function asignarGrupoLote() {
         const pendientes = usuarios.filter(u => !u.grupo_asignado).length;
         if (pendientes === 0) { mostrarMensaje('ℹ️ Todos los usuarios ya tienen grupo asignado'); return; }
-        if (!confirm(`¿Asignar grupos en rotación automática a ${pendientes} usuarios sin grupo?`)) return;
+        if (!confirm(`¿Asignar grupo a ${pendientes} usuarios sin grupo? A los estudiantes se les reparte con equilibrio dentro de su semestre.`)) return;
         const res = await fetch('/api/admin/asignar_grupo_lote', { method: 'POST' });
         const data = await res.json();
         if (res.ok) {
