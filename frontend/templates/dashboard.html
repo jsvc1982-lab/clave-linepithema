@@ -211,6 +211,14 @@
         <p id="grupoAsignado" style="font-size:1.15rem; font-weight:bold; color:#7B61FF;">Cargando...</p>
         <p id="mensajeGrupo" style="color:#A0A0B0; margin-top:10px; font-size:0.9rem;"></p>
 <p id="pruebasProgreso" style="display:none; margin-top:10px; font-size:0.9rem; color:#E0E0E0;"></p>
+<div id="cajaCodigo" style="display:none; margin-top:14px; background:#1A1F36; border:1px solid #00D4FF50; border-radius:12px; padding:14px 16px;">
+<div style="font-weight:700; color:#00D4FF; margin-bottom:6px;">🔑 Código de la sesión de aplicación</div>
+<div style="display:flex; gap:10px; flex-wrap:wrap;">
+<input id="codigoSesionPanel" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej.: K7M2QX" style="flex:1; min-width:150px; padding:10px 12px; border-radius:8px; border:1px solid #00D4FF40; background:#0A0E17; color:#E0E0E0; text-transform:uppercase; letter-spacing:2px; font-size:1rem;" onkeydown="if (event.key === 'Enter') enviarCodigoSesion()">
+<button id="btnCodigoSesion" onclick="enviarCodigoSesion()" style="padding:10px 18px; border:none; border-radius:8px; background:linear-gradient(45deg,#00D4FF,#7B61FF); color:white; font-weight:700; cursor:pointer;">Entrar a la sesión</button>
+</div>
+<div id="mensajeCodigo" style="margin-top:8px; font-size:0.85rem; min-height:1em;"></div>
+</div>
         <div id="alertaEncuestas" class="alerta-encuestas" style="display:none;">
             ⚠️ Tienes encuestas pendientes por completar. Haz clic en "Completar encuestas" para finalizar.
         </div>
@@ -265,6 +273,21 @@
 
     // Cuando la cuenta ya no existe (o la sesión no sirve), se CIERRA la sesión del navegador antes de ir al inicio de sesión: esa página, al ver una
     // sesión activa, devolvería al panel y se formaría un bucle panel ⇄ inicio de sesión.
+    async function enviarCodigoSesion() {
+        const campo = document.getElementById('codigoSesionPanel'), msg = document.getElementById('mensajeCodigo'), btn = document.getElementById('btnCodigoSesion');
+        const codigo = (campo.value || '').trim();
+        if (!codigo) { msg.style.color = '#FF375F'; msg.textContent = 'Escribe el código que te dio tu docente.'; return; }
+        btn.disabled = true; msg.style.color = '#A0A0B0'; msg.textContent = 'Verificando…';
+        try {
+            const res = await fetch('/api/usuario/me/codigo_sesion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo }) });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) { msg.style.color = '#30D158'; msg.textContent = '✅ ' + (data.mensaje || 'Código correcto.'); setTimeout(() => window.location.reload(), 900); return; }
+            if (res.status === 401) { await cerrarSesionYVolver(); return; }
+            msg.style.color = '#FF375F'; msg.textContent = data.error || 'No se pudo verificar el código.';
+        } catch (e) { msg.style.color = '#FF375F'; msg.textContent = 'No se pudo verificar el código. Revisa tu conexión.'; }
+        btn.disabled = false;
+    }
+
     async function cerrarSesionYVolver() {
         try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
         window.location.href = '/login';
@@ -299,8 +322,14 @@
             const mensajeEl = document.getElementById('mensajeGrupo');
 
             if (!datosUsuario.grupo_asignado) {
-                grupoEl.textContent   = 'Sin asignar';
-                mensajeEl.textContent = '⚠️ Aún no tienes grupo asignado. Espera a que el administrador te asigne uno.';
+grupoEl.textContent   = 'Sin asignar';
+if (datosUsuario.rol === 'estudiante') {
+    // Un estudiante entra al estudio con el código de la sesión de aplicación (lo da el docente el día de la sesión)
+    mensajeEl.textContent = '🔑 Para participar en el estudio necesitas el código de la sesión de aplicación. Tu docente te lo da el día de la sesión.';
+    document.getElementById('cajaCodigo').style.display = 'block';
+} else {
+    mensajeEl.textContent = '⚠️ Aún no tienes grupo asignado. Espera a que el administrador te asigne uno.';
+}
                 document.getElementById('btnIniciar').disabled = true;
             } else {
                 const descripciones = {

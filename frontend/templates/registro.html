@@ -178,7 +178,12 @@
                                 <option value="7">7°</option><option value="8">8°</option>
                             </select>
                         </div>
-                        <div class="form-group full-width">
+                        <div class="form-group full-width" id="grupoCodigo" style="display:none;">
+<label>🔑 Código de la sesión de aplicación</label>
+<input type="text" id="codigoSesion" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej.: K7M2QX" style="text-transform:uppercase; letter-spacing:2px;">
+<small style="color:#A0A0B0;font-size:0.75rem">Te lo da tu docente el día de la sesión. Solo quienes lo escriben entran al estudio. Si aún no lo tienes, puedes registrarte y escribirlo después en tu panel.</small>
+</div>
+<div class="form-group full-width">
                             <label>👤 Nombre completo *</label>
                             <input type="text" id="usuario" required minlength="5" maxlength="50" autocomplete="name" placeholder="Nombres y apellidos">
                             <small style="color:#A0A0B0;font-size:0.75rem;display:block;margin-top:4px;">Escribe tu nombre y apellido completos. Con este nombre iniciarás sesión y saldrá en tu certificado.</small>
@@ -614,6 +619,7 @@ caja.onclick = null;
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('rol').addEventListener('change', function () {
                 const esEstudiante = this.value === 'estudiante';
+            document.getElementById('grupoCodigo').style.display = esEstudiante ? '' : 'none';
                 const grupo = document.getElementById('grupoSemestre');
                 grupo.style.display = (this.value && !esEstudiante) ? 'none' : '';
                 document.getElementById('semestre').required = esEstudiante || !this.value;
@@ -724,7 +730,21 @@ Nombre: ______________________________   Fecha: ______________`;
                 return;
             }
 
-            // Prueba breve de rotación mental (una sola vez; si el registro falla no se repite)
+            // Código de la sesión (solo estudiantes): se verifica ANTES de la prueba de rotación, para que nadie pierda ese test por un error al escribirlo
+let codigoSesion = '';
+if (rol === 'estudiante') {
+codigoSesion = (document.getElementById('codigoSesion').value || '').trim();
+if (codigoSesion) {
+try {
+const rv = await fetch('/api/sesion/verificar_codigo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ codigo: codigoSesion }) });
+if (!rv.ok) { const dv = await rv.json().catch(() => ({})); mostrarError(dv.error || 'El código no es válido o ya venció.'); return; }
+} catch (err) { mostrarError('No se pudo verificar el código. Revisa tu conexión e inténtalo de nuevo.'); return; }
+} else if (!confirm('No escribiste el código de la sesión.\n\nPuedes registrarte, pero no entrarás al estudio ni podrás hacer el ejercicio hasta escribir el código en tu panel.\n\n¿Quieres continuar sin código?')) {
+return;
+}
+}
+
+// Prueba breve de rotación mental (una sola vez; si el registro falla no se repite)
             if (puntajeRotacion === null) {
                 await ejecutarPruebaRotacion();
             }
@@ -741,6 +761,7 @@ Nombre: ______________________________   Fecha: ______________`;
                         usuario, correo, contrasena,
                         semestre: semestre ? parseInt(semestre) : null,
                         rol,
+codigo_sesion: codigoSesion,
                         consentimiento: true,
                         genero: document.getElementById('genero').value || 'No especificado',
                         experiencia: parseInt(document.getElementById('experiencia').value),
@@ -752,7 +773,7 @@ Nombre: ______________________________   Fecha: ______________`;
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    mostrarExito('✅ Registro exitoso. Redirigiendo al login...');
+                    mostrarExito(rol === 'estudiante' && data.en_estudio === false ? '✅ Registro exitoso. Todavía no estás dentro del estudio: escribe el código de la sesión en tu panel cuando tu docente te lo dé. Redirigiendo al login...' : '✅ Registro exitoso. Redirigiendo al login...');
                     setTimeout(() => window.location.href = '/login', 2500);
                 } else {
                     mostrarError(data.error || 'Error en el registro');
