@@ -263,6 +263,13 @@
         await cargarSesionYDatos();
     });
 
+    // Cuando la cuenta ya no existe (o la sesión no sirve), se CIERRA la sesión del navegador antes de ir al inicio de sesión: esa página, al ver una
+    // sesión activa, devolvería al panel y se formaría un bucle panel ⇄ inicio de sesión.
+    async function cerrarSesionYVolver() {
+        try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
+        window.location.href = '/login';
+    }
+
     async function cargarSesionYDatos() {
         try {
             const res = await fetch('/api/verificar_sesion');
@@ -284,6 +291,7 @@
     async function cargarDatosUsuario() {
         try {
             const res = await fetch('/api/usuario/me');
+            if (res.status === 401 || res.status === 404) { await cerrarSesionYVolver(); return; }      // sesión de una cuenta que ya no existe
             if (!res.ok) return;
             datosUsuario = await res.json();
 
@@ -322,6 +330,7 @@ if (datosUsuario.rol === 'pruebas' && datosUsuario.pruebas) {
     async function cargarResultados() {
         try {
             const res = await fetch('/api/usuario/me/resultados');
+            if (res.status === 401 || res.status === 404) { await cerrarSesionYVolver(); return; }
             resultados = res.ok ? await res.json() : [];
 
             try {
