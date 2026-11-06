@@ -172,7 +172,7 @@ app.wsgi_app = ReintentarApiGetBD(app.wsgi_app)
 # db.create_all() solo crea tablas que NO existen; no agrega columnas a las que ya existen. Por eso, si la base se
 # creó (o se restauró de un respaldo) con una versión vieja, esta función completa las columnas que falten.
 COLUMNAS_NUEVAS = {
-    'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)'), ('rotacion_items', 'TEXT')],
+    'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)'), ('rotacion_items', 'TEXT'), ('sesion_aplicacion', 'INTEGER')],
     'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER'),
                    ('ayuda_encuadre_usos', 'INTEGER DEFAULT 0'), ('ayuda_encuadre_detalle', 'TEXT')],
     'reflexiones': [('orden_especimen', 'INTEGER')],
@@ -503,6 +503,158 @@ def config_registro():
     """Público: opciones del formulario de registro (tipos de participante y dominios aceptados)."""
     return jsonify({'roles': ROLES_PARTICIPANTE, 'correo_libre': ROLES_CORREO_LIBRE, 'dominios_estudiante': dominios_estudiantes()})
 
+# ===== SESIÓN DE APLICACIÓN Y CÓDIGO DE PARTICIPACIÓN =====
+# Cada vez que el administrador ENTRA al panel se abre una sesión de aplicación nueva con un código de 6 caracteres. Solo quien escribe ese código
+# (al registrarse o después, en su panel) entra al estudio y recibe grupo; quien no, se registra pero queda fuera. El código anterior deja de valer
+# (con unos minutos de gracia por si el administrador vuelve a entrar en plena sesión), vence solo a las 12 h y puede cerrarse a mano.
+import datetime as _dt
+import secrets as _secrets
+
+VIGENCIA_CODIGO_HORAS = 12
+GRACIA_CODIGO_ANTERIOR_MIN = 10
+ALFABETO_CODIGO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'        # sin 0/O ni 1/I/L, para que no se confundan al dictarlo
+LARGO_CODIGO = 6
+MAX_FALLOS_CODIGO, VENTANA_FALLOS_MIN = 20, 10               # freno a los intentos de adivinar el código
+MENSAJE_CODIGO_INVALIDO = 'El código no es válido o ya venció. Pídele a tu docente el código vigente de la sesión.'
+MENSAJE_DEMASIADOS_INTENTOS = 'Demasiados intentos con códigos incorrectos. Espera unos minutos e inténtalo de nuevo.'
+_fallos_codigo = {}
+
+def _ahora_utc():
+    return _dt.datetime.now(_dt.timezone.utc)
+
+def _a_fecha(txt):
+    return _dt.datetime.fromisoformat(txt)
+
+def normalizar_codigo(txt):
+    return re.sub(r'[^A-Za-z0-9]', '', str(txt or '')).upper()
+
+def _leer_sesiones():
+    c = Configuracion.query.filter_by(clave='sesiones_aplicacion').first()
+    try:
+        return json.loads(c.valor) if c and c.valor else []
+    except Exception:
+        return []
+
+def _guardar_sesiones(lista):
+    txt = json.dumps(lista[-300:], ensure_ascii=False)
+    c = Configuracion.query.filter_by(clave='sesiones_aplicacion').first()
+    if c: c.valor = txt
+    else: db.session.add(Configuracion(clave='sesiones_aplicacion', valor=txt))
+    db.session.commit()
+
+def nueva_sesion_aplicacion(origen='ingreso'):
+    lista, ahora = _leer_sesiones(), _ahora_utc()
+    if lista and not lista[-1].get('reemplazada'):
+        lista[-1]['reemplazada'] = ahora.isoformat()
+    n = max([s['n'] for s in lista] + [0]) + 1
+    codigo = ''.join(_secrets.choice(ALFABETO_CODIGO) for _ in range(LARGO_CODIGO))
+    lista.append({'n': n, 'codigo': codigo, 'inicio': ahora.isoformat(), 'vence': (ahora + _dt.timedelta(hours=VIGENCIA_CODIGO_HORAS)).isoformat(),
+                  'cerrada': None, 'reemplazada': None, 'origen': origen})
+    _guardar_sesiones(lista)
+    return lista[-1]
+
+def estado_sesion(s, ahora=None):
+    ahora = ahora or _ahora_utc()
+    if s.get('cerrada'): return 'cerrada'
+    if _a_fecha(s['vence']) <= ahora: return 'vencida'
+    if s.get('reemplazada'): return 'reemplazada'
+    return 'abierta'
+
+def sesion_para_codigo(codigo):
+    """Sesión a la que pertenece el código si TODAVÍA vale; si no, None. El de la sesión actual vale mientras no se cierre ni venza; el de la
+    inmediatamente anterior, solo durante la gracia posterior a ser reemplazado."""
+    c = normalizar_codigo(codigo)
+    if len(c) != LARGO_CODIGO:
+        return None
+    ahora = _ahora_utc()
+    for s in reversed(_leer_sesiones()):
+        if s['codigo'] != c:
+            continue
+        est = estado_sesion(s, ahora)
+        if est == 'abierta':
+            return s
+        if est == 'reemplazada' and ahora <= _a_fecha(s['reemplazada']) + _dt.timedelta(minutes=GRACIA_CODIGO_ANTERIOR_MIN):
+            return s
+        return None
+    return None
+
+def _clave_cliente():
+    return (request.headers.get('X-Forwarded-For') or request.remote_addr or '?').split(',')[-1].strip()      # la última: la agrega el proxy de confianza
+
+def codigo_bloqueado(clave):
+    ahora = time.time()
+    _fallos_codigo[clave] = [t for t in _fallos_codigo.get(clave, []) if ahora - t < VENTANA_FALLOS_MIN * 60]
+    return len(_fallos_codigo[clave]) >= MAX_FALLOS_CODIGO
+
+def registrar_fallo_codigo(clave):
+    _fallos_codigo.setdefault(clave, []).append(time.time())
+
+def _resumen_sesion(s):
+    return {'n': s['n'], 'codigo': s['codigo'], 'estado': estado_sesion(s), 'inicio': s['inicio'], 'vence': s['vence'], 'origen': s.get('origen'),
+            'participantes': Usuario.query.filter_by(sesion_aplicacion=s['n'], rol='estudiante').count()}
+
+@app.route('/api/admin/sesion_aplicacion', methods=['GET'])
+@admin_required
+def get_sesion_aplicacion():
+    lista = _leer_sesiones()
+    return jsonify({'actual': _resumen_sesion(lista[-1]) if lista else None, 'historial': [_resumen_sesion(s) for s in reversed(lista[-8:-1])],
+                    'vigencia_horas': VIGENCIA_CODIGO_HORAS, 'gracia_min': GRACIA_CODIGO_ANTERIOR_MIN})
+
+@app.route('/api/admin/sesion_aplicacion/nueva', methods=['POST'])
+@admin_required
+def post_nueva_sesion_aplicacion():
+    return jsonify({'actual': _resumen_sesion(nueva_sesion_aplicacion('manual'))})
+
+@app.route('/api/admin/sesion_aplicacion/cerrar', methods=['POST'])
+@admin_required
+def post_cerrar_sesion_aplicacion():
+    lista, ahora = _leer_sesiones(), _ahora_utc().isoformat()
+    for s in lista[-2:]:                                  # cierra la actual Y la anterior (por si aún estaba en gracia)
+        if not s.get('cerrada'): s['cerrada'] = ahora
+    if lista: _guardar_sesiones(lista)
+    return jsonify({'actual': _resumen_sesion(lista[-1]) if lista else None})
+
+@app.route('/api/sesion/verificar_codigo', methods=['POST'])
+def verificar_codigo_sesion():
+    """Se usa ANTES de la prueba de rotación mental del registro: si el código está mal, se avisa enseguida y nadie pierde el test."""
+    clave = _clave_cliente()
+    if codigo_bloqueado(clave):
+        return jsonify({'valido': False, 'error': MENSAJE_DEMASIADOS_INTENTOS}), 429
+    if not sesion_para_codigo((request.json or {}).get('codigo')):
+        registrar_fallo_codigo(clave)
+        return jsonify({'valido': False, 'error': MENSAJE_CODIGO_INVALIDO}), 400
+    return jsonify({'valido': True})
+
+@app.route('/api/usuario/me/codigo_sesion', methods=['POST'])
+def usuario_codigo_sesion():
+    """Un estudiante que se registró sin código (o antes de la sesión) lo escribe en su panel y entra al estudio."""
+    if 'usuario_id' not in session:
+        return jsonify({'error': 'No autenticado'}), 401
+    try:
+        usuario = db.session.get(Usuario, session['usuario_id'])
+        if not usuario:
+            return jsonify({'error': 'No autenticado'}), 401
+        if usuario.rol != 'estudiante':
+            return jsonify({'error': 'Solo los estudiantes usan el código de la sesión'}), 400
+        if usuario.grupo_asignado:
+            return jsonify({'error': 'Ya tienes grupo asignado'}), 409
+        claves = (_clave_cliente(), f'u{usuario.id}')
+        if any(codigo_bloqueado(c) for c in claves):
+            return jsonify({'error': MENSAJE_DEMASIADOS_INTENTOS}), 429
+        s = sesion_para_codigo((request.json or {}).get('codigo'))
+        if not s:
+            for c in claves: registrar_fallo_codigo(c)
+            return jsonify({'error': MENSAJE_CODIGO_INVALIDO}), 400
+        usuario.sesion_aplicacion = s['n']
+        if asignacion_automatica_activa():
+            bloquear_asignacion()
+            usuario.grupo_asignado = elegir_grupo_balanceado(usuario.semestre, usuario.genero)
+        db.session.commit()
+        return jsonify({'mensaje': 'Código correcto. Ya estás dentro de la sesión.', 'grupo_asignado': usuario.grupo_asignado, 'dentro_del_estudio': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 # ===== ASIGNACIÓN AUTOMÁTICA DE GRUPO AL REGISTRARSE (solo estudiantes) =====
 # Reparte a cada estudiante nuevo entre los 4 grupos de forma equilibrada DENTRO DE SU SEMESTRE (estratificación por semestre), para que un curso
 # entero no caiga en un solo grupo. Regla: va al grupo con MENOS estudiantes de su semestre; si hay empate, al que tenga menos de su mismo género
@@ -567,6 +719,18 @@ def registro():
         if Usuario.query.filter(func.lower(Usuario.correo) == correo).first():
             return jsonify({'error': 'Correo ya registrado'}), 400
 
+        # Código de la sesión de aplicación (solo estudiantes). Vacío = se registra pero queda FUERA del estudio; incorrecto o vencido = se avisa.
+        sesion_app = None
+        codigo_sesion = (datos.get('codigo_sesion') or '').strip()
+        if rol == 'estudiante' and codigo_sesion:
+            clave_cli = _clave_cliente()
+            if codigo_bloqueado(clave_cli):
+                return jsonify({'error': MENSAJE_DEMASIADOS_INTENTOS}), 429
+            sesion_app = sesion_para_codigo(codigo_sesion)
+            if not sesion_app:
+                registrar_fallo_codigo(clave_cli)
+                return jsonify({'error': MENSAJE_CODIGO_INVALIDO}), 400
+
         nuevo_usuario = Usuario(
             nombre_usuario=nombre,
             correo=correo,
@@ -583,12 +747,14 @@ def registro():
             rotacion_items=limpiar_rotacion_items(datos.get('rotacion_items'))
         )
         # Estudiantes: el grupo queda asignado desde el registro (al iniciar sesión ya lo tienen). Todo en la MISMA transacción que el alta del usuario.
-        if rol == 'estudiante' and asignacion_automatica_activa():
-            bloquear_asignacion()
-            nuevo_usuario.grupo_asignado = elegir_grupo_balanceado(nuevo_usuario.semestre, nuevo_usuario.genero)
+        if rol == 'estudiante' and sesion_app:
+                nuevo_usuario.sesion_aplicacion = sesion_app['n']
+                if asignacion_automatica_activa():
+                    bloquear_asignacion()
+                    nuevo_usuario.grupo_asignado = elegir_grupo_balanceado(nuevo_usuario.semestre, nuevo_usuario.genero)
         db.session.add(nuevo_usuario)
         db.session.commit()
-        return jsonify({'mensaje': 'Registro exitoso', 'id': nuevo_usuario.id}), 201
+        return jsonify({'mensaje': 'Registro exitoso', 'id': nuevo_usuario.id, 'en_estudio': bool(sesion_app)}), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -890,6 +1056,10 @@ def admin_login():
     if username == ADMIN_USER and password == ADMIN_PASSWORD:
         session['admin_logged_in'] = True
         session['admin_user'] = username
+        try:
+            nueva_sesion_aplicacion('ingreso')       # cada ingreso al panel = nueva sesión de aplicación con código nuevo
+        except Exception as e:
+            db.session.rollback(); print('[sesion] No se pudo abrir la sesión de aplicación:', e, flush=True)
         return jsonify({'success': True, 'message': 'Login exitoso'})
 
     return jsonify({'success': False, 'error': 'Credenciales incorrectas'}), 401
@@ -927,7 +1097,7 @@ def get_usuarios():
         'puntaje_rotacion_mental': u.puntaje_rotacion_mental, 'rotacion_items': rotacion_items_dict(u),
         'rol': u.rol,
         'institucion': u.institucion,
-        'grupo_asignado': u.grupo_asignado,
+        'grupo_asignado': u.grupo_asignado, 'sesion_aplicacion': u.sesion_aplicacion,
         'fecha_registro': u.fecha_registro.isoformat() if u.fecha_registro else None
     } for u in usuarios])
 
@@ -1029,10 +1199,13 @@ def asignar_grupo_lote():
     """Asigna grupos automáticamente en rotación a usuarios sin grupo."""
     try:
         usuarios_sin_grupo = Usuario.query.filter_by(grupo_asignado=None).order_by(Usuario.id).all()
-        asignados, estudiantes, rotacion = 0, 0, 0
+        asignados, estudiantes, sin_codigo, rotacion = 0, 0, 0, 0
         bloquear_asignacion()
         for u in usuarios_sin_grupo:
             if u.rol == 'estudiante':
+                if u.sesion_aplicacion is None:                 # no escribió el código de ninguna sesión: no es parte del estudio; se asigna a mano si hace falta
+                    sin_codigo += 1
+                    continue
                 u.grupo_asignado = elegir_grupo_balanceado(u.semestre, u.genero)      # equilibrado por semestre, contando a los ya asignados
                 estudiantes += 1
             else:
@@ -1040,7 +1213,7 @@ def asignar_grupo_lote():
                 rotacion += 1
             asignados += 1
         db.session.commit()
-        return jsonify({'mensaje': f'{asignados} usuarios asignados ({estudiantes} estudiantes con equilibrio por semestre)'})
+        return jsonify({'mensaje': f'{asignados} usuarios asignados ({estudiantes} estudiantes con equilibrio por semestre). {sin_codigo} estudiantes sin código se dejaron sin grupo.'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1582,7 +1755,7 @@ def exportar_csv():
         return float(m.group(1)) if m else None
 
     columnas = [
-        'participante', 'grupo', 'rol', 'institucion', 'sesion_id', 'especie', 'orden', 'acierto',
+        'participante', 'grupo', 'rol', 'institucion', 'sesion_aplicacion', 'fecha_sesion', 'sesion_id', 'especie', 'orden', 'acierto',
         'tiempo_clave_s', 'tiempo_reflexion_s', 'primera_pregunta_desvio', 'ayuda_encuadre_usos', 'ayuda_encuadre_rasgos',
         'confianza', 'dificultad', 'esfuerzo',
         'seguridad_media_durante', 'n_cambios_estrategia', 'registros_duplicados',
@@ -1594,6 +1767,7 @@ def exportar_csv():
     writer = csv.writer(output)
     writer.writerow(columnas)
 
+    fechas_sesion = {s['n']: (_a_fecha(s['inicio']) + _dt.timedelta(hours=-5)).strftime('%Y-%m-%d') for s in _leer_sesiones()}        # fecha en que se abrió cada sesión de aplicación, en hora de Colombia (UTC-5, sin horario de verano)
     filas = []
     for sesion_exp in SesionExperimental.query.all():
         usuario = Usuario.query.get(sesion_exp.usuario_id)
@@ -1642,7 +1816,7 @@ def exportar_csv():
             cambios = sum(1 for t in durante.get(orden, []) if re.search(r'¿Cambiar estrategia\?\s*S[ií]', t))
             tp = post.get(orden)
             filas.append([
-                usuario.nombre_usuario, sesion_exp.grupo, usuario.rol, usuario.institucion or usuario.curso, sesion_exp.id,
+                usuario.nombre_usuario, sesion_exp.grupo, usuario.rol, usuario.institucion or usuario.curso, usuario.sesion_aplicacion, fechas_sesion.get(usuario.sesion_aplicacion, ''), sesion_exp.id,
                 r.especie_correcta, orden, 1 if r.es_correcta else 0,
                 r.tiempo_segundos, r.tiempo_reflexion_segundos, r.primera_pregunta_desvio, r.ayuda_encuadre_usos or 0, r.ayuda_encuadre_detalle or '',
                 numero(tp, r'Acierto autopercibido:\s*(\d+(?:\.\d+)?)'),
