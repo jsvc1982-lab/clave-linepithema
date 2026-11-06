@@ -481,6 +481,38 @@ def config_registro():
     """Público: opciones del formulario de registro (tipos de participante y dominios aceptados)."""
     return jsonify({'roles': ROLES_PARTICIPANTE, 'correo_libre': ROLES_CORREO_LIBRE, 'dominios_estudiante': dominios_estudiantes()})
 
+# ===== ASIGNACIÓN AUTOMÁTICA DE GRUPO AL REGISTRARSE (solo estudiantes) =====
+# Reparte a cada estudiante nuevo entre los 4 grupos de forma equilibrada DENTRO DE SU SEMESTRE (estratificación por semestre), para que un curso
+# entero no caiga en un solo grupo. Regla: va al grupo con MENOS estudiantes de su semestre; si hay empate, al que tenga menos de su mismo género
+# en ese semestre; luego al que tenga menos estudiantes en total; y si aún hay empate, al azar. Se puede apagar desde el panel (interruptor).
+def asignacion_automatica_activa():
+    c = Configuracion.query.filter_by(clave='asignacion_automatica').first()
+    return not c or c.valor != '0'                                   # por defecto ACTIVADA
+
+def bloquear_asignacion():
+    """En PostgreSQL, serializa las asignaciones simultáneas (muchos estudiantes se registran a la vez en clase): si dos leyeran los mismos conteos,
+    recibirían el mismo «mejor grupo». El candado se libera solo al terminar la transacción (commit o rollback)."""
+    if db.engine.dialect.name == 'postgresql':
+        from sqlalchemy import text as _sql
+        db.session.execute(_sql('SELECT pg_advisory_xact_lock(727001)'))
+
+def _semestre_entero(valor):
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+def elegir_grupo_balanceado(semestre, genero):
+    sem = _semestre_entero(semestre)
+    est = db.session.query(Usuario.grupo_asignado, func.count(Usuario.id)).filter(Usuario.rol == 'estudiante', Usuario.grupo_asignado.isnot(None))
+    filtro_sem = (Usuario.semestre == sem) if sem is not None else Usuario.semestre.is_(None)
+    por_semestre = dict(est.filter(filtro_sem).group_by(Usuario.grupo_asignado).all())
+    por_semestre_y_genero = dict(est.filter(filtro_sem, Usuario.genero == genero).group_by(Usuario.grupo_asignado).all())
+    en_total = dict(est.group_by(Usuario.grupo_asignado).all())
+    clave = lambda g: (por_semestre.get(g, 0), por_semestre_y_genero.get(g, 0), en_total.get(g, 0))
+    mejor = min(clave(g) for g in GRUPOS_EN_ORDEN)
+    return random.SystemRandom().choice([g for g in GRUPOS_EN_ORDEN if clave(g) == mejor])
+
 @app.route('/api/registro', methods=['POST'])
 def registro():
     try:
@@ -528,6 +560,10 @@ def registro():
             puntaje_rotacion_mental=datos.get('puntaje_rotacion_mental'),
             rotacion_items=limpiar_rotacion_items(datos.get('rotacion_items'))
         )
+        # Estudiantes: el grupo queda asignado desde el registro (al iniciar sesión ya lo tienen). Todo en la MISMA transacción que el alta del usuario.
+        if rol == 'estudiante' and asignacion_automatica_activa():
+            bloquear_asignacion()
+            nuevo_usuario.grupo_asignado = elegir_grupo_balanceado(nuevo_usuario.semestre, nuevo_usuario.genero)
         db.session.add(nuevo_usuario)
         db.session.commit()
         return jsonify({'mensaje': 'Registro exitoso', 'id': nuevo_usuario.id}), 201
@@ -933,19 +969,56 @@ def asignar_grupo():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/balance_grupos', methods=['GET'])
+@admin_required
+def balance_grupos():
+    """Estudiantes por semestre y grupo: cuántos hay registrados y cuántos ya completaron la identificación (2 resultados)."""
+    completos = {uid for uid, n in db.session.query(SesionExperimental.usuario_id, func.count(ResultadoIdentificacion.id))
+                 .join(ResultadoIdentificacion, ResultadoIdentificacion.sesion_id == SesionExperimental.id).group_by(SesionExperimental.usuario_id).all() if n >= 2}
+    celdas, sin_grupo = {}, 0
+    for u in Usuario.query.filter_by(rol='estudiante').all():
+        if not u.grupo_asignado:
+            sin_grupo += 1
+            continue
+        c = celdas.setdefault(u.semestre, {g: {'registrados': 0, 'completaron': 0} for g in GRUPOS_EN_ORDEN})[u.grupo_asignado]
+        c['registrados'] += 1
+        c['completaron'] += 1 if u.id in completos else 0
+    filas = [{'semestre': s, 'grupos': celdas[s]} for s in sorted(celdas, key=lambda x: (x is None, x if x is not None else 0))]
+    totales = {g: {'registrados': sum(f['grupos'][g]['registrados'] for f in filas), 'completaron': sum(f['grupos'][g]['completaron'] for f in filas)} for g in GRUPOS_EN_ORDEN}
+    return jsonify({'activa': asignacion_automatica_activa(), 'grupos': GRUPOS_EN_ORDEN, 'filas': filas, 'totales': totales, 'sin_grupo': sin_grupo})
+
+@app.route('/api/admin/asignacion_automatica', methods=['POST'])
+@admin_required
+def set_asignacion_automatica():
+    try:
+        activa = bool((request.json or {}).get('activa'))
+        c = Configuracion.query.filter_by(clave='asignacion_automatica').first()
+        if c: c.valor = '1' if activa else '0'
+        else: db.session.add(Configuracion(clave='asignacion_automatica', valor='1' if activa else '0'))
+        db.session.commit()
+        return jsonify({'activa': activa})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/asignar_grupo_lote', methods=['POST'])
 @admin_required
 def asignar_grupo_lote():
     """Asigna grupos automáticamente en rotación a usuarios sin grupo."""
     try:
-        usuarios_sin_grupo = Usuario.query.filter_by(grupo_asignado=None).all()
-        grupos = ['2D', '2D_META', '3D', '3D_META']
-        asignados = 0
-        for i, u in enumerate(usuarios_sin_grupo):
-            u.grupo_asignado = grupos[i % len(grupos)]
+        usuarios_sin_grupo = Usuario.query.filter_by(grupo_asignado=None).order_by(Usuario.id).all()
+        asignados, estudiantes, rotacion = 0, 0, 0
+        bloquear_asignacion()
+        for u in usuarios_sin_grupo:
+            if u.rol == 'estudiante':
+                u.grupo_asignado = elegir_grupo_balanceado(u.semestre, u.genero)      # equilibrado por semestre, contando a los ya asignados
+                estudiantes += 1
+            else:
+                u.grupo_asignado = GRUPOS_EN_ORDEN[rotacion % len(GRUPOS_EN_ORDEN)]    # docentes, validadores y pruebas: rotación simple
+                rotacion += 1
             asignados += 1
         db.session.commit()
-        return jsonify({'mensaje': f'{asignados} usuarios asignados en rotación'})
+        return jsonify({'mensaje': f'{asignados} usuarios asignados ({estudiantes} estudiantes con equilibrio por semestre)'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
