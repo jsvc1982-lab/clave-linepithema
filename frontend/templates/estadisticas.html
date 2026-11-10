@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estadísticas Avanzadas - Clave Linepithema</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="/static/vendor/chart.umd.js"></script>
+    <script>window.Chart || document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>')</script>
+    <script src="/static/vendor/jstat.min.js"></script>
+    <script>window.jStat || document.write('<script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"><\/script>')</script>
+    <script src="/static/vendor/xlsx.full.min.js"></script>
+    <script>window.XLSX || document.write('<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"><\/script>')</script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;}
         body{background-color:#0A0E17;color:#E0E0E0;font-family:'Segoe UI',sans-serif;padding:20px;}
@@ -48,8 +51,11 @@
     <div class="subtitle">Análisis estadístico completo — Clave Taxonómica Linepithema</div>
 
     <div class="flex-buttons">
-        <button class="btn btn-primary"   onclick="exportarExcel()">📊 Excel</button>
-        <button class="btn btn-primary"   onclick="exportarJSON()">📥 JSON</button>
+        <button class="btn btn-primary" onclick="actualizarDatos()" title="Vuelve a pedir los datos al servidor">🔄 Actualizar datos</button>
+<span id="etiquetaDatos" style="color:#A0A0B0;font-size:0.8rem;align-self:center;"></span>
+<button class="btn btn-primary" onclick="exportarExcel()" title="Excel con TODAS las tablas (solo estudiantes), con los datos de este momento">📊 Excel completo</button>
+<button class="btn btn-primary" onclick="exportarJSON()">📥 JSON completo</button>
+<button class="btn btn-secondary" onclick="descargarPaquete()" title="ZIP con CSV, diccionario de variables y LEEME (solo estudiantes, anónimo)">📦 Paquete de análisis</button>
         <button class="btn btn-secondary" onclick="window.location.href='/admin'">← Volver al Admin</button>
     </div>
 
@@ -79,6 +85,7 @@
             resultados = r.filter(x => !noEstudiantes.has(x.usuario));
             encuestas = e.filter(x => !noEstudiantes.has(x.usuario));
             reflexiones = ref.filter(x => !noEstudiantes.has(x.usuario));
+datosCargadosEn = new Date(); actualizarEtiquetaDatos();
             if (noEstudiantes.size) mostrarMensaje(`Análisis solo con estudiantes: ${noEstudiantes.size} cuenta(s) de docente, validador o pruebas excluida(s)`, '#7B61FF');
         } catch(err) {
             document.getElementById('contenido').innerHTML =
@@ -657,30 +664,57 @@
         mostrarMensaje('✅ Dataset exportado (listo para R/SPSS)');
     }
 
-    // ===== EXPORTAR =====
-    function exportarJSON() {
-        const b=new Blob([JSON.stringify({usuarios,resultados,encuestas,reflexiones},null,2)],{type:'application/json'});
-        const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`estadisticas_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(a.href);
-        mostrarMensaje('✅ JSON exportado');
-    }
-
-    function exportarExcel() {
-        const wb=XLSX.utils.book_new();
-        const filasPart=usuarios.map(u=>{
-            const ru=resultados.filter(r=>r.usuario===u.nombre_usuario);
-            const ac=ru.filter(r=>r.acerto===true).length;
-            const ordenesUnicos = new Set(ru.map(r=>r.orden)).size;
-            const cambios = reflexiones.filter(x=>x.usuario===u.nombre_usuario && x.momento==='durante'
-                && /Cambiar estrategia\?\s*S[ií]/i.test(x.respuesta_raw||'')).length;
-            return {Usuario:u.nombre_usuario,Grupo:u.grupo_asignado||'—',Identificaciones:ordenesUnicos,'Cambios de estrategia':cambios,Aciertos:ac,'Precisión %':ru.length?(ac/ru.length*100).toFixed(1):0,'Tiempo (s)':ru.reduce((s,r)=>s+(r.tiempo||0),0).toFixed(1)};
+    // ===== EXPORTAR: siempre se piden los datos al servidor en el momento de descargar (el análisis usa solo estudiantes) =====
+let datosCargadosEn = null;
+const ORDEN_TABLAS = ['participantes', 'especimenes', 'pasos', 'encuestas', 'reflexiones', 'comentarios', 'diccionario_variables'];
+function fechaArchivo() { return new Date().toLocaleDateString('sv-SE'); }      // AAAA-MM-DD en la hora local del navegador (no en hora universal)
+function actualizarEtiquetaDatos() {
+    const el = document.getElementById('etiquetaDatos'); if (!el || !datosCargadosEn) return;
+    const min = Math.round((Date.now() - datosCargadosEn.getTime()) / 60000);
+    el.textContent = `Datos de las ${datosCargadosEn.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}${min >= 1 ? ' (hace ' + min + ' min)' : ''} · ${usuarios.length} estudiantes · ${resultados.length} resultados`;
+    el.style.color = min >= 10 ? '#FFB020' : '#A0A0B0';
+}
+setInterval(actualizarEtiquetaDatos, 30000);
+async function actualizarDatos() {
+    try { await cargarDatos(); renderTodo(); mostrarMensaje(`🔄 Datos actualizados: ${usuarios.length} estudiantes, ${resultados.length} resultados`); }
+    catch (e) { mostrarMensaje('❌ No se pudieron actualizar los datos', '#FF375F'); }
+}
+async function pedirTablas() {
+    const r = await fetch('/api/admin/tablas_exportacion?solo_estudiantes=1');
+    if (r.status === 401) { window.location.href = '/admin'; throw new Error('sesión de administrador vencida'); }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+}
+async function exportarExcel() {
+    if (typeof XLSX === 'undefined') { mostrarMensaje('❌ No se cargó la librería de Excel. Usa «Paquete de análisis».', '#FF375F'); return; }
+    try {
+        mostrarMensaje('⏳ Preparando el Excel con los datos de este momento…');
+        const d = await pedirTablas(), wb = XLSX.utils.book_new();
+        ORDEN_TABLAS.filter(n => d.tablas[n]).forEach(nombre => {
+            const t = d.tablas[nombre], ws = XLSX.utils.aoa_to_sheet([t.columnas, ...t.filas]);
+            ws['!cols'] = t.columnas.map((c, k) => ({ wch: Math.min(42, Math.max(c.length, ...t.filas.slice(0, 60).map(f => String(f[k] ?? '').length)) + 2) }));
+            XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0, 31));
         });
-        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(filasPart),'Participantes');
-        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(resultados.map(r=>({Usuario:r.usuario,Grupo:r.grupo,Especimen:r.especimen||'',Correcta:r.correcta||'',Seleccionada:r.seleccionada||'',Resultado:r.acerto?'Correcto':'Incorrecto',Tiempo:r.tiempo||0}))),'Resultados');
-        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(encuestas.map(e=>({Sesion:e.sesion_id,Grupo:e.grupo||'',Tipo:e.tipo,Puntaje:e.puntaje_total||''}))),'Encuestas');
-        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(reflexiones.map(r=>({Usuario:r.usuario,Grupo:r.grupo,Momento:r.momento,Respuesta:r.respuesta_raw}))),'Reflexiones');
-        XLSX.writeFile(wb,`estadisticas_${new Date().toISOString().split('T')[0]}.xlsx`);
-        mostrarMensaje('✅ Excel exportado');
-    }
+        XLSX.writeFile(wb, `estadisticas_completas_${fechaArchivo()}.xlsx`);
+        mostrarMensaje(`✅ Excel completo: ${d.conteos.participantes} estudiantes, ${d.conteos.especimenes} especímenes (datos de las ${d.generado.slice(11, 16)})`);
+    } catch (e) { mostrarMensaje('❌ No se pudo generar el Excel: ' + e.message, '#FF375F'); }
+}
+async function exportarJSON() {
+    try {
+        const d = await pedirTablas(), a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' })); a.download = `estadisticas_completas_${fechaArchivo()}.json`; a.click(); URL.revokeObjectURL(a.href);
+        mostrarMensaje(`✅ JSON completo: ${d.conteos.participantes} estudiantes (datos de las ${d.generado.slice(11, 16)})`);
+    } catch (e) { mostrarMensaje('❌ No se pudo generar el JSON: ' + e.message, '#FF375F'); }
+}
+async function descargarPaquete() {
+    try {
+        mostrarMensaje('⏳ Preparando el paquete de análisis…');
+        const r = await fetch('/api/admin/paquete_datos?solo_estudiantes=1'); if (!r.ok) throw new Error('HTTP ' + r.status);
+        const blob = await r.blob(), m = (r.headers.get('Content-Disposition') || '').match(/filename=([^;]+)/);
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = m ? m[1] : 'paquete_analisis.zip'; a.click(); URL.revokeObjectURL(a.href);
+        mostrarMensaje('✅ Paquete de análisis descargado');
+    } catch (e) { mostrarMensaje('❌ No se pudo descargar el paquete: ' + e.message, '#FF375F'); }
+}
 </script>
 </body>
 </html>
