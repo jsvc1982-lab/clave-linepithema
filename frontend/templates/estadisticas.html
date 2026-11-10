@@ -102,7 +102,7 @@ datosCargadosEn = new Date(); actualizarEtiquetaDatos();
 
     // ===== RENDER PRINCIPAL =====
     function renderTodo() {
-        let html = '';
+let html = '<div id="analisisPrincipal"></div>';
         html += seccionResumen();
         html += seccionGraficos();
         html += seccionCargasCognitivas();
@@ -113,7 +113,8 @@ datosCargadosEn = new Date(); actualizarEtiquetaDatos();
         html += seccionParticipantes(filtroActual);
         html += seccionAnalisisFactorial();
         document.getElementById('contenido').innerHTML = html;
-        setTimeout(dibujarGraficos, 100);
+setTimeout(dibujarGraficos, 100);
+cargarAnalisisPrincipal();
     }
 
     // ===== SECCIONES =====
@@ -231,7 +232,8 @@ datosCargadosEn = new Date(); actualizarEtiquetaDatos();
                 if(pares.length>0) filas=pares.map(p=>`<tr><td>${p.g1}</td><td>${p.g2}</td><td>${p.p}</td><td style="color:${p.sig?'#00D4FF':'#A0A0B0'}">${p.sig?'✅ Sí':'❌ No'}</td></tr>`).join('');
             }
         } catch(e){ anovaMsg='Error en cálculo (jStat no disponible)'; }
-        return `<div class="section"><div class="section-title">📊 6. Comparación Estadística</div>
+        return `<div class="section"><div class="section-title">📊 6. Comparación Estadística (método anterior)</div>
+<div style="background:#FFB02015;border:1px solid #FFB02060;color:#FFD580;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.85rem;">⚠️ Método anterior: usa el % de acierto por persona (que solo puede valer 0, 50 o 100) con ANOVA y pruebas t, sin corregir comparaciones múltiples ni el semestre. Para conclusiones usa el <strong>«Análisis estadístico principal»</strong> de arriba.</div>
             <div class="stat-card" style="margin-bottom:15px;"><strong>ANOVA:</strong> ${anovaMsg}</div>
             <table><thead><tr><th>Grupo 1</th><th>Grupo 2</th><th>p-value (t-test)</th><th>Significativo (p&lt;0.05)</th></tr></thead>
             <tbody>${filas}</tbody></table></div>`;
@@ -562,7 +564,7 @@ datosCargadosEn = new Date(); actualizarEtiquetaDatos();
     }
 
     function seccionAnalisisFactorial(){
-        let html = `<div class="section"><div class="section-title">🔬 9. Análisis Factorial 2×2×2 (Representación × Meta × Semestre)</div>
+        let html = `<div class="section"><div class="section-title">🔬 9. Análisis Factorial 2×2×2 (método anterior, exploratorio)</div>
             <div class="stat-card" style="margin-bottom:20px;font-size:0.85rem;color:#A0A0B0;">
                 ⚠️ Vista rápida calculada en el navegador (Suma de Cuadrados Tipo III). Para el análisis definitivo de tu tesis,
                 exporta el dataset con el botón de abajo y procésalo en R o SPSS.
@@ -664,7 +666,64 @@ datosCargadosEn = new Date(); actualizarEtiquetaDatos();
         mostrarMensaje('✅ Dataset exportado (listo para R/SPSS)');
     }
 
-    // ===== EXPORTAR: siempre se piden los datos al servidor en el momento de descargar (el análisis usa solo estudiantes) =====
+    // ===== ANÁLISIS ESTADÍSTICO PRINCIPAL (se calcula en el servidor, con los datos actuales) =====
+const ORDEN_ANALISIS = ['muestra', 'grupo_por_semestre', 'descriptivos', 'por_semestre', 'contrastes', 'pares', 'tiempos_encuestas', 'pruebas_encuestas', 'especies', 'especies_por_grupo', 'calibracion', 'potencia', 'calidad'];
+const HOJA_ANALISIS = { muestra: 'Muestra', grupo_por_semestre: 'Grupo x semestre', descriptivos: 'Descriptivos', por_semestre: 'Por semestre', contrastes: 'Contrastes', pares: 'Pares', tiempos_encuestas: 'Tiempos y encuestas', pruebas_encuestas: 'Pruebas encuestas', especies: 'Especies', especies_por_grupo: 'Especies x grupo', calibracion: 'Calibracion', potencia: 'Potencia', calidad: 'Calidad' };
+let analisisActual = null, opcionesAnalisis = { repetidos: false, permutaciones: 3000 };
+function escHtml(t) { return String(t === null || t === undefined ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function tablaAnalisisHTML(t) {
+    const ancho = t.columnas.length > 7;
+    const filas = t.filas.map(f => '<tr>' + f.map((v, i) => `<td${/aviso/i.test(t.columnas[i]) && v ? ' style="color:#FFD580;"' : ''}>${escHtml(v)}</td>`).join('') + '</tr>').join('');
+    return `<div style="margin:22px 0 6px;"><div style="color:#E0E0E0;font-weight:700;">${escHtml(t.titulo)}</div>
+        <div style="overflow-x:auto;"><table style="${ancho ? 'min-width:900px;' : ''}"><thead><tr>${t.columnas.map(c => `<th>${escHtml(c)}</th>`).join('')}</tr></thead><tbody>${filas || '<tr><td colspan="' + t.columnas.length + '" style="color:#A0A0B0;">Sin datos</td></tr>'}</tbody></table></div>
+        ${t.nota ? `<div style="color:#A0A0B0;font-size:0.8rem;line-height:1.5;">${escHtml(t.nota)}</div>` : ''}</div>`;
+}
+function controlesAnalisis() {
+    return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:0 0 14px;">
+        <label style="color:#E0E0E0;font-size:0.85rem;"><input type="checkbox" id="chkRepetidos" ${opcionesAnalisis.repetidos ? 'checked' : ''} onchange="opcionesAnalisis.repetidos = this.checked; cargarAnalisisPrincipal();"> Incluir intentos repetidos (por defecto solo el primer intento de cada espécimen)</label>
+        <label style="color:#E0E0E0;font-size:0.85rem;">Permutaciones: <select onchange="opcionesAnalisis.permutaciones = +this.value; cargarAnalisisPrincipal();" style="background:#1A1F36;color:#E0E0E0;border:1px solid #00D4FF40;border-radius:6px;padding:4px;">${[1000, 3000, 10000].map(n => `<option value="${n}" ${opcionesAnalisis.permutaciones === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <button class="btn btn-secondary" onclick="cargarAnalisisPrincipal()">🔄 Recalcular</button>
+        <button class="btn btn-primary" onclick="exportarResumenEstadistico()" ${analisisActual && !analisisActual.vacio ? '' : 'disabled'}>📊 Descargar resumen estadístico (Excel)</button></div>`;
+}
+function marcoAnalisis(contenido) {
+    return `<div class="section"><div class="section-title">🧪 Análisis estadístico principal (recomendado)</div>
+        <div style="color:#A0A0B0;font-size:0.85rem;line-height:1.55;margin-bottom:14px;">Solo estudiantes, <strong>primer intento</strong> de cada espécimen. Compara grupos dentro del mismo semestre (permutación estratificada), estima los efectos con regresión logística de errores robustos por participante, corrige comparaciones múltiples (Holm) y dice cuándo un resultado es frágil. Se calcula en el servidor con los datos de este momento.</div>${contenido}</div>`;
+}
+async function cargarAnalisisPrincipal() {
+    const caja = document.getElementById('analisisPrincipal'); if (!caja) return;
+    caja.innerHTML = marcoAnalisis(controlesAnalisis() + '<div class="loading-state" style="padding:30px;">⏳ Calculando con los datos actuales… (puede tardar unos segundos)</div>');
+    try {
+        const r = await fetch(`/api/admin/analisis?permutaciones=${opcionesAnalisis.permutaciones}${opcionesAnalisis.repetidos ? '&repetidos=1' : ''}`);
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+        analisisActual = d;
+        if (d.vacio) { caja.innerHTML = marcoAnalisis(controlesAnalisis() + `<div style="color:#A0A0B0;padding:14px;">${escHtml(d.mensaje)}</div>`); return; }
+        const lect = d.lectura.map(l => `<li style="margin:6px 0;">${escHtml(l)}</li>`).join(''), av = d.avisos.map(a => `<li style="margin:6px 0;">${escHtml(a)}</li>`).join('');
+        caja.innerHTML = marcoAnalisis(controlesAnalisis() +
+            `<div style="background:#1A1F36;border:1px solid #00D4FF40;border-radius:10px;padding:12px 16px;margin-bottom:12px;"><div style="color:#00D4FF;font-weight:700;">📖 Lectura</div><ul style="margin:6px 0 0 18px;color:#E0E0E0;font-size:0.9rem;line-height:1.5;">${lect}</ul></div>
+             <div style="background:#FFB02015;border:1px solid #FFB02060;border-radius:10px;padding:12px 16px;margin-bottom:6px;"><div style="color:#FFB020;font-weight:700;">⚠️ Antes de interpretar</div><ul style="margin:6px 0 0 18px;color:#FFD580;font-size:0.85rem;line-height:1.5;">${av}</ul></div>` +
+            ORDEN_ANALISIS.filter(k => d.tablas[k]).map(k => tablaAnalisisHTML(d.tablas[k])).join('') +
+            `<div style="color:#6B7280;font-size:0.75rem;margin-top:14px;">Calculado a las ${escHtml((d.generado || '').slice(11, 16))} (hora de Colombia) · ${d.parametros.permutaciones} permutaciones · semilla ${d.parametros.semilla} (el resultado se puede reproducir) · ${d.parametros.segundos} s.</div>`);
+    } catch (e) {
+        caja.innerHTML = marcoAnalisis(controlesAnalisis() + `<div style="color:#FF375F;padding:14px;">❌ No se pudo calcular el análisis: ${escHtml(e.message)}</div>`);
+    }
+}
+function exportarResumenEstadistico() {
+    if (!analisisActual || analisisActual.vacio) return;
+    if (typeof XLSX === 'undefined') { mostrarMensaje('❌ No se cargó la librería de Excel.', '#FF375F'); return; }
+    const wb = XLSX.utils.book_new(), d = analisisActual;
+    const lectura = [['Resumen estadístico — Clave Linepithema'], ['Calculado a las ' + (d.generado || '').slice(11, 16) + ' (hora de Colombia)'], [], ['LECTURA'], ...d.lectura.map(l => [l]), [], ['ANTES DE INTERPRETAR'], ...d.avisos.map(a => [a]), [], ['Parámetros: ' + d.parametros.permutaciones + ' permutaciones, semilla ' + d.parametros.semilla + (d.parametros.incluir_repetidos ? ', todos los intentos' : ', primer intento de cada espécimen')]];
+    const w0 = XLSX.utils.aoa_to_sheet(lectura); w0['!cols'] = [{ wch: 140 }]; XLSX.utils.book_append_sheet(wb, w0, 'Lectura');
+    ORDEN_ANALISIS.filter(k => d.tablas[k]).forEach(k => {
+        const t = d.tablas[k], ws = XLSX.utils.aoa_to_sheet([[t.titulo], [t.nota || ''], [], t.columnas, ...t.filas]);
+        ws['!cols'] = t.columnas.map((c, i) => ({ wch: Math.min(40, Math.max(c.length, ...t.filas.slice(0, 40).map(f => String(f[i] === null || f[i] === undefined ? '' : f[i]).length)) + 2) }));
+        XLSX.utils.book_append_sheet(wb, ws, HOJA_ANALISIS[k] || k.slice(0, 31));
+    });
+    XLSX.writeFile(wb, `resumen_estadistico_${fechaArchivo()}.xlsx`);
+    mostrarMensaje('✅ Resumen estadístico descargado');
+}
+
+// ===== EXPORTAR: siempre se piden los datos al servidor en el momento de descargar (el análisis usa solo estudiantes) =====
 let datosCargadosEn = null;
 const ORDEN_TABLAS = ['participantes', 'especimenes', 'pasos', 'encuestas', 'reflexiones', 'comentarios', 'diccionario_variables'];
 function fechaArchivo() { return new Date().toLocaleDateString('sv-SE'); }      // AAAA-MM-DD en la hora local del navegador (no en hora universal)
