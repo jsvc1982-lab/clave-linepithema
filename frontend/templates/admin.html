@@ -76,6 +76,7 @@
     <div class="subtitle">Gestión de participantes y análisis de resultados — Clave Linepithema</div>
 
 <div id="tarjetaSesion" style="background:#121826;border:2px solid #00D4FF40;border-radius:14px;padding:16px 18px;margin:0 0 16px;color:#E0E0E0;">Cargando la sesión de aplicación…</div>
+<div id="tarjetaCupos" style="background:#121826;border:1px solid #00D4FF30;border-radius:14px;padding:12px 18px;margin:-6px 0 16px;color:#E0E0E0;font-size:0.9rem;"></div>
 
     <div class="tabs">
         <div class="tab active" data-tab="usuarios"    onclick="cambiarTab('usuarios')">👥 Usuarios</div>
@@ -157,11 +158,30 @@ document.addEventListener('DOMContentLoaded', () => { cargarDatosPanel(false); s
         setTimeout(() => d.remove(), 3500);
     }
 
+    // ===== Cupos por grupo: cuántos estudiantes cuentan en cada grupo y cuántos faltan para el objetivo =====
+    const NOMBRE_GRUPO = { '2D': '2D', '2D_META': '2D+M', '3D': '3D', '3D_META': '3D+M' };
+    async function cargarCupos() {
+        const caja = document.getElementById('tarjetaCupos'); if (!caja) return;
+        let d; try { const r = await fetch('/api/admin/objetivo_grupo'); if (!r.ok) throw new Error('HTTP ' + r.status); d = await r.json(); } catch (e) { caja.innerHTML = ''; return; }
+        const gs = Object.keys(NOMBRE_GRUPO), obj = d.objetivo;
+        const faltan = obj > 0 ? gs.reduce((s, g) => s + Math.max(0, obj - d.efectivos[g]), 0) : 0;
+        const barra = g => { const n = d.efectivos[g], pct = obj > 0 ? Math.min(100, Math.round(100 * n / obj)) : 0, lleno = obj > 0 && n >= obj, entra = d.candidatos.includes(g) && obj > 0 && !lleno;
+            return `<div style="flex:1;min-width:130px;"><div style="display:flex;justify-content:space-between;font-size:0.82rem;"><strong>${NOMBRE_GRUPO[g]}</strong><span style="color:${lleno ? '#30D158' : '#E0E0E0'};">${n}${obj > 0 ? ' / ' + obj : ''}${lleno ? ' ✓' : ''}</span></div>
+                <div style="height:8px;background:#1A1F36;border-radius:6px;overflow:hidden;margin:4px 0;"><div style="width:${pct}%;height:100%;background:${lleno ? '#30D158' : '#00D4FF'};"></div></div>
+                <div style="font-size:0.72rem;color:${entra ? '#00D4FF' : '#6B7280'};">${obj > 0 ? (lleno ? 'completo' : (entra ? '← reciben ahora' : 'esperando')) : ''}</div></div>`; };
+        caja.innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+            <div style="min-width:170px;"><div style="color:#00D4FF;font-weight:700;">🎯 Cupos por grupo</div><div style="color:#A0A0B0;font-size:0.78rem;line-height:1.4;">${obj > 0 ? (faltan > 0 ? `Faltan <strong style="color:#E0E0E0;">${faltan}</strong> estudiantes para completar los 4 grupos.` : 'Todos los grupos están completos: se reparte parejo.') : 'Sin objetivo: se reparte parejo entre los 4 grupos.'}</div></div>
+            ${gs.map(barra).join('')}</div>
+            <div style="color:#6B7280;font-size:0.75rem;margin-top:8px;">Cuentan quienes ya iniciaron el ejercicio y los registrados en las últimas ${d.horas_pendiente} h. Los nuevos estudiantes van a los grupos más atrasados (entre ellos, equilibrando por semestre). El objetivo se cambia en «⚖️ Balance de grupos».</div>`;
+    }
+    document.addEventListener('DOMContentLoaded', () => cargarCupos());
+
     // ===== Sesión de aplicación y código de participación =====
     // Cada vez que entras a este panel se abre una sesión nueva con un código nuevo. Solo quien escribe el código entra al estudio y recibe grupo.
     let sesionAplicacion = null;
     async function cargarSesionAplicacion() {
         const caja = document.getElementById('tarjetaSesion'); if (!caja) return;
+        cargarCupos();
         try {
             const res = await fetch('/api/admin/sesion_aplicacion'); if (!res.ok) throw new Error('HTTP ' + res.status);
             sesionAplicacion = await res.json();
@@ -201,6 +221,14 @@ document.addEventListener('DOMContentLoaded', () => { cargarDatosPanel(false); s
     document.addEventListener('DOMContentLoaded', cargarSesionAplicacion);
 
     // ===== Balance de grupos por semestre + interruptor de la asignación automática al registrarse =====
+    async function guardarObjetivoGrupo() {
+        const v = parseInt(document.getElementById('inputObjetivo').value, 10);
+        const r = await fetch('/api/admin/objetivo_grupo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ objetivo: v }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { mostrarMensaje('⚠️ ' + (d.error || 'No se pudo guardar'), '#FFB020'); return; }
+        mostrarMensaje('🎯 Objetivo guardado: ' + v + ' por grupo'); cargarCupos(); mostrarBalanceGrupos();
+    }
+
     async function mostrarBalanceGrupos() {
         let d;
         try {
@@ -221,8 +249,12 @@ document.addEventListener('DOMContentLoaded', () => { cargarDatosPanel(false); s
             ${d.sin_grupo ? `<p style="color:#FFB020;margin-top:10px;">⚠️ ${d.sin_grupo} estudiante(s) sin grupo. Se asignan con el botón «Asignar grupos automáticamente».</p>` : ''}
             <div style="background:#1A1F36;border-radius:10px;padding:12px 14px;margin-top:14px;">
                 <div style="margin-bottom:8px;">Asignación automática al registrarse: <strong style="color:${d.activa ? '#30D158' : '#FF375F'};">${d.activa ? '✅ ACTIVADA' : '⛔ DESACTIVADA'}</strong></div>
-                <div style="color:#A0A0B0;font-size:0.82rem;line-height:1.5;margin-bottom:10px;">Cada estudiante que entra al estudio con el código de la sesión va al grupo con menos gente <strong>de su semestre</strong>; si hay empate, al que tenga menos de su mismo género, luego al de menos gente en total, y al final al azar. Quien se registra y no participa deja un hueco: si es necesario, bórralo o cámbialo de grupo desde la tabla de usuarios.</div>
+                <div style="color:#A0A0B0;font-size:0.82rem;line-height:1.5;margin-bottom:10px;">Cada estudiante que entra al estudio con el código de la sesión va primero a los grupos <strong>más atrasados</strong> respecto al objetivo; entre ellos, al que tenga menos gente <strong>de su semestre</strong>; si hay empate, al que tenga menos de su mismo género, luego al de menos gente en total, y al final al azar. Cuando todos llegan al objetivo, se reparte parejo entre los cuatro. Quien se registra y no participa deja un hueco: si es necesario, bórralo o cámbialo de grupo desde la tabla de usuarios.</div>
                 <button class="btn btn-secondary" onclick="alternarAsignacionAutomatica(${!d.activa})">${d.activa ? 'Desactivar' : 'Activar'} la asignación automática</button>
+            </div>
+            <div style="background:#1A1F36;border-radius:10px;padding:12px 14px;margin-top:10px;">
+                <div style="margin-bottom:6px;">🎯 Objetivo de estudiantes por grupo: <input id="inputObjetivo" type="number" min="0" max="500" value="${d.objetivo}" style="width:70px;padding:5px 8px;border-radius:6px;border:1px solid #00D4FF40;background:#0A0E17;color:#E0E0E0;"> <button class="btn btn-secondary" onclick="guardarObjetivoGrupo()">Guardar</button></div>
+                <div style="color:#A0A0B0;font-size:0.82rem;line-height:1.5;">Ahora cuentan: ${d.grupos.map(g => `<strong>${et[g]}</strong> ${d.efectivos[g]}`).join(' · ')}. Pon <strong>0</strong> para no usar objetivo (reparto parejo sin mirar los totales).</div>
             </div>
             <div style="margin-top:14px;"><button class="btn btn-secondary" onclick="document.getElementById('modalBalance').remove()">Cerrar</button></div></div>`;
         document.body.appendChild(ov);
