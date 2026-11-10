@@ -385,9 +385,12 @@ def preparar(tablas, incluir_repetidos=False):
     esp = _filas(tablas['especimenes'])
     par = {f['id_participante']: f for f in _filas(tablas['participantes'])}
     estudiantes = [p for p in par.values() if p['rol'] == 'estudiante']
-    obs, repetidos_excl = [], 0
+    obs, repetidos_excl, anulados_excl = [], 0, 0
     for r in esp:
         if r['rol'] != 'estudiante' or r['acierto'] not in (0, 1):
+            continue
+        if r.get('sesion_anulada') == 1:                       # un intento anulado se conserva en los datos, pero no entra al análisis
+            anulados_excl += 1
             continue
         p = par.get(r['id_participante'])
         if not p or p['grupo'] not in GRUPOS:
@@ -410,7 +413,7 @@ def preparar(tablas, incluir_repetidos=False):
         d['tiempo_medio'] = media(d['tiempos'])
         d['R'] = 1 if d['grupo'].startswith('3D') else 0
         d['M'] = 1 if 'META' in d['grupo'] else 0
-    return {'obs': obs, 'personas': sorted(personas.values(), key=lambda d: d['id']), 'estudiantes': estudiantes, 'par': par, 'repetidos_excl': repetidos_excl, 'esp_todas': esp}
+    return {'obs': obs, 'personas': sorted(personas.values(), key=lambda d: d['id']), 'estudiantes': estudiantes, 'par': par, 'repetidos_excl': repetidos_excl, 'anulados_excl': anulados_excl, 'esp_todas': esp}
 
 
 # ======================================================================================================================
@@ -602,9 +605,9 @@ def analizar(tablas, B=3000, semilla=20261110, incluir_repetidos=False, presupue
         if mod4.get('ok'):
             L = [0.0] * 4
             if g2 != '2D':
-                L[GRUPOS.index(g2) - 1] += 1
+                L[GRUPOS.index(g2)] += 1
             if g1 != '2D':
-                L[GRUPOS.index(g1) - 1] -= 1
+                L[GRUPOS.index(g1)] -= 1
             est, ee, _ = contraste_wald(mod4, L)
             orr, lo, hi = razon_odds(est, ee)
         p_list.append(pr['p'] if pr else None)
@@ -703,6 +706,8 @@ def analizar(tablas, B=3000, semilla=20261110, incluir_repetidos=False, presupue
     en_analisis = {d['id'] for d in per}
     filas = [['Estudiantes registrados', len(est_ids)], ['Estudiantes con grupo asignado', sum(1 for p in D['estudiantes'] if p['grupo'] in GRUPOS)], ['Estudiantes con al menos un espécimen analizado', len(per)],
              ['Estudiantes sin ningún espécimen (no entran al análisis)', len(est_ids) - len(en_analisis)], ['Especímenes analizados', len(obs)], ['Especímenes repetidos descartados (reinicios)', 0 if incluir_repetidos else D['repetidos_excl']],
+             ['Especímenes de intentos ANULADOS (conservados, excluidos del análisis)', D['anulados_excl']], ['Estudiantes con algún intento anulado', sum(1 for p in D['estudiantes'] if (p.get('n_sesiones_anuladas') or 0) > 0)],
+             ['Especímenes de intentos vigentes tras una anulación (vieron otras especies antes)', sum(1 for r in obs if r.get('reintento_tras_anulacion') == 1)],
              ['Especímenes con menos de 15 s (posible azar)', sum(1 for r in obs if r.get('tiempo_corto') == 1)],
              ['Reflexiones «post» con los tres deslizadores en 50', sum(1 for r in obs if r.get('post_sin_mover') == 1)], ['Personas sin puntaje SUS', sum(1 for d in per if d['sus'] is None)],
              ['Personas sin carga cognitiva', sum(1 for d in per if d['ccp_i'] is None)], ['Personas sin semestre', sum(1 for d in per if d['semestre'] is None)]]

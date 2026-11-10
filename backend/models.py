@@ -34,6 +34,11 @@ class SesionExperimental(db.Model):
     grupo = db.Column(db.String(20))
     especies_asignadas = db.Column(db.Text)  # JSON con las 2 especies que le tocaron
     especimenes_asignados = db.Column(db.Text)  # Para compatibilidad
+    # Intento ANULADO por el administrador (o liberado automáticamente): se CONSERVA con todos sus datos, pero no entra al análisis ni a las estadísticas.
+    anulada = db.Column(db.Boolean, default=False)
+    motivo_anulacion = db.Column(db.Text)
+    fecha_anulacion = db.Column(db.DateTime)
+    anulada_por = db.Column(db.String(80))     # 'administrador' o 'automático'
     
     resultados = db.relationship('ResultadoIdentificacion', backref='sesion_rel', lazy=True)
     encuestas = db.relationship('ResultadoEncuesta', backref='sesion_rel', lazy=True)
@@ -99,4 +104,5 @@ class PasoClave(db.Model):
     es_paso_final = db.Column(db.Boolean, default=False)  # si este paso concluyó en una especie
     tiempo_segundos = db.Column(db.Float)        # tiempo empleado en decidir este paso
     orden_paso = db.Column(db.Integer)           # 1er clic, 2do clic... dentro del espécimen
+    deshecho = db.Column(db.Boolean, default=False)   # el participante volvió atrás y deshizo este paso (se conserva el registro)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)

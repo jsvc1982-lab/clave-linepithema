@@ -8,7 +8,7 @@ import json
 import os
 import re
 import time
-from sqlalchemy import func, event
+from sqlalchemy import func, event, or_
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DBAPIError, DisconnectionError
 from sqlalchemy.pool import NullPool
@@ -26,6 +26,8 @@ except ImportError:
         import estadistica
     except ImportError:
         estadistica = None
+
+import datetime as _dt
 
 # ===== CONFIGURACIÓN =====
 load_dotenv()
@@ -185,6 +187,8 @@ COLUMNAS_NUEVAS = {
     'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER'),
                    ('ayuda_encuadre_usos', 'INTEGER DEFAULT 0'), ('ayuda_encuadre_detalle', 'TEXT')],
     'reflexiones': [('orden_especimen', 'INTEGER')],
+'sesiones': [('anulada', 'BOOLEAN DEFAULT FALSE'), ('motivo_anulacion', 'TEXT'), ('fecha_anulacion', 'TIMESTAMP'), ('anulada_por', 'VARCHAR(80)')],
+'pasos_clave': [('deshecho', 'BOOLEAN DEFAULT FALSE')],
 }
 
 def asegurar_esquema():
@@ -821,9 +825,24 @@ def sesion_completa(sesion):
     tipos = {e.tipo for e in ResultadoEncuesta.query.filter_by(sesion_id=sesion.id).all()}
     return 'SUS' in tipos and 'COGNITIVE_LOAD' in tipos
 
+
+# ===== INTENTOS ANULADOS =====
+# Un intento anulado se CONSERVA con todos sus datos (para poder analizarlo si hace falta), pero deja de contar: no aparece en el panel del
+# participante, ni en las estadísticas, ni en la exportación principal. Así se puede habilitar un intento nuevo sin borrar nada.
+SESION_VIGENTE = or_(SesionExperimental.anulada.is_(False), SesionExperimental.anulada.is_(None))
+
+def sesiones_validas(usuario):
+    return [s for s in usuario.sesiones if not s.anulada]
+
+def anular_sesion(sesion, motivo, por):
+    sesion.anulada = True
+    sesion.motivo_anulacion = (motivo or 'No especificado')[:500]
+    sesion.fecha_anulacion = _dt.datetime.utcnow()
+    sesion.anulada_por = por
+
 def sesion_visible_pruebas(usuario):
     """Intento más reciente que ya tiene al menos un resultado: es el que muestra el panel (los anteriores quedan como historial)."""
-    for s in sorted(usuario.sesiones, key=lambda x: x.id, reverse=True):
+    for s in sorted(sesiones_validas(usuario), key=lambda x: x.id, reverse=True):
         if s.resultados:
             return s
     return None
@@ -832,13 +851,13 @@ def sesiones_visibles(usuario):
     if usuario.rol == 'pruebas':
         s = sesion_visible_pruebas(usuario)
         return [s] if s else []
-    return usuario.sesiones
+    return sesiones_validas(usuario)
 
 def progreso_pruebas(usuario):
     if usuario.rol != 'pruebas':
         return None
     hechos = []
-    for s in sorted(usuario.sesiones, key=lambda x: x.id):
+    for s in sorted(sesiones_validas(usuario), key=lambda x: x.id):
         if s.grupo and s.grupo not in hechos and sesion_completa(s):
             hechos.append(s.grupo)
     return {'completados': hechos, 'siguiente': usuario.grupo_asignado, 'orden': GRUPOS_EN_ORDEN}
@@ -913,7 +932,7 @@ def encuestas_completadas_me():
     try:
         sesion_exp = SesionExperimental.query.filter_by(
             usuario_id=session['usuario_id']
-        ).order_by(SesionExperimental.id.desc()).first()
+        ).filter(SESION_VIGENTE).order_by(SesionExperimental.id.desc()).first()
         _u = db.session.get(Usuario, session['usuario_id'])
         if _u and _u.rol == 'pruebas':
             sesion_exp = sesion_visible_pruebas(_u) or sesion_exp
@@ -1003,7 +1022,7 @@ def get_resultados_usuario(usuario_id):
     if not usuario:
         return jsonify({'error': 'Usuario no encontrado'}), 404
     resultados = []
-    for sesion_exp in usuario.sesiones:
+    for sesion_exp in sesiones_validas(usuario):
         for r in sesion_exp.resultados:
             resultados.append({
                 'sesion_id': sesion_exp.id,
@@ -1029,7 +1048,7 @@ def encuestas_completadas(usuario_id):
     try:
         sesion_exp = SesionExperimental.query.filter_by(
             usuario_id=usuario_id
-        ).order_by(SesionExperimental.id.desc()).first()
+        ).filter(SESION_VIGENTE).order_by(SesionExperimental.id.desc()).first()
 
         if not sesion_exp:
             return jsonify({
@@ -1090,10 +1109,12 @@ def admin_logout():
 @admin_required
 def get_usuarios():
     usuarios = Usuario.query.all()
-    sesiones_por_usuario = dict(db.session.query(SesionExperimental.usuario_id, func.count(SesionExperimental.id)).group_by(SesionExperimental.usuario_id).all())
+    sesiones_por_usuario = dict(db.session.query(SesionExperimental.usuario_id, func.count(SesionExperimental.id)).filter(SESION_VIGENTE).group_by(SesionExperimental.usuario_id).all())
+    anuladas_por_usuario = dict(db.session.query(SesionExperimental.usuario_id, func.count(SesionExperimental.id)).filter(SesionExperimental.anulada.is_(True)).group_by(SesionExperimental.usuario_id).all())
     return jsonify([{
         'id': u.id,
         'n_sesiones': sesiones_por_usuario.get(u.id, 0),
+        'n_anuladas': anuladas_por_usuario.get(u.id, 0),
         'nombre_usuario': u.nombre_usuario,
         'correo': u.correo,
         'semestre': u.semestre,
@@ -1155,7 +1176,7 @@ def asignar_grupo():
         if not usuario:
             return jsonify({'error': 'Usuario no encontrado'}), 404
         nuevo, actual = data['grupo'], usuario.grupo_asignado
-        sesiones = SesionExperimental.query.filter_by(usuario_id=usuario.id).count()
+        sesiones = SesionExperimental.query.filter_by(usuario_id=usuario.id).filter(SESION_VIGENTE).count()
         # Cuentas de PRUEBAS: se cambia libremente (cada intento nuevo toma el grupo que tengan en ese momento).
         # Participantes REALES que ya hicieron el ejercicio: cambiar el grupo mezclaría los datos del estudio; solo con confirmación explícita.
         if actual and actual != nuevo and usuario.rol != 'pruebas' and sesiones > 0:
@@ -1175,7 +1196,7 @@ def asignar_grupo():
 def balance_grupos():
     """Estudiantes por semestre y grupo: cuántos hay registrados y cuántos ya completaron la identificación (2 resultados)."""
     completos = {uid for uid, n in db.session.query(SesionExperimental.usuario_id, func.count(ResultadoIdentificacion.id))
-                 .join(ResultadoIdentificacion, ResultadoIdentificacion.sesion_id == SesionExperimental.id).group_by(SesionExperimental.usuario_id).all() if n >= 2}
+                 .join(ResultadoIdentificacion, ResultadoIdentificacion.sesion_id == SesionExperimental.id).filter(SESION_VIGENTE).group_by(SesionExperimental.usuario_id).all() if n >= 2}
     celdas, sin_grupo = {}, 0
     for u in Usuario.query.filter_by(rol='estudiante').all():
         if not u.grupo_asignado:
@@ -1471,7 +1492,7 @@ def importar_copia_completa():
 @admin_required
 def ver_datos():
     resultados = []
-    for sesion_exp in SesionExperimental.query.all():
+    for sesion_exp in SesionExperimental.query.filter(SESION_VIGENTE).all():
         usuario = Usuario.query.get(sesion_exp.usuario_id)
         for r in sesion_exp.resultados:
             resultados.append({
@@ -1498,6 +1519,8 @@ def get_encuestas():
         encuestas = []
         for enc in ResultadoEncuesta.query.all():
             sesion_exp = SesionExperimental.query.get(enc.sesion_id)
+            if sesion_exp and sesion_exp.anulada:
+                continue
             grupo = sesion_exp.grupo if sesion_exp else None
 
             sus_total = None
@@ -1545,7 +1568,7 @@ def get_reflexiones():
         reflexiones = []
         for ref in ReflexionMetacognitiva.query.all():
             sesion_exp = SesionExperimental.query.get(ref.sesion_id)
-            if not sesion_exp:
+            if not sesion_exp or sesion_exp.anulada:
                 continue
             usuario = Usuario.query.get(sesion_exp.usuario_id)
             if not usuario:
@@ -1586,7 +1609,7 @@ def get_pasos_admin():
         filtro_grupo = request.args.get('grupo')
 
         pasos = []
-        for sesion_exp in SesionExperimental.query.all():
+        for sesion_exp in SesionExperimental.query.filter(SESION_VIGENTE).all():
             if filtro_grupo and sesion_exp.grupo != filtro_grupo:
                 continue
             usuario = Usuario.query.get(sesion_exp.usuario_id)
@@ -1654,32 +1677,68 @@ def resetear_password(usuario_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/admin/usuarios/<int:usuario_id>/habilitar_reintento', methods=['POST'])
-@admin_required
-def habilitar_reintento(usuario_id):
-    """Elimina el intento INCOMPLETO de un participante (cerró la ventana a mitad) para que pueda volver a
-    ingresar. Un intento con las dos identificaciones completas nunca se borra."""
+def _describir_intento(usuario):
+    """Estado del intento vigente de un participante, para que el administrador decida con información."""
+    codigo, ultima = estado_ejercicio(usuario)
+    anulados = [s for s in usuario.sesiones if s.anulada]
+    base = {'usuario': usuario.nombre_usuario, 'rol': usuario.rol, 'grupo': usuario.grupo_asignado, 'estado': codigo, 'intentos_anulados': len(anulados)}
+    if ultima is None:
+        return {**base, 'sesion_id': None, 'resultados': 0, 'pasos': 0, 'encuestas': [], 'inicio': '', 'especies': []}
     try:
-        usuario = Usuario.query.get(usuario_id)
+        especies = json.loads(ultima.especies_asignadas or '[]')
+    except Exception:
+        especies = []
+    return {**base, 'sesion_id': ultima.id, 'resultados': len({r.orden for r in ultima.resultados}), 'pasos': PasoClave.query.filter_by(sesion_id=ultima.id).count(),
+            'encuestas': sorted({e.tipo for e in ultima.encuestas}), 'inicio': (ultima.fecha_inicio + _dt.timedelta(hours=-5)).strftime('%Y-%m-%d %H:%M') if ultima.fecha_inicio else '', 'especies': especies}
+
+@app.route('/api/admin/usuarios/<int:usuario_id>/estado_intento', methods=['GET'])
+@admin_required
+def estado_intento(usuario_id):
+    usuario = db.session.get(Usuario, usuario_id)
+    if not usuario:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    return jsonify(_describir_intento(usuario))
+
+@app.route('/api/admin/usuarios/<int:usuario_id>/anular_intento', methods=['POST'])
+@admin_required
+def anular_intento(usuario_id):
+    """ANULA el intento vigente de un participante y le habilita uno nuevo. No borra nada: el intento anulado se conserva con todos sus
+    datos, marcado con el motivo, y deja de contar en las estadísticas. Si ya tenía identificaciones hechas exige confirmación explícita."""
+    try:
+        usuario = db.session.get(Usuario, usuario_id)
         if not usuario:
             return jsonify({'error': 'Usuario no encontrado'}), 404
-        borrados = 0
-        for s in list(usuario.sesiones):
-            if len({r.orden for r in s.resultados}) >= 2:
-                continue
-            PasoClave.query.filter_by(sesion_id=s.id).delete()
-            ReflexionMetacognitiva.query.filter_by(sesion_id=s.id).delete()
-            ResultadoEncuesta.query.filter_by(sesion_id=s.id).delete()
-            ResultadoIdentificacion.query.filter_by(sesion_id=s.id).delete()
-            SesionExperimental.query.filter_by(id=s.id).delete()
-            borrados += 1
+        data = request.json or {}
+        info = _describir_intento(usuario)
+        if info['sesion_id'] is None:
+            return jsonify({'error': 'Esta persona no tiene ningún intento vigente que anular: ya puede iniciar el ejercicio.'}), 400
+        if info['resultados'] >= 1 and not data.get('confirmar'):
+            return jsonify({'error': 'Este intento ya tiene identificaciones hechas (la persona vio las respuestas correctas). Confirma que quieres anularlo.', 'codigo': 'requiere_confirmacion', **info}), 409
+        motivo = (data.get('motivo') or 'No especificado').strip()
+        detalle = (data.get('detalle') or '').strip()
+        ses = db.session.get(SesionExperimental, info['sesion_id'])
+        anular_sesion(ses, motivo + (': ' + detalle if detalle else ''), 'administrador')
         db.session.commit()
-        if borrados == 0:
-            return jsonify({'error': 'No hay un intento incompleto para habilitar. Un intento con las dos identificaciones completas no se borra.'}), 400
-        return jsonify({'mensaje': f'Intento incompleto de {usuario.nombre_usuario} eliminado. Ya puede volver a ingresar.'})
+        return jsonify({'mensaje': f'Intento de {usuario.nombre_usuario} anulado ({motivo}). Ya puede ingresar de nuevo; el intento anulado se conservó con todos sus datos.', 'anulado': info})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/usuarios/<int:usuario_id>/habilitar_reintento', methods=['POST'])
+@admin_required
+def habilitar_reintento(usuario_id):
+    """Ruta heredada (botón 🔓 de versiones anteriores del panel): anula el intento si está INCOMPLETO. Ya no borra datos."""
+    usuario = db.session.get(Usuario, usuario_id)
+    if not usuario:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    info = _describir_intento(usuario)
+    if info['sesion_id'] is None or info['estado'] in ('completado', 'encuestas_pendientes'):
+        return jsonify({'error': 'No hay un intento incompleto para habilitar. Usa «Anular y habilitar» para un intento ya completo.'}), 400
+    ses = db.session.get(SesionExperimental, info['sesion_id'])
+    anular_sesion(ses, 'Cerró la ventana a mitad del ejercicio', 'administrador')
+    db.session.commit()
+    return jsonify({'mensaje': f'Intento incompleto de {usuario.nombre_usuario} anulado (se conservaron sus datos). Ya puede volver a ingresar.'})
+
 
 @app.route('/api/admin/reparar_esquema', methods=['GET', 'POST'])
 @admin_required
@@ -1793,7 +1852,7 @@ def _definiciones_tablas():
     id_ = ('id_participante', 'Número interno del participante; sirve para unir todas las tablas')
     return {
         'participantes': [id_] + base_user + [covar[0], covar[1], ('institucion', 'Institución según el dominio del correo'), ('fecha_registro', 'Fecha y hora del registro (hora de Colombia)')] + sesion_app + covar[2:] + rot_desc + [
-            ('n_sesiones', 'Cuántas sesiones (intentos) tiene en la plataforma'), ('n_especimenes', 'Cuántos especímenes distintos identificó'),
+            ('n_sesiones', 'Cuántas sesiones (intentos) VIGENTES tiene en la plataforma'), ('n_sesiones_anuladas', 'Cuántos intentos suyos fueron anulados (se conservan marcados; no entran al análisis)'), ('n_especimenes', 'Cuántos especímenes distintos identificó'),
             ('aciertos_primer_intento', 'Aciertos contando solo el primer intento de cada espécimen'), ('precision_primer_intento_pct', 'Porcentaje de acierto contando solo el primer intento de cada espécimen'),
             ('tiempo_total_clave_s', 'Segundos en la clave sumando el primer intento de cada espécimen'), ('sus_total', 'Puntaje SUS de usabilidad (0 a 100)'),
             ('ccp_intrinseca', 'Carga cognitiva intrínseca: suma de los ítems 1 a 4 (0 a 40)'), ('ccp_extrinseca', 'Carga cognitiva extrínseca: suma de los ítems 5 a 8 (0 a 40)'),
@@ -1808,26 +1867,30 @@ def _definiciones_tablas():
             ('tiempo_clave_s', 'Segundos en la clave, sin contar el tiempo de las reflexiones'), ('tiempo_reflexion_s', 'Segundos dedicados a las reflexiones metacognitivas'),
             ('primera_pregunta_desvio', 'Primer pareado en el que se apartó de la ruta correcta; vacío si siguió la ruta correcta'),
             ('ayuda_usos', 'Cuántas veces usó la ayuda «¿Dónde mirar?»'), ('ayuda_detalle', 'Rasgos consultados con la ayuda y el segundo en que los consultó (rasgo@segundo)'),
-            ('n_pasos', 'Pasos (pareados) recorridos en este espécimen'), ('n_pasos_incorrectos', 'Pasos que se apartaron de la ruta correcta'),
+            ('n_pasos', 'Pasos (pareados) recorridos en este espécimen, sin contar los deshechos'), ('n_pasos_incorrectos', 'Pasos NO deshechos que se apartaron de la ruta correcta'),
             ('post_acierto_percibido', 'Acierto que creyó haber tenido, tras el espécimen (0 a 100; solo grupos con metacognición)'), ('post_dificultad', 'Dificultad percibida (0 a 100)'),
             ('post_esfuerzo', 'Esfuerzo mental percibido (0 a 100)'), ('post_sin_mover', '1 = los tres deslizadores quedaron exactamente en 50 (probablemente sin mover)'),
             ('seguridad_media_durante', 'Seguridad media declarada durante la clave (0 a 100)'), ('n_cambios_estrategia', 'Cambios de estrategia en este espécimen'),
-            ('tiempo_corto', '1 = tardó menos de 15 segundos (posible respuesta al azar)')] + covar[2:] + [
+            ('tiempo_corto', '1 = tardó menos de 15 segundos (posible respuesta al azar)'),
+            ('n_pasos_deshechos', 'Pasos que el participante deshizo al volver atrás en este espécimen (no cuentan en n_pasos)'),
+            ('sesion_anulada', '1 = este intento fue ANULADO (se conserva pero NO debe entrar al análisis)'), ('motivo_anulacion', 'Motivo de la anulación'),
+            ('reintento_tras_anulacion', '1 = intento vigente de una persona que antes tuvo un intento anulado (vio otras especies y quizá sus respuestas)')] + covar[2:] + [
             ('inicio_sesion', 'Inicio de la sesión (hora de Colombia)'), ('fin_sesion', 'Fin de la sesión (hora de Colombia)'), ('sus_total', 'Puntaje SUS del participante (0 a 100)'),
             ('ccp_intrinseca', 'Carga cognitiva intrínseca (suma 0 a 40)'), ('ccp_extrinseca', 'Carga cognitiva extrínseca (suma 0 a 40)'), ('ccp_germana', 'Carga cognitiva germana (suma 0 a 20)')],
         'pasos': [id_, ('rol', 'Tipo de participante'), ('grupo', 'Grupo de la sesión'), ('sesion_id', 'Número de la sesión'), ('intento_sesion', 'Orden de la sesión entre las del participante'),
                   ('especimen_id', 'Espécimen'), ('orden_especimen', 'Posición del espécimen en la sesión'), ('pregunta', 'Número de pareado'), ('opcion_elegida', 'Opción elegida (A o B)'),
                   ('es_paso_correcto', '1 = siguió la ruta correcta'), ('es_paso_final', '1 = este paso llevó a una especie'), ('tiempo_segundos', 'Segundos en este paso'),
-                  ('orden_paso', 'Orden del paso dentro de la sesión (continúa tras un reinicio)'), ('momento', 'Fecha y hora del paso (hora de Colombia)')],
+                  ('orden_paso', 'Orden del paso dentro de la sesión (continúa tras un reinicio)'), ('momento', 'Fecha y hora del paso (hora de Colombia)'),
+                  ('deshecho', '1 = el participante volvió atrás y deshizo este paso'), ('sesion_anulada', '1 = pertenece a un intento anulado')],
         'encuestas': [id_, ('rol', 'Tipo de participante'), ('grupo', 'Grupo de la sesión'), ('sesion_id', 'Número de la sesión')] + sus_desc + [('sus_total', 'Puntaje SUS (0 a 100)')] + ccp_desc + [
             ('ccp_intrinseca', 'Suma de los ítems 1 a 4 (0 a 40)'), ('ccp_extrinseca', 'Suma de los ítems 5 a 8 (0 a 40)'), ('ccp_germana', 'Suma de los ítems 9 y 10 (0 a 20)'),
-            ('fecha_sus', 'Cuándo guardó el SUS (hora de Colombia)'), ('fecha_ccp', 'Cuándo guardó la carga cognitiva (hora de Colombia)')],
+            ('fecha_sus', 'Cuándo guardó el SUS (hora de Colombia)'), ('fecha_ccp', 'Cuándo guardó la carga cognitiva (hora de Colombia)'), ('sesion_anulada', '1 = pertenece a un intento anulado')],
         'reflexiones': [id_, ('rol', 'Tipo de participante'), ('grupo', 'Grupo de la sesión'), ('sesion_id', 'Número de la sesión'), ('momento', 'pre, durante, post o comentario_final'),
                         ('orden_especimen', 'Espécimen al que se refiere (0 = antes de empezar)'), ('momento_hora', 'Fecha y hora (hora de Colombia)'), ('texto', 'Texto completo guardado'),
                         ('nivel_conocimiento', 'PRE: nivel de conocimiento percibido (0 a 100)'), ('confianza', 'PRE: confianza (0 a 100)'), ('razonamiento_espacial', 'PRE: razonamiento espacial percibido (0 a 100)'),
                         ('estrategia', 'PRE: estrategia elegida'), ('seguridad', 'DURANTE: seguridad (0 a 100)'), ('cambia_estrategia', 'DURANTE: 1 = eligió cambiar de estrategia'),
                         ('nueva_estrategia', 'DURANTE: estrategia nueva elegida'), ('acierto_percibido', 'POST: acierto percibido (0 a 100)'), ('dificultad', 'POST: dificultad percibida (0 a 100)'),
-                        ('esfuerzo', 'POST: esfuerzo mental percibido (0 a 100)')],
+                        ('esfuerzo', 'POST: esfuerzo mental percibido (0 a 100)'), ('sesion_anulada', '1 = pertenece a un intento anulado')],
         'comentarios': [id_, ('rol', 'Tipo de participante'), ('grupo', 'Grupo'), ('semestre', 'Semestre'), ('sesion_aplicacion', 'Sesión de aplicación'), ('comentario_final', 'Comentario final escrito')],
     }
 
@@ -1867,36 +1930,39 @@ def construir_tablas_exportacion(solo_estudiantes=False, identidades=False):
     t_part, t_esp, t_pas, t_enc, t_ref, t_com = [], [], [], [], [], []
     for u in usuarios:
         ses_u = ses_de_user.get(u.id, [])
-        res_u = [r for s in ses_u for r in res_de.get(s.id, [])]
+        ses_v = [s for s in ses_u if not s.anulada]                    # intentos VIGENTES: de ellos salen los datos agregados de la persona
+        res_u = [r for s in ses_v for r in res_de.get(s.id, [])]
         vistos, primeros = set(), []
         for r in res_u:
             if r.especie_id not in vistos: vistos.add(r.especie_id); primeros.append(r)
         ac1 = sum(1 for r in primeros if r.es_correcta)
         enc_u = {'sus_total': None, 'ccp_intrinseca': None, 'ccp_extrinseca': None, 'ccp_germana': None}
-        for s in ses_u:                                              # la primera encuesta de cada tipo que haya
+        for s in ses_v:                                              # la primera encuesta de cada tipo que haya
             e = encuestas_de(s)
             for k in enc_u:
                 if enc_u[k] is None: enc_u[k] = e[k]
-        refs_u = [x for s in ses_u for x in ref_de.get(s.id, [])]
+        refs_u = [x for s in ses_v for x in ref_de.get(s.id, [])]
         cambios = sum(1 for x in refs_u if x.momento == 'durante' and re.search(r'¿Cambiar estrategia\?\s*S[ií]', x.respuesta or ''))
         coment = [x.respuesta for x in refs_u if x.momento == 'comentario_final' and (x.respuesta or '').strip()]
         coment = coment[-1].strip() if coment else ''
         rot = dict(zip(ROT_COLUMNAS, columnas_rotacion(u)))
-        fila = {**base(u), 'institucion': u.institucion or u.curso or '', 'fecha_registro': _hora_col(u.fecha_registro), **rot, 'n_sesiones': len(ses_u), 'n_especimenes': len(vistos),
+        fila = {**base(u), 'institucion': u.institucion or u.curso or '', 'fecha_registro': _hora_col(u.fecha_registro), **rot, 'n_sesiones': len(ses_v), 'n_sesiones_anuladas': len(ses_u) - len(ses_v), 'n_especimenes': len(vistos),
                 'aciertos_primer_intento': ac1 if primeros else '', 'precision_primer_intento_pct': round(100 * ac1 / len(primeros), 1) if primeros else '',
                 'tiempo_total_clave_s': round(sum(r.tiempo_segundos or 0 for r in primeros), 1) if primeros else '', **enc_u, 'n_cambios_estrategia': cambios, 'comentario_final': coment,
-                'primera_sesion_inicio': _hora_col(ses_u[0].fecha_inicio) if ses_u else '', 'ultima_sesion_fin': _hora_col(ses_u[-1].fecha_fin) if ses_u else ''}
+                'primera_sesion_inicio': _hora_col(ses_v[0].fecha_inicio) if ses_v else '', 'ultima_sesion_fin': _hora_col(ses_v[-1].fecha_fin) if ses_v else ''}
         t_part.append([fila.get(c, '') for c, _ in defs['participantes']])
         t_com.append([u.id, u.rol, u.grupo_asignado or '', u.semestre, u.sesion_aplicacion, coment]) if coment else None
         ya = {}
         for s in ses_u:
+            anul = 1 if s.anulada else 0
+            hubo_anulado_antes = any(q.anulada and q.id < s.id for q in ses_u)
             e = encuestas_de(s); refs = ref_de.get(s.id, []); pasos_s = pas_de.get(s.id, [])
             fila_enc = {'id_participante': u.id, 'rol': u.rol, 'grupo': s.grupo or '', 'sesion_id': s.id, **{f'sus_i{n + 1}': v for n, v in enumerate(e['sus_i'])}, 'sus_total': e['sus_total'],
-                        **{f'ccp_i{n + 1}': v for n, v in enumerate(e['ccp_i'])}, **{k: e[k] for k in ('ccp_intrinseca', 'ccp_extrinseca', 'ccp_germana', 'fecha_sus', 'fecha_ccp')}}
+                        **{f'ccp_i{n + 1}': v for n, v in enumerate(e['ccp_i'])}, **{k: e[k] for k in ('ccp_intrinseca', 'ccp_extrinseca', 'ccp_germana', 'fecha_sus', 'fecha_ccp')}, 'sesion_anulada': anul}
             if enc_de.get(s.id): t_enc.append([fila_enc.get(c, '') for c, _ in defs['encuestas']])
             for x in refs:
                 t = x.respuesta or ''
-                fr = {'id_participante': u.id, 'rol': u.rol, 'grupo': s.grupo or '', 'sesion_id': s.id, 'momento': x.momento, 'orden_especimen': x.orden_especimen, 'momento_hora': _hora_col(x.timestamp), 'texto': t,
+                fr = {'id_participante': u.id, 'rol': u.rol, 'grupo': s.grupo or '', 'sesion_id': s.id, 'sesion_anulada': anul, 'momento': x.momento, 'orden_especimen': x.orden_especimen, 'momento_hora': _hora_col(x.timestamp), 'texto': t,
                       'nivel_conocimiento': _num_en(t, r'Nivel de conocimiento:\s*(\d+(?:\.\d+)?)'), 'confianza': _num_en(t, r'Confianza:\s*(\d+(?:\.\d+)?)'),
                       'razonamiento_espacial': _num_en(t, r'Razonamiento espacial:\s*(\d+(?:\.\d+)?)'), 'estrategia': _texto_en(t, 'Estrategia'),
                       'seguridad': _num_en(t, r'Seguridad:\s*(\d+(?:\.\d+)?)'), 'nueva_estrategia': _texto_en(t, 'Nueva estrategia'),
@@ -1906,24 +1972,27 @@ def construir_tablas_exportacion(solo_estudiantes=False, identidades=False):
             for p in pasos_s:
                 fp = {'id_participante': u.id, 'rol': u.rol, 'grupo': s.grupo or '', 'sesion_id': s.id, 'intento_sesion': intento[s.id], 'especimen_id': p.especimen_id, 'orden_especimen': p.especimen_orden,
                       'pregunta': p.pregunta, 'opcion_elegida': p.opcion_elegida, 'es_paso_correcto': 1 if p.es_paso_correcto else 0, 'es_paso_final': 1 if p.es_paso_final else 0,
-                      'tiempo_segundos': p.tiempo_segundos, 'orden_paso': p.orden_paso, 'momento': _hora_col(p.timestamp)}
+                      'tiempo_segundos': p.tiempo_segundos, 'orden_paso': p.orden_paso, 'momento': _hora_col(p.timestamp), 'deshecho': 1 if p.deshecho else 0, 'sesion_anulada': anul}
                 t_pas.append([fp.get(c, '') if fp.get(c) is not None else '' for c, _ in defs['pasos']])
             for r in res_de.get(s.id, []):
-                ya[r.especie_id] = ya.get(r.especie_id, 0) + 1
-                veces = sum(1 for q in res_u if q.especie_id == r.especie_id)
+                if not anul:
+                    ya[r.especie_id] = ya.get(r.especie_id, 0) + 1
+                veces = 0 if anul else sum(1 for q in res_u if q.especie_id == r.especie_id)
                 post = [x for x in refs if x.momento == 'post' and x.orden_especimen == r.orden]
                 pt = post[-1].respuesta if post else ''
                 ap, di, es = _num_en(pt, r'Acierto autopercibido:\s*(\d+(?:\.\d+)?)'), _num_en(pt, r'Dificultad:\s*(\d+(?:\.\d+)?)'), _num_en(pt, r'Esfuerzo mental:\s*(\d+(?:\.\d+)?)')
                 dur = [x for x in refs if x.momento == 'durante' and x.orden_especimen == r.orden]
                 seg = [v for v in (_num_en(x.respuesta, r'Seguridad:\s*(\d+(?:\.\d+)?)') for x in dur) if v is not None]
-                pasos_e = [p for p in pasos_s if p.especimen_id == r.especie_id and (p.especimen_orden in (None, r.orden))]
+                pasos_mios = [p for p in pasos_s if p.especimen_id == r.especie_id and (p.especimen_orden in (None, r.orden))]
+                pasos_e = [p for p in pasos_mios if not p.deshecho]                       # los pasos deshechos no cuentan como recorrido
                 fe = {**base(u), 'sesion_id': s.id, 'intento_sesion': intento[s.id], 'orden_especimen': r.orden, 'especimen_id': r.especie_id, 'especie_correcta': r.especie_correcta,
-                      'especie_seleccionada': r.especie_seleccionada, 'acierto': 1 if r.es_correcta else 0, 'es_primer_intento_especimen': 1 if ya[r.especie_id] == 1 and r.id == next(q.id for q in res_u if q.especie_id == r.especie_id) else 0,
+                      'especie_seleccionada': r.especie_seleccionada, 'acierto': 1 if r.es_correcta else 0, 'es_primer_intento_especimen': 0 if anul else (1 if ya[r.especie_id] == 1 and r.id == next(q.id for q in res_u if q.especie_id == r.especie_id) else 0),
                       'registro_repetido': 1 if veces > 1 else 0, 'tiempo_clave_s': r.tiempo_segundos, 'tiempo_reflexion_s': r.tiempo_reflexion_segundos, 'primera_pregunta_desvio': r.primera_pregunta_desvio,
                       'ayuda_usos': r.ayuda_encuadre_usos or 0, 'ayuda_detalle': r.ayuda_encuadre_detalle or '', 'n_pasos': len(pasos_e), 'n_pasos_incorrectos': sum(1 for p in pasos_e if not p.es_paso_correcto),
                       'post_acierto_percibido': ap, 'post_dificultad': di, 'post_esfuerzo': es, 'post_sin_mover': (1 if (ap == di == es == 50) else 0) if post else '',
                       'seguridad_media_durante': round(sum(seg) / len(seg), 1) if seg else None, 'n_cambios_estrategia': sum(1 for x in dur if re.search(r'¿Cambiar estrategia\?\s*S[ií]', x.respuesta or '')) if dur else '',
-                      'tiempo_corto': 1 if (r.tiempo_segundos is not None and r.tiempo_segundos < 15) else 0, 'inicio_sesion': _hora_col(s.fecha_inicio), 'fin_sesion': _hora_col(s.fecha_fin),
+                      'tiempo_corto': 1 if (r.tiempo_segundos is not None and r.tiempo_segundos < 15) else 0, 'n_pasos_deshechos': sum(1 for p in pasos_mios if p.deshecho),
+                      'sesion_anulada': anul, 'motivo_anulacion': (s.motivo_anulacion or '') if anul else '', 'reintento_tras_anulacion': 1 if (not anul and hubo_anulado_antes) else 0, 'inicio_sesion': _hora_col(s.fecha_inicio), 'fin_sesion': _hora_col(s.fecha_fin),
                       'sus_total': enc_u['sus_total'], 'ccp_intrinseca': enc_u['ccp_intrinseca'], 'ccp_extrinseca': enc_u['ccp_extrinseca'], 'ccp_germana': enc_u['ccp_germana']}
                 t_esp.append([fe.get(c, '') if fe.get(c) is not None else '' for c, _ in defs['especimenes']])
     tablas = {'participantes': t_part, 'especimenes': t_esp, 'pasos': t_pas, 'encuestas': t_enc, 'reflexiones': t_ref, 'comentarios': t_com}
@@ -2046,7 +2115,7 @@ def exportar_csv():
 
     fechas_sesion = {s['n']: (_a_fecha(s['inicio']) + _dt.timedelta(hours=-5)).strftime('%Y-%m-%d') for s in _leer_sesiones()}        # fecha en que se abrió cada sesión de aplicación, en hora de Colombia (UTC-5, sin horario de verano)
     filas = []
-    for sesion_exp in SesionExperimental.query.all():
+    for sesion_exp in SesionExperimental.query.filter(SESION_VIGENTE).all():
         usuario = Usuario.query.get(sesion_exp.usuario_id)
         if not usuario:
             continue
@@ -2138,7 +2207,7 @@ def foto_especimen(codigo, vista):
 # ===== API EXPERIMENTO =====
 def estado_ejercicio(usuario):
     """sin_iniciar | abandonado | encuestas_pendientes | completado (según la última sesión del usuario)."""
-    sesiones = sorted(usuario.sesiones, key=lambda s: s.id)
+    sesiones = sorted(sesiones_validas(usuario), key=lambda s: s.id)       # los intentos anulados no cuentan
     if not sesiones:
         return 'sin_iniciar', None
     ultima = sesiones[-1]
@@ -2147,6 +2216,27 @@ def estado_ejercicio(usuario):
         return ('completado' if {'SUS', 'COGNITIVE_LOAD'} <= tipos else 'encuestas_pendientes'), ultima
     return 'abandonado', ultima
 
+@app.route('/api/experimento/deshacer_paso', methods=['POST'])
+def deshacer_paso():
+    """El participante volvió atrás: se MARCA el paso como deshecho (no se borra; así se puede analizar cuántas veces rectificó)."""
+    if not session.get('usuario_id'):
+        return jsonify({'error': 'No autenticado'}), 401
+    try:
+        d = request.json or {}
+        ses = db.session.get(SesionExperimental, d.get('sesion_id'))
+        if not ses or ses.usuario_id != session['usuario_id']:
+            return jsonify({'error': 'Sesión no válida'}), 403
+        paso = (PasoClave.query.filter_by(sesion_id=ses.id, especimen_id=d.get('especimen_id'), especimen_orden=d.get('especimen_orden'), orden_paso=d.get('orden_paso'))
+                .order_by(PasoClave.id.desc()).first())
+        if not paso:
+            return jsonify({'error': 'Paso no encontrado'}), 404
+        paso.deshecho = True
+        db.session.commit()
+        return jsonify({'mensaje': 'Paso deshecho'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/experimento/estado', methods=['GET'])
 def estado_experimento():
     if not session.get('usuario_id'):
@@ -2154,15 +2244,45 @@ def estado_experimento():
     usuario = Usuario.query.get(session['usuario_id'])
     if not usuario:
         return jsonify({'error': 'Usuario no encontrado'}), 404
-    codigo, _ = estado_ejercicio(usuario)
+    codigo, ultima_ses = estado_ejercicio(usuario)
     libre = usuario.rol == 'pruebas'   # las cuentas de pruebas pueden repetir el ejercicio
+    sin_nada = codigo == 'abandonado' and ultima_ses is not None and not ultima_ses.resultados     # abrió el ejercicio y se fue sin completar ninguna identificación
     return jsonify({
-        'codigo': codigo,
+        'codigo': 'sin_iniciar' if sin_nada else codigo,
         'rol': usuario.rol,
         'grupo': usuario.grupo_asignado,
-        'puede_iniciar': libre or codigo == 'sin_iniciar',
+        'puede_iniciar': libre or codigo == 'sin_iniciar' or sin_nada,
         'reanudar_encuestas': (not libre) and codigo == 'encuestas_pendientes'
     })
+
+def especies_vistas(usuario):
+    """Especies que ya le tocaron en intentos ANULADOS: en un intento nuevo se evitan (ya las vio, y quizá vio la respuesta)."""
+    vistas = set()
+    for s in usuario.sesiones:
+        if s.anulada:
+            try:
+                vistas.update(json.loads(s.especies_asignadas or '[]'))
+            except Exception:
+                pass
+    return vistas
+
+def elegir_especies_balanceadas(grupo, candidatas):
+    """Las 2 especies MENOS presentadas hasta ahora en ese grupo (entre estudiantes, intentos vigentes); los empates se deciden al azar.
+    Así cada especie se reparte parejo dentro de cada grupo (la dificultad varía mucho entre especies) y no se repiten las mismas parejas."""
+    cuenta = {e: 0 for e in candidatas}
+    filas = (db.session.query(SesionExperimental.especies_asignadas).join(Usuario, Usuario.id == SesionExperimental.usuario_id)
+             .filter(Usuario.rol == 'estudiante', SesionExperimental.grupo == grupo, SESION_VIGENTE).all())
+    for (txt,) in filas:
+        try:
+            for e in json.loads(txt or '[]'):
+                if e in cuenta:
+                    cuenta[e] += 1
+        except Exception:
+            pass
+    barajadas = list(candidatas)
+    random.shuffle(barajadas)
+    barajadas.sort(key=lambda e: cuenta[e])          # orden estable: el azar previo desempata
+    return barajadas[:2]
 
 @app.route('/api/experimento/iniciar', methods=['POST'])
 def iniciar_experimento():
@@ -2175,6 +2295,10 @@ def iniciar_experimento():
         if not usuario:
             return jsonify({'error': 'Usuario no encontrado'}), 404
 
+        # Un estudiante solo participa si el código de la sesión le dio grupo (el botón del panel ya lo impide; aquí se exige también en el servidor)
+        if usuario.rol == 'estudiante' and not usuario.grupo_asignado:
+            return jsonify({'error': 'Aún no tienes grupo asignado: escribe el código de la sesión de aplicación en tu panel.', 'codigo': 'sin_grupo'}), 403
+
         # ===== UN SOLO INTENTO por participante (las cuentas de pruebas quedan libres) =====
         if usuario.rol != 'pruebas':
             codigo, ultima = estado_ejercicio(usuario)
@@ -2185,6 +2309,11 @@ def iniciar_experimento():
                     'grupo': usuario.grupo_asignado,
                     'reanudar': 'encuestas'
                 })
+            if codigo == 'abandonado' and ultima is not None and not ultima.resultados:
+                # Abrió el ejercicio y se fue sin completar ninguna identificación: se libera solo (el intento queda anulado, con sus datos)
+                anular_sesion(ultima, 'Abandonó sin completar ninguna identificación (liberado automáticamente)', 'automático')
+                db.session.commit()
+                codigo = 'sin_iniciar'
             if codigo != 'sin_iniciar':
                 return jsonify({'error': 'Ya realizaste este ejercicio y solo puede hacerse una vez. Si cerraste la ventana por error, avisa al investigador.',
                                 'codigo': 'ya_realizado'}), 409
@@ -2194,7 +2323,14 @@ def iniciar_experimento():
         if len(especies_activas) < 2:
             return jsonify({'error': 'No hay suficientes especies activas'}), 400
 
-        especies_elegidas = random.sample(especies_activas, 2)
+        candidatas = [e for e in especies_activas if e not in especies_vistas(usuario)]      # en un intento nuevo, evitar las que ya vio
+        if len(candidatas) < 2:
+            candidatas = list(especies_activas)
+        if usuario.rol == 'estudiante':
+            bloquear_asignacion()                                                              # candado: dos inicios simultáneos no ven el mismo conteo
+            especies_elegidas = elegir_especies_balanceadas(usuario.grupo_asignado, candidatas)
+        else:
+            especies_elegidas = random.sample(candidatas, 2)
         especimenes = []
         for especie in especies_elegidas:
             numero = random.choice([1, 2])
