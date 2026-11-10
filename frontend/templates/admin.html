@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => { cargarDatosPanel(false); s
             const btns = `<div class="btn-group">
                     ${botonesGrupo}
                     <button class="btn-sm" style="background:#7B61FF;color:white;" onclick="resetearPassword(${u.id})" title="Poner clave nueva">🔑</button>
-                    <button class="btn-sm" style="background:#30D158;color:#06210F;" onclick="habilitarReintento(${u.id})" title="Habilitar nuevo intento (solo si cerró la ventana a mitad)">🔓</button>
+                    <button class="btn-sm" style="background:#30D158;color:#06210F;" onclick="abrirAnularIntento(${u.id})" title="Anular el intento y habilitar uno nuevo (NO borra datos)${u.n_anuladas ? ' · ya tiene ' + u.n_anuladas + ' intento(s) anulado(s)' : ''}">🔁${u.n_anuladas ? '<sup>' + u.n_anuladas + '</sup>' : ''}</button>
                     <button class="btn-sm btn-danger"  onclick="eliminarUsuario(${u.id})">🗑️</button>
                    </div>`;
             return `<tr>
@@ -475,14 +475,50 @@ document.addEventListener('DOMContentLoaded', () => { cargarDatosPanel(false); s
         }
     }
 
-    async function habilitarReintento(id) {
-        if (!confirm('¿Habilitar un nuevo intento?\n\nSolo se borra un intento INCOMPLETO (la persona cerró la ventana a mitad del ejercicio). Un intento con las dos identificaciones completas nunca se borra.')) return;
-        const res = await fetch(`/api/admin/usuarios/${id}/habilitar_reintento`, { method: 'POST' });
-        const data = await res.json();
-        alert(res.ok ? '✅ ' + data.mensaje : '⚠️ ' + (data.error || 'No se pudo habilitar'));
-    }
+    // ===== Anular y habilitar un intento nuevo (NO borra datos: el intento anulado se conserva, marcado, y deja de contar en las estadísticas) =====
+const ESTADO_INTENTO = { sin_iniciar: 'Sin intento vigente', abandonado: 'Incompleto (no terminó las 2 identificaciones)', encuestas_pendientes: 'Terminó las identificaciones; faltan las encuestas', completado: 'Completo (identificaciones y encuestas)' };
+async function abrirAnularIntento(id) {
+    let info;
+    try { const r = await fetch(`/api/admin/usuarios/${id}/estado_intento`); info = await r.json(); if (!r.ok) throw new Error(info.error || 'HTTP ' + r.status); }
+    catch (e) { mostrarMensaje('❌ No se pudo leer el estado del intento: ' + e.message, '#FF375F'); return; }
+    document.getElementById('modalAnular')?.remove();
+    const hay = info.sesion_id !== null, vio = info.resultados >= 1;
+    const fila = (k, v) => `<div style="display:flex;gap:10px;margin:3px 0;"><span style="color:#A0A0B0;min-width:190px;">${k}</span><span>${v}</span></div>`;
+    const cuerpo = !hay
+        ? `<div style="background:#1A1F36;border-radius:10px;padding:14px;color:#E0E0E0;">Esta persona <strong>no tiene un intento vigente</strong>: ya puede iniciar el ejercicio. No hay nada que anular.${info.intentos_anulados ? `<br><span style="color:#A0A0B0;">Tiene ${info.intentos_anulados} intento(s) anulado(s) conservado(s).</span>` : ''}</div>`
+        : `<div style="background:#1A1F36;border-radius:10px;padding:12px 14px;font-size:0.88rem;color:#E0E0E0;line-height:1.5;">
+              ${fila('Estado del intento', ESTADO_INTENTO[info.estado] || info.estado)}${fila('Identificaciones hechas', info.resultados + ' de 2')}${fila('Pasos registrados', info.pasos)}
+              ${fila('Encuestas guardadas', info.encuestas.length ? info.encuestas.join(', ') : 'ninguna')}${fila('Inició (hora de Colombia)', info.inicio || '—')}${fila('Especies que vio', info.especies.join(', ') || '—')}${fila('Intentos anulados antes', info.intentos_anulados)}</div>
+           <div style="margin-top:14px;color:#E0E0E0;font-size:0.88rem;">Motivo (queda guardado con el intento):</div>
+           <select id="anularMotivo" style="width:100%;margin:6px 0;padding:9px;border-radius:8px;background:#1A1F36;color:#E0E0E0;border:1px solid #00D4FF40;">
+              <option>Cerró la ventana por error</option><option>No entendió el ejercicio</option><option>Falla técnica o bloqueo</option><option>Se pulsaron respuestas sin querer</option><option>Otro</option></select>
+           <textarea id="anularDetalle" rows="2" placeholder="Detalle (opcional)" style="width:100%;box-sizing:border-box;padding:9px;border-radius:8px;background:#1A1F36;color:#E0E0E0;border:1px solid #00D4FF40;"></textarea>
+           <div style="margin-top:12px;font-size:0.82rem;color:#A0A0B0;line-height:1.55;">✅ <strong style="color:#E0E0E0;">No se borra nada.</strong> El intento actual se conserva con todos sus datos, marcado como anulado con este motivo, y deja de contar en el panel, las estadísticas y el análisis. La persona podrá iniciar de nuevo con 2 especies que <strong>no haya visto</strong> antes.</div>
+           ${vio ? `<div style="margin-top:12px;background:#FFB02015;border:1px solid #FFB02060;border-radius:10px;padding:10px 14px;font-size:0.82rem;color:#FFD580;line-height:1.5;">⚠️ Ya hizo <strong>${info.resultados}</strong> identificación(es) y <strong>vio la respuesta correcta</strong>. Su nuevo intento no será del todo comparable con el de los demás: en la exportación queda marcado como <em>reintento_tras_anulacion</em> para que decidas si lo incluyes.
+              <label style="display:block;margin-top:8px;color:#FFE9B8;"><input type="checkbox" id="anularConfirmar"> Entiendo esto y quiero anular el intento</label></div>` : ''}`;
+    const ov = document.createElement('div'); ov.id = 'modalAnular';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    ov.innerHTML = `<div style="background:#121826;border:2px solid #00D4FF60;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:22px;color:#E0E0E0;">
+        <div style="font-size:1.15rem;font-weight:700;color:#00D4FF;margin-bottom:4px;">🔁 Anular y habilitar un nuevo intento</div><div style="color:#A0A0B0;margin-bottom:12px;">${escapeHtmlAdmin(info.usuario)} · grupo ${escapeHtmlAdmin(info.grupo || 'sin grupo')}</div>${cuerpo}
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;"><button class="btn btn-secondary" onclick="document.getElementById('modalAnular').remove()">Cancelar</button>
+        ${hay ? `<button class="btn btn-primary" id="btnAnularOk" onclick="confirmarAnularIntento(${id}, ${vio})" ${vio ? 'disabled' : ''} style="background:linear-gradient(45deg,#FF375F,#FF8A00);">🔁 Anular y habilitar</button>` : ''}</div></div>`;
+    document.body.appendChild(ov);
+    const chk = document.getElementById('anularConfirmar'); if (chk) chk.addEventListener('change', () => { document.getElementById('btnAnularOk').disabled = !chk.checked; });
+}
+function escapeHtmlAdmin(t) { return String(t === null || t === undefined ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+async function confirmarAnularIntento(id, vio) {
+    const body = { motivo: document.getElementById('anularMotivo').value, detalle: document.getElementById('anularDetalle').value.trim(), confirmar: vio && !!document.getElementById('anularConfirmar')?.checked };
+    const btn = document.getElementById('btnAnularOk'); btn.disabled = true;
+    try {
+        const res = await fetch(`/api/admin/usuarios/${id}/anular_intento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { mostrarMensaje('⚠️ ' + (data.error || 'No se pudo anular el intento'), '#FFB020'); btn.disabled = false; return; }
+        document.getElementById('modalAnular')?.remove(); mostrarMensaje('✅ ' + data.mensaje);
+        if (typeof cargarDatosPanel === 'function') cargarDatosPanel(true);
+    } catch (e) { mostrarMensaje('❌ ' + e.message, '#FF375F'); btn.disabled = false; }
+}
 
-    async function eliminarUsuario(id) {
+async function eliminarUsuario(id) {
         const u = usuarios.find(u => u.id === id);
         if (!confirm(`¿Eliminar a "${u?.nombre_usuario}"? Se perderán TODOS sus datos.`)) return;
         const res = await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' });
