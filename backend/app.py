@@ -689,6 +689,50 @@ def _semestre_entero(valor):
     except (TypeError, ValueError):
         return None
 
+# ===== CUPOS POR GRUPO: se llenan primero los grupos que van más atrás =====
+# Cada grupo tiene un OBJETIVO de estudiantes (por defecto 25). Un estudiante nuevo solo se considera para los grupos que aún no lo alcanzaron y que
+# estén entre los más atrasados (a menos de MARGEN_CUPO personas del más bajo); entre esos se aplica el equilibrio por semestre de siempre.
+# Así los 4 grupos crecen parejos y, cuando todos llegan al objetivo, el reparto vuelve a ser parejo entre los cuatro.
+OBJETIVO_POR_GRUPO_DEFECTO = 25
+MARGEN_CUPO = 2
+HORAS_PENDIENTE = 24
+
+def objetivo_por_grupo():
+    """Objetivo de estudiantes por grupo (0 = sin objetivo: se reparte parejo sin mirar los totales)."""
+    c = Configuracion.query.filter_by(clave='objetivo_por_grupo').first()
+    try:
+        return max(0, int(c.valor)) if c and c.valor not in (None, '') else OBJETIVO_POR_GRUPO_DEFECTO
+    except (TypeError, ValueError):
+        return OBJETIVO_POR_GRUPO_DEFECTO
+
+def efectivos_por_grupo():
+    """Cuántos estudiantes cuentan hacia el objetivo de cada grupo: los que ya iniciaron el ejercicio (aunque sea un intento) y los registrados en las
+    últimas 24 h, que aún pueden estar por hacerlo. Quien se registró hace más tiempo y nunca empezó NO cuenta (dejó un hueco que se debe llenar)."""
+    limite = _dt.datetime.utcnow() - _dt.timedelta(hours=HORAS_PENDIENTE)
+    con_sesion = db.session.query(SesionExperimental.usuario_id).distinct().subquery()
+    filas = (db.session.query(Usuario.grupo_asignado, func.count(Usuario.id))
+             .outerjoin(con_sesion, con_sesion.c.usuario_id == Usuario.id)
+             .filter(Usuario.rol == 'estudiante', Usuario.grupo_asignado.isnot(None))
+             .filter(or_(con_sesion.c.usuario_id.isnot(None), Usuario.fecha_registro >= limite))
+             .group_by(Usuario.grupo_asignado).all())
+    return {g: n for g, n in filas}
+
+def _efectivos_todos():
+    efect = efectivos_por_grupo()
+    return {g: efect.get(g, 0) for g in GRUPOS_EN_ORDEN}
+
+def grupos_candidatos():
+    """Grupos entre los que se puede elegir ahora: los abiertos (bajo el objetivo) y más atrasados; si todos están completos, los cuatro."""
+    objetivo = objetivo_por_grupo()
+    if objetivo <= 0:
+        return list(GRUPOS_EN_ORDEN)
+    efect = efectivos_por_grupo()
+    abiertos = [g for g in GRUPOS_EN_ORDEN if efect.get(g, 0) < objetivo]
+    if not abiertos:
+        return list(GRUPOS_EN_ORDEN)
+    minimo = min(efect.get(g, 0) for g in abiertos)
+    return [g for g in abiertos if efect.get(g, 0) <= minimo + MARGEN_CUPO]
+
 def elegir_grupo_balanceado(semestre, genero):
     sem = _semestre_entero(semestre)
     est = db.session.query(Usuario.grupo_asignado, func.count(Usuario.id)).filter(Usuario.rol == 'estudiante', Usuario.grupo_asignado.isnot(None))
@@ -697,8 +741,9 @@ def elegir_grupo_balanceado(semestre, genero):
     por_semestre_y_genero = dict(est.filter(filtro_sem, Usuario.genero == genero).group_by(Usuario.grupo_asignado).all())
     en_total = dict(est.group_by(Usuario.grupo_asignado).all())
     clave = lambda g: (por_semestre.get(g, 0), por_semestre_y_genero.get(g, 0), en_total.get(g, 0))
-    mejor = min(clave(g) for g in GRUPOS_EN_ORDEN)
-    return random.SystemRandom().choice([g for g in GRUPOS_EN_ORDEN if clave(g) == mejor])
+    candidatos = grupos_candidatos()                      # primero los cupos (grupos más atrasados); entre ellos, el equilibrio por semestre
+    mejor = min(clave(g) for g in candidatos)
+    return random.SystemRandom().choice([g for g in candidatos if clave(g) == mejor])
 
 @app.route('/api/registro', methods=['POST'])
 def registro():
@@ -1191,6 +1236,27 @@ def asignar_grupo():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/objetivo_grupo', methods=['GET'])
+@admin_required
+def get_objetivo_grupo():
+    efect = efectivos_por_grupo()
+    return jsonify({'objetivo': objetivo_por_grupo(), 'efectivos': {g: efect.get(g, 0) for g in GRUPOS_EN_ORDEN}, 'margen': MARGEN_CUPO, 'candidatos': grupos_candidatos(), 'horas_pendiente': HORAS_PENDIENTE})
+
+@app.route('/api/admin/objetivo_grupo', methods=['POST'])
+@admin_required
+def post_objetivo_grupo():
+    try:
+        valor = int((request.json or {}).get('objetivo'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'El objetivo debe ser un número entero (0 = sin objetivo)'}), 400
+    if not 0 <= valor <= 500:
+        return jsonify({'error': 'El objetivo debe estar entre 0 y 500'}), 400
+    c = Configuracion.query.filter_by(clave='objetivo_por_grupo').first()
+    if c: c.valor = str(valor)
+    else: db.session.add(Configuracion(clave='objetivo_por_grupo', valor=str(valor)))
+    db.session.commit()
+    return jsonify({'objetivo': valor, 'candidatos': grupos_candidatos()})
+
 @app.route('/api/admin/balance_grupos', methods=['GET'])
 @admin_required
 def balance_grupos():
@@ -1207,7 +1273,8 @@ def balance_grupos():
         c['completaron'] += 1 if u.id in completos else 0
     filas = [{'semestre': s, 'grupos': celdas[s]} for s in sorted(celdas, key=lambda x: (x is None, x if x is not None else 0))]
     totales = {g: {'registrados': sum(f['grupos'][g]['registrados'] for f in filas), 'completaron': sum(f['grupos'][g]['completaron'] for f in filas)} for g in GRUPOS_EN_ORDEN}
-    return jsonify({'activa': asignacion_automatica_activa(), 'grupos': GRUPOS_EN_ORDEN, 'filas': filas, 'totales': totales, 'sin_grupo': sin_grupo})
+    return jsonify({'activa': asignacion_automatica_activa(), 'grupos': GRUPOS_EN_ORDEN, 'filas': filas, 'totales': totales, 'sin_grupo': sin_grupo,
+                    'objetivo': objetivo_por_grupo(), 'efectivos': _efectivos_todos(), 'margen': MARGEN_CUPO})
 
 @app.route('/api/admin/asignacion_automatica', methods=['POST'])
 @admin_required
