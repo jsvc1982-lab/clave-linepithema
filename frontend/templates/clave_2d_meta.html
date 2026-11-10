@@ -1410,8 +1410,12 @@ else estrategiaTexto = 'Hipotético-deductiva';
     window.resolverReflexion();
 }
 
+        // ===== Reflexión POST: los tres deslizadores son OBLIGATORIOS (antes el 23 % quedaba en 50 sin moverse) =====
+        const postSlidersTocados = { acierto: false, dificultad: false, esfuerzo: false };
+        
         function mostrarReflexionPost() {
     reflexionPostEnviada = false;
+    postSlidersTocados.acierto = postSlidersTocados.dificultad = postSlidersTocados.esfuerzo = false;
     tiempoInicioReflexionActual = Date.now();
     return new Promise((resolve) => {
         const modal = document.createElement('div');
@@ -1419,7 +1423,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
         modal.innerHTML = `
             <div class="modal-content" style="max-width: 600px;">
                 <h3>📝 Reflexión final</h3>
-                <p>Después de identificar este espécimen, responde:</p>
+                <p>Después de identificar este espécimen, responde. <strong style="color:#FFB020;">Mueve cada deslizador para contestar</strong> (si quieres dejarlo donde está, tócalo).</p>
                 
                 <div style="margin: 20px 0;">
                     <label style="color: #00D4FF;">¿Qué tan acertada crees que fue tu identificación?</label>
@@ -1429,7 +1433,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
                         <span>100%</span>
                     </div>
                     <div style="text-align: center; margin-top: 5px;">
-                        <span id="aciertoValor" style="color: #00D4FF;">50</span>%
+                        <span id="aciertoValor" style="color: #00D4FF;">— sin responder —</span>
                     </div>
                 </div>
                 
@@ -1441,7 +1445,7 @@ else estrategiaTexto = 'Hipotético-deductiva';
                         <span>100</span>
                     </div>
                     <div style="text-align: center; margin-top: 5px;">
-                        <span id="dificultadPostValor" style="color: #00D4FF;">50</span>%
+                        <span id="dificultadPostValor" style="color: #00D4FF;">— sin responder —</span>
                     </div>
                 </div>
                 
@@ -1453,32 +1457,38 @@ else estrategiaTexto = 'Hipotético-deductiva';
                         <span>100</span>
                     </div>
                     <div style="text-align: center; margin-top: 5px;">
-                        <span id="esfuerzoValor" style="color: #00D4FF;">50</span>%
+                        <span id="esfuerzoValor" style="color: #00D4FF;">— sin responder —</span>
                     </div>
                 </div>
                 
-                <button onclick="guardarReflexionPost()" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Continuar</button>
+                <div id="postAviso" style="color:#FFB020;font-size:0.85rem;text-align:center;min-height:1.3em;margin-bottom:8px;"></div>
+<button onclick="guardarReflexionPost()" style="width: 100%; padding: 12px; background: linear-gradient(45deg, #00D4FF, #7B61FF); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Continuar</button>
             </div>
         `;
         document.body.appendChild(modal);
         
         // Actualizar valores
-        document.getElementById('reflexionPostAcierto').addEventListener('input', function(e) {
-            document.getElementById('aciertoValor').textContent = e.target.value;
-        });
-        document.getElementById('reflexionPostDificultad').addEventListener('input', function(e) {
-            document.getElementById('dificultadPostValor').textContent = e.target.value;
-        });
-        document.getElementById('reflexionPostEsfuerzo').addEventListener('input', function(e) {
-            document.getElementById('esfuerzoValor').textContent = e.target.value;
-        });
+        [['reflexionPostAcierto', 'aciertoValor', 'acierto'], ['reflexionPostDificultad', 'dificultadPostValor', 'dificultad'], ['reflexionPostEsfuerzo', 'esfuerzoValor', 'esfuerzo']].forEach(([idSlider, idValor, clave]) => {
+const el = document.getElementById(idSlider);
+const marcar = () => { document.getElementById(idValor).textContent = el.value + '%'; postSlidersTocados[clave] = true; el.parentElement.parentElement.style.outline = ''; const av = document.getElementById('postAviso'); if (av && Object.values(postSlidersTocados).every(Boolean)) av.textContent = ''; };
+el.addEventListener('input', marcar);
+el.addEventListener('change', marcar);
+el.addEventListener('pointerup', marcar);        // un toque sobre la barra cuenta aunque el valor no cambie (así se puede elegir justo 50)
+});
         
         window.resolverReflexionPost = resolve;
     });
 }
 
         async function guardarReflexionPost() {
-    if (reflexionPostEnviada) return;
+    const sinMover = Object.entries(postSlidersTocados).filter(([k, v]) => !v).map(([k]) => k);
+if (sinMover.length > 0) {                                  // obligatorio: no se guarda ni se avanza hasta responder las tres
+const mapa = { acierto: 'reflexionPostAcierto', dificultad: 'reflexionPostDificultad', esfuerzo: 'reflexionPostEsfuerzo' };
+sinMover.forEach(k => { const el = document.getElementById(mapa[k]); if (el) el.parentElement.parentElement.style.outline = '2px solid #FFB020'; });
+const av = document.getElementById('postAviso'); if (av) av.textContent = '⚠️ Falta responder ' + (sinMover.length === 3 ? 'las tres preguntas' : sinMover.length === 1 ? 'una pregunta' : sinMover.length + ' preguntas') + ': mueve (o toca) cada deslizador.';
+return;
+}
+if (reflexionPostEnviada) return;
     reflexionPostEnviada = true;
     const acierto = document.getElementById('reflexionPostAcierto').value;
     const dificultad = document.getElementById('reflexionPostDificultad').value;
