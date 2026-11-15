@@ -102,7 +102,7 @@ datosCargadosEn = new Date(); actualizarEtiquetaDatos();
 
     // ===== RENDER PRINCIPAL =====
     function renderTodo() {
-let html = '<div id="analisisPrincipal"></div>';
+let html = '<div id="analisisPrincipal"></div><div id="analisisExpertos"></div>';
         html += seccionResumen();
         html += seccionGraficos();
         html += seccionCargasCognitivas();
@@ -115,6 +115,7 @@ let html = '<div id="analisisPrincipal"></div>';
         document.getElementById('contenido').innerHTML = html;
 setTimeout(dibujarGraficos, 100);
 cargarAnalisisPrincipal();
+cargarAnalisisExpertos();
     }
 
     // ===== SECCIONES =====
@@ -707,6 +708,37 @@ async function cargarAnalisisPrincipal() {
     } catch (e) {
         caja.innerHTML = marcoAnalisis(controlesAnalisis() + `<div style="color:#FF375F;padding:14px;">❌ No se pudo calcular el análisis: ${escHtml(e.message)}</div>`);
     }
+}
+
+const ORDEN_EXPERTOS = ['muestra', 'persona', 'especie', 'desvio', 'encuestas'];
+let expertosActual = null;
+function marcoExpertos(c) {
+    return `<div class="section"><div class="section-title">🎓 Docentes y validadores</div>
+        <div style="color:#A0A0B0;font-size:0.85rem;line-height:1.55;margin-bottom:14px;">Descriptivo y separado del análisis de estudiantes: sirve para comprobar que la clave lleva a la especie correcta cuando la usa alguien experto. Sin pruebas de hipótesis (muestra muy pequeña).</div>
+        <div style="margin-bottom:12px;"><button class="btn btn-secondary" onclick="cargarAnalisisExpertos()">🔄 Recalcular</button> <button class="btn btn-primary" onclick="exportarExpertos()" ${expertosActual && !expertosActual.vacio ? '' : 'disabled'}>📊 Descargar (Excel)</button></div>${c}</div>`;
+}
+async function cargarAnalisisExpertos() {
+    const caja = document.getElementById('analisisExpertos'); if (!caja) return;
+    caja.innerHTML = marcoExpertos('<div class="loading-state" style="padding:20px;">⏳ Calculando…</div>');
+    try {
+        const r = await fetch('/api/admin/analisis_expertos'); const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+        expertosActual = d;
+        if (d.vacio) { caja.innerHTML = marcoExpertos(`<div style="color:#A0A0B0;padding:14px;">${escHtml(d.mensaje)}</div>`); return; }
+        caja.innerHTML = marcoExpertos(
+            `<div style="background:#1A1F36;border:1px solid #00D4FF40;border-radius:10px;padding:12px 16px;margin-bottom:12px;"><ul style="margin:0 0 0 18px;color:#E0E0E0;font-size:0.9rem;line-height:1.5;">${d.lectura.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul></div>
+             <div style="background:#FFB02015;border:1px solid #FFB02060;border-radius:10px;padding:12px 16px;"><ul style="margin:0 0 0 18px;color:#FFD580;font-size:0.85rem;line-height:1.5;">${d.avisos.map(a => `<li>${escHtml(a)}</li>`).join('')}</ul></div>` +
+            ORDEN_EXPERTOS.filter(k => d.tablas[k]).map(k => tablaAnalisisHTML(d.tablas[k])).join(''));
+    } catch (e) { caja.innerHTML = marcoExpertos(`<div style="color:#FF375F;padding:14px;">❌ ${escHtml(e.message)}</div>`); }
+}
+function exportarExpertos() {
+    if (!expertosActual || expertosActual.vacio) return;
+    if (typeof XLSX === 'undefined') { mostrarMensaje('❌ No se cargó la librería de Excel.', '#FF375F'); return; }
+    const wb = XLSX.utils.book_new(), d = expertosActual;
+    const w0 = XLSX.utils.aoa_to_sheet([['Docentes y validadores — Clave Linepithema'], [], ...d.lectura.map(l => [l]), [], ...d.avisos.map(a => [a])]); w0['!cols'] = [{ wch: 130 }]; XLSX.utils.book_append_sheet(wb, w0, 'Lectura');
+    const nom = { muestra: 'Por rol', persona: 'Por persona', especie: 'Por especie', desvio: 'Pareado desvio', encuestas: 'SUS y CCP' };
+    ORDEN_EXPERTOS.filter(k => d.tablas[k]).forEach(k => { const t = d.tablas[k]; const ws = XLSX.utils.aoa_to_sheet([[t.titulo], [t.nota || ''], [], t.columnas, ...t.filas]); ws['!cols'] = t.columnas.map(c => ({ wch: Math.max(14, c.length + 2) })); XLSX.utils.book_append_sheet(wb, ws, nom[k]); });
+    XLSX.writeFile(wb, `expertos_${fechaArchivo()}.xlsx`); mostrarMensaje('✅ Descargado');
 }
 function exportarResumenEstadistico() {
     if (!analisisActual || analisisActual.vacio) return;

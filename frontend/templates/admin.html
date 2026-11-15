@@ -448,6 +448,7 @@ document.addEventListener('DOMContentLoaded', () => { cargarDatosPanel(false); s
                 <div class="toolbar">
                     <input class="search-input" type="text" id="buscarUsuario" placeholder="🔍 Buscar por nombre o correo..." oninput="filtrarTabla()">
                     <button class="btn btn-success" onclick="asignarGrupoLote()">⚡ Asignar grupos automáticamente</button>
+                    <label style="color:#A0A0B0;font-size:0.85rem;"><input type="checkbox" id="verArchivados" onchange="filtrarTabla()"> Ver archivados (<span id="nArchivados">0</span>)</label>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -463,6 +464,9 @@ document.addEventListener('DOMContentLoaded', () => { cargarDatosPanel(false); s
     }
 
     function renderTablaUsuarios(lista) {
+        const verArch = !!(document.getElementById('verArchivados') || {}).checked;
+        const nArch = document.getElementById('nArchivados'); if (nArch) nArch.textContent = usuarios.filter(u => u.archivado).length;
+        lista = lista.filter(u => verArch || !u.archivado);
         document.getElementById('tbodyUsuarios').innerHTML = lista.map(u => {
             const badgeClass = {'2D':'badge-2d','2D_META':'badge-2d-meta','3D':'badge-3d','3D_META':'badge-3d-meta'}[u.grupo_asignado] || 'badge-sin';
             const texto = u.grupo_asignado || 'Pendiente';
@@ -475,7 +479,8 @@ document.addEventListener('DOMContentLoaded', () => { cargarDatosPanel(false); s
                     ${botonesGrupo}
                     <button class="btn-sm" style="background:#7B61FF;color:white;" onclick="resetearPassword(${u.id})" title="Poner clave nueva">🔑</button>
                     <button class="btn-sm" style="background:#30D158;color:#06210F;" onclick="abrirAnularIntento(${u.id})" title="Anular el intento y habilitar uno nuevo (NO borra datos)${u.n_anuladas ? ' · ya tiene ' + u.n_anuladas + ' intento(s) anulado(s)' : ''}">🔁${u.n_anuladas ? '<sup>' + u.n_anuladas + '</sup>' : ''}</button>
-                    <button class="btn-sm btn-danger"  onclick="eliminarUsuario(${u.id})">🗑️</button>
+                    <button class="btn-sm" style="background:#FFB020;color:#241800;" onclick="archivarUsuario(${u.id}, ${u.archivado ? 'false' : 'true'})" title="${u.archivado ? 'Restaurar la cuenta' : 'Archivar: la cuenta no podrá entrar y se oculta, pero sus datos se CONSERVAN en las estadísticas'}">${u.archivado ? '♻️' : '📦'}</button>
+                    <button class="btn-sm btn-danger"  onclick="eliminarUsuario(${u.id})" title="Elimina la cuenta y TODOS sus datos (no se puede deshacer)">🗑️</button>
                    </div>`;
             return `<tr>
                 <td>${u.id}</td>
@@ -585,6 +590,19 @@ async function confirmarAnularIntento(id, vio) {
         document.getElementById('modalAnular')?.remove(); mostrarMensaje('✅ ' + data.mensaje);
         if (typeof cargarDatosPanel === 'function') cargarDatosPanel(true);
     } catch (e) { mostrarMensaje('❌ ' + e.message, '#FF375F'); btn.disabled = false; }
+}
+
+async function archivarUsuario(id, archivar) {
+    const u = usuarios.find(x => x.id === id);
+    if (!confirm(archivar ? `¿Archivar a "${u?.nombre_usuario}"?\n\nNo podrá volver a entrar y se oculta del listado, pero TODOS sus datos se conservan y siguen contando en las estadísticas y descargas.` : `¿Restaurar a "${u?.nombre_usuario}"?`)) return;
+    try {
+        const res = await fetch(`/api/admin/usuarios/${id}/archivar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivar }) });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || 'HTTP ' + res.status);
+        if (u) u.archivado = archivar;
+        mostrarMensaje('✅ ' + d.mensaje);
+        filtrarTabla();
+    } catch (e) { mostrarMensaje('❌ ' + e.message, '#FF375F'); }
 }
 
 async function eliminarUsuario(id) {
