@@ -183,7 +183,7 @@ app.wsgi_app = ReintentarApiGetBD(app.wsgi_app)
 # db.create_all() solo crea tablas que NO existen; no agrega columnas a las que ya existen. Por eso, si la base se
 # creó (o se restauró de un respaldo) con una versión vieja, esta función completa las columnas que falten.
 COLUMNAS_NUEVAS = {
-    'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)'), ('rotacion_items', 'TEXT'), ('sesion_aplicacion', 'INTEGER')],
+    'usuarios': [('conocimiento_genero', 'INTEGER DEFAULT 1'), ('puntaje_rotacion_mental', 'INTEGER'), ('institucion', 'VARCHAR(80)'), ('rotacion_items', 'TEXT'), ('sesion_aplicacion', 'INTEGER'), ('archivado', 'BOOLEAN DEFAULT FALSE'), ('fecha_archivo', 'TIMESTAMP')],
     'resultados': [('tiempo_reflexion_segundos', 'DOUBLE PRECISION'), ('primera_pregunta_desvio', 'INTEGER'),
                    ('ayuda_encuadre_usos', 'INTEGER DEFAULT 0'), ('ayuda_encuadre_detalle', 'TEXT')],
     'reflexiones': [('orden_especimen', 'INTEGER')],
@@ -284,7 +284,8 @@ def cerrar_sesion_si_la_cuenta_ya_no_existe():
     if uid is None or not request.path.startswith(RUTAS_QUE_VERIFICAN_LA_CUENTA):
         return None
     try:
-        existe = db.session.get(Usuario, uid) is not None
+        u_ = db.session.get(Usuario, uid)
+        existe = u_ is not None and not u_.archivado          # una cuenta archivada tampoco puede seguir con la sesión abierta
     except Exception:
         # Un fallo momentáneo de la base NO debe expulsar a nadie: se deja pasar y la ruta resolverá (o fallará) por su cuenta.
         db.session.rollback()
@@ -843,6 +844,8 @@ def login():
         usuario = (Usuario.query.filter(func.lower(Usuario.nombre_usuario) == entrada.lower()).first()
                    or Usuario.query.filter(func.lower(Usuario.correo) == entrada.lower()).first())
         if usuario and check_password_hash(usuario.contrasena_hash, datos.get('contrasena', '')):
+            if usuario.archivado:
+                return jsonify({'error': 'Esta cuenta fue archivada por el investigador. Si crees que es un error, consúltalo.'}), 403
             session['usuario_id'] = usuario.id
             session['usuario_nombre'] = usuario.nombre_usuario
             return jsonify({
@@ -1184,7 +1187,7 @@ def get_usuarios():
         'familiaridad_3d': u.familiaridad_3d,
         'conocimiento_genero': u.conocimiento_genero,
         'puntaje_rotacion_mental': u.puntaje_rotacion_mental, 'rotacion_items': rotacion_items_dict(u),
-        'rol': u.rol,
+        'rol': u.rol, 'archivado': bool(u.archivado),
         'institucion': u.institucion,
         'grupo_asignado': u.grupo_asignado, 'sesion_aplicacion': u.sesion_aplicacion,
         'fecha_registro': u.fecha_registro.isoformat() if u.fecha_registro else None
@@ -1309,7 +1312,7 @@ def set_asignacion_automatica():
 def asignar_grupo_lote():
     """Asigna grupos automáticamente en rotación a usuarios sin grupo."""
     try:
-        usuarios_sin_grupo = Usuario.query.filter_by(grupo_asignado=None).order_by(Usuario.id).all()
+        usuarios_sin_grupo = [u for u in Usuario.query.filter_by(grupo_asignado=None).order_by(Usuario.id).all() if not u.archivado]
         asignados, estudiantes, sin_codigo, rotacion, validadores_sin_grupo = 0, 0, 0, 0, 0
         bloquear_asignacion()
         for u in usuarios_sin_grupo:
@@ -1742,6 +1745,24 @@ def eliminar_usuario(usuario_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/usuarios/<int:usuario_id>/archivar', methods=['POST'])
+@admin_required
+def archivar_usuario(usuario_id):
+    """Archiva (o desarchiva) una cuenta SIN borrar nada: no puede iniciar sesión y se oculta del listado, pero sus datos
+    siguen en la base, en las descargas y en las estadísticas. Es la alternativa segura a eliminar."""
+    try:
+        usuario = Usuario.query.get(usuario_id)
+        if not usuario:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        archivar = bool((request.json or {}).get('archivar', True))
+        usuario.archivado = archivar
+        usuario.fecha_archivo = _dt.datetime.utcnow() if archivar else None
+        db.session.commit()
+        return jsonify({'mensaje': 'Cuenta archivada: sus datos se conservan.' if archivar else 'Cuenta restaurada.', 'archivado': archivar})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/usuarios/<int:usuario_id>/resetear_password', methods=['POST'])
 @admin_required
 def resetear_password(usuario_id):
@@ -2139,6 +2160,20 @@ def analisis_estadistico():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/analisis_expertos', methods=['GET'])
+@admin_required
+def analisis_expertos():
+    """Estadística descriptiva de docentes y validadores frente a estudiantes (se calcula en el momento)."""
+    if estadistica is None or not hasattr(estadistica, 'analizar_expertos'):
+        return jsonify({'error': 'Falta actualizar backend/estadistica.py en el servidor. Súbelo a GitHub junto con app.py.', 'codigo': 'falta_estadistica'}), 503
+    try:
+        res = estadistica.analizar_expertos(construir_tablas_exportacion(False, False), incluir_repetidos=request.args.get('repetidos') == '1')
+        res['generado'] = _hora_col(_dt.datetime.utcnow())
+        return jsonify(res)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/monitor_sesion', methods=['GET'])
 @admin_required
 def monitor_sesion():
@@ -2175,6 +2210,8 @@ def monitor_sesion():
                 if x.momento == 'comentario_final' and (x.respuesta or '').strip(): d['comentario'] = True
         filas = []
         for u in Usuario.query.filter_by(rol='estudiante').all():
+            if u.archivado:
+                continue                                   # los archivados no aparecen en el monitor en vivo
             s = ult_ses.get(u.id)
             marcas = [t for t in (u.fecha_registro, s.fecha_inicio if s else None, pasos.get(s.id, {}).get('ts') if s else None, tipos.get(s.id, {}).get('ts') if s else None, refs.get(s.id, {}).get('ts') if s else None) if t]
             actividad = max(marcas) if marcas else None

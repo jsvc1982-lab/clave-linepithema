@@ -22,6 +22,9 @@ class Usuario(db.Model):
     institucion = db.Column(db.String(80))   # dominio del correo institucional (ej. pedagogica.edu.co)
     rol = db.Column(db.String(20), default='estudiante')  # 'estudiante', 'docente', 'validador' o 'pruebas'
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+    # ARCHIVADO: la cuenta deja de poder entrar y se oculta del listado, pero TODOS sus datos se conservan y siguen contando en estadísticas y descargas.
+    archivado = db.Column(db.Boolean, default=False)
+    fecha_archivo = db.Column(db.DateTime)
     
     sesiones = db.relationship('SesionExperimental', backref='usuario_rel', lazy=True)
 class SesionExperimental(db.Model):

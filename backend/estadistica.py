@@ -812,3 +812,102 @@ for (v in c("sus_total", "ccp_intrinseca", "ccp_extrinseca", "ccp_germana")) {
   if (sum(ok) > 5) { cat("\nKruskal-Wallis de", v, "entre grupos: p =", signif(kruskal.test(x[ok] ~ p$grupo[ok])$p.value, 3), "\n") }
 }
 '''
+
+
+# ======================================================================================================================
+# Análisis de docentes y validadores (expertos): descriptivo, sin pruebas de hipótesis (muestra muy pequeña)
+# ======================================================================================================================
+ROLES_EXPERTOS = ('docente', 'validador')
+
+
+def analizar_expertos(tablas, incluir_repetidos=False):
+    """Docentes y validadores frente a los estudiantes. Solo descriptivo: con pocas personas no se hacen pruebas de hipótesis.
+    Mismas reglas que el análisis de estudiantes: espécimen con acierto 0/1, sin intentos anulados, primer intento por defecto."""
+    esp = _filas(tablas['especimenes'])
+    par = {f['id_participante']: f for f in _filas(tablas['participantes'])}
+
+    def valido(r):
+        if r['acierto'] not in (0, 1) or r.get('sesion_anulada') == 1:
+            return False
+        return incluir_repetidos or r['es_primer_intento_especimen'] == 1
+
+    obs = [r for r in esp if valido(r) and r['rol'] in ROLES_EXPERTOS + ('estudiante',)]
+    exp = [r for r in obs if r['rol'] in ROLES_EXPERTOS]
+    est = [r for r in obs if r['rol'] == 'estudiante']
+    if not exp:
+        return {'vacio': True, 'mensaje': 'Todavía no hay especímenes de docentes ni validadores con datos válidos.'}
+
+    def resumen(filas):
+        n = len(filas)
+        k = sum(int(r['acierto']) for r in filas)
+        lo, hi = wilson(k, n) if n else (None, None)
+        ts = [t for t in (_num(r['tiempo_clave_s']) for r in filas) if t is not None]
+        return n, k, lo, hi, (cuantil(ts, 0.5) if ts else None)
+
+    def fila_resumen(etq, filas, personas):
+        n, k, lo, hi, tm = resumen(filas)
+        return [etq, personas, n, k, _pct(k / n if n else None), _pct(lo), _pct(hi), _r(tm, 0)]
+
+    cols_res = ['Grupo de personas', 'Personas', 'Especímenes', 'Aciertos', '% acierto', 'IC95% inf', 'IC95% sup', 'Tiempo mediano (s)']
+    per_de = lambda filas: len({r['id_participante'] for r in filas})
+    t_muestra = {'titulo': 'Docentes y validadores frente a estudiantes', 'columnas': cols_res, 'filas': [
+        fila_resumen('Docentes', [r for r in exp if r['rol'] == 'docente'], per_de([r for r in exp if r['rol'] == 'docente'])),
+        fila_resumen('Validadores', [r for r in exp if r['rol'] == 'validador'], per_de([r for r in exp if r['rol'] == 'validador'])),
+        fila_resumen('Expertos (docentes + validadores)', exp, per_de(exp)),
+        fila_resumen('Estudiantes', est, per_de(est))],
+        'nota': 'Descriptivo: con tan pocas personas expertas no se hacen pruebas de hipótesis; el intervalo de Wilson trata cada espécimen como independiente.'}
+
+    # Detalle por persona
+    ids = sorted({r['id_participante'] for r in exp})
+    filas_p = []
+    for i in ids:
+        rs = [r for r in exp if r['id_participante'] == i]
+        p = par.get(i, {})
+        k = sum(int(r['acierto']) for r in rs)
+        ts = [t for t in (_num(r['tiempo_clave_s']) for r in rs) if t is not None]
+        desv = ', '.join(str(r['primera_pregunta_desvio']) for r in rs if r.get('primera_pregunta_desvio') not in (None, ''))
+        filas_p.append([i, p.get('rol', ''), p.get('grupo', '') or '(sin grupo)', len(rs), k, _pct(k / len(rs)), _r(media(ts), 0) if ts else '',
+                        _r(_num(p.get('sus_total')), 1), p.get('experiencia_taxonomica', ''), desv, sum(1 for r in rs if r.get('tiempo_corto') == 1)])
+    t_persona = {'titulo': 'Detalle por persona (anónimo)', 'columnas': ['id', 'Rol', 'Grupo', 'Especímenes', 'Aciertos', '% acierto', 'Tiempo medio (s)', 'SUS', 'Experiencia taxonómica', 'Primer pareado de desvío', 'Tiempo corto (n)'], 'filas': filas_p,
+                 'nota': 'Para un validador, el «grupo» es el que usted le asignó. Un desvío en un pareado donde varios expertos fallan sugiere un problema de la clave, no de la persona.'}
+
+    # Por especie: expertos vs estudiantes
+    especies = sorted({r['especie_correcta'] for r in exp if r.get('especie_correcta')})
+    filas_e = []
+    for s in especies:
+        a = [r for r in exp if r['especie_correcta'] == s]
+        b = [r for r in est if r['especie_correcta'] == s]
+        ka, kb = sum(int(r['acierto']) for r in a), sum(int(r['acierto']) for r in b)
+        filas_e.append([s, len(a), ka, _pct(ka / len(a)), len(b), kb, _pct(kb / len(b) if b else None)])
+    t_especie = {'titulo': 'Por especie: expertos frente a estudiantes', 'columnas': ['Especie correcta', 'Expertos n', 'Expertos aciertos', 'Expertos %', 'Estudiantes n', 'Estudiantes aciertos', 'Estudiantes %'], 'filas': filas_e,
+                 'nota': 'Si los expertos aciertan una especie que los estudiantes fallan, la clave funciona y la dificultad es de formación; si los expertos también la fallan, revise la clave o el espécimen.'}
+
+    # Pareado de desvío
+    def cuenta_desvio(filas):
+        c = {}
+        for r in filas:
+            q = r.get('primera_pregunta_desvio')
+            if q not in (None, ''):
+                c[q] = c.get(q, 0) + 1
+        return c
+    cd_e, cd_s = cuenta_desvio(exp), cuenta_desvio(est)
+    qs = sorted(set(cd_e) | set(cd_s), key=lambda q: (_num(q) is None, _num(q) or 0, str(q)))
+    t_desvio = {'titulo': 'Primer pareado donde se apartaron de la ruta correcta', 'columnas': ['Pareado', 'Expertos (n)', '% de espec. expertos', 'Estudiantes (n)', '% de espec. estudiantes'],
+                'filas': [[q, cd_e.get(q, 0), _pct(cd_e.get(q, 0) / len(exp)), cd_s.get(q, 0), _pct(cd_s.get(q, 0) / len(est) if est else None)] for q in qs],
+                'nota': 'El porcentaje es sobre todos los especímenes del grupo (incluye los que siguieron la ruta correcta). Un pareado donde se desvían los expertos es candidato a revisión.'}
+
+    # SUS / CCP
+    def prom(ids_, c):
+        v = [x for x in (_num(par[i].get(c)) for i in ids_ if i in par) if x is not None]
+        return _r(media(v), 1) if v else ''
+    ie, ies = sorted({r['id_participante'] for r in exp}), sorted({r['id_participante'] for r in est})
+    t_enc = {'titulo': 'Usabilidad y carga cognitiva (promedios)', 'columnas': ['Grupo de personas', 'SUS (0-100)', 'CCP intrínseca', 'CCP extrínseca', 'CCP germana'],
+             'filas': [['Expertos', *[prom(ie, c) for c in ('sus_total', 'ccp_intrinseca', 'ccp_extrinseca', 'ccp_germana')]], ['Estudiantes', *[prom(ies, c) for c in ('sus_total', 'ccp_intrinseca', 'ccp_extrinseca', 'ccp_germana')]]]}
+
+    nota_n = len(exp)
+    lectura = [f'Hay {len(ie)} persona(s) experta(s) y {nota_n} espécimen(es) válidos; es una descripción, no una prueba.',
+               'Úselos para validar la clave (¿los expertos llegan a la especie correcta?) y no para comparar grupos 2D/3D entre sí.']
+    avisos = ['Con menos de ~10 personas expertas un porcentaje cambia mucho con un solo caso; interprete los intervalos, no el valor puntual.',
+              'Los validadores los asigna usted a mano a un grupo; los docentes reciben grupo automático. Eso no los hace una muestra aleatoria.']
+    return {'vacio': False, 'lectura': lectura, 'avisos': avisos, 'parametros': {'incluir_repetidos': incluir_repetidos},
+            'tablas': {'muestra': t_muestra, 'persona': t_persona, 'especie': t_especie, 'desvio': t_desvio, 'encuestas': t_enc}}
