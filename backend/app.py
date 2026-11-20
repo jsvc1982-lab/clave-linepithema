@@ -2174,6 +2174,61 @@ def analisis_expertos():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/admin/auditoria_datos', methods=['GET'])
+@admin_required
+def auditoria_datos():
+    """Revisa que lo que vio cada participante coincida con lo guardado: especímenes asignados sin resultado, resultado que contradice el recorrido
+    (todos los pasos correctos pero marcado como fallo, o al revés), resultado que no coincide con la especie elegida, duplicados.
+    ?id=N devuelve además el recorrido completo de esa persona, espécimen por espécimen."""
+    try:
+        try:
+            solo = int(request.args.get('id')) if request.args.get('id') else None
+        except ValueError:
+            solo = None
+        usuarios = [u for u in Usuario.query.order_by(Usuario.id).all() if (solo is None or u.id == solo)]
+        hallazgos, detalle, n_ses = [], [], 0
+        for u in usuarios:
+            for s in SesionExperimental.query.filter_by(usuario_id=u.id).order_by(SesionExperimental.id).all():
+                n_ses += 1
+                try:
+                    asignados = json.loads(s.especimenes_asignados or '[]')
+                except Exception:
+                    asignados = []
+                res = ResultadoIdentificacion.query.filter_by(sesion_id=s.id).order_by(ResultadoIdentificacion.id).all()
+                pasos = PasoClave.query.filter_by(sesion_id=s.id).order_by(PasoClave.id).all()
+                def hallazgo(tipo, texto, esp=''):
+                    hallazgos.append({'id_participante': u.id, 'rol': u.rol, 'grupo': s.grupo or '', 'sesion_id': s.id, 'anulada': bool(s.anulada), 'especimen': esp, 'tipo': tipo, 'detalle': texto})
+                for orden, a in enumerate(asignados, 1):
+                    eid = a.get('id')
+                    mis_res = [r for r in res if r.especie_id == eid]
+                    p_e = [p for p in pasos if p.especimen_id == eid and p.especimen_orden in (None, orden) and not p.deshecho]
+                    llego_final = any(p.es_paso_final for p in p_e)
+                    if solo is not None:
+                        detalle.append({'sesion_id': s.id, 'anulada': bool(s.anulada), 'grupo': s.grupo, 'orden': orden, 'especimen': eid, 'especie_asignada': a.get('especie'),
+                                        'recorrido': [{'pareado': p.pregunta, 'opcion': 'A' if p.opcion_elegida == 0 else 'B', 'correcto': bool(p.es_paso_correcto), 'final': bool(p.es_paso_final)} for p in p_e],
+                                        'resultados': [{'seleccionada': r.especie_seleccionada, 'correcta': r.especie_correcta, 'es_correcta': bool(r.es_correcta), 'segundos': r.tiempo_segundos, 'desvio_en': r.primera_pregunta_desvio} for r in mis_res]})
+                    if not mis_res:
+                        if p_e:
+                            hallazgo('sin_resultado_con_recorrido', f'Recorrió {len(p_e)} pasos{" y llegó a una conclusión" if llego_final else ""}, pero NO hay resultado guardado: en las tablas figura como no identificado.', eid)
+                        continue
+                    if len(mis_res) > 1:
+                        hallazgo('duplicado', f'{len(mis_res)} resultados guardados para el mismo espécimen.', eid)
+                    for r in mis_res:
+                        if r.especie_seleccionada and r.especie_correcta and bool(r.es_correcta) != (r.especie_seleccionada == r.especie_correcta):
+                            hallazgo('acierto_incoherente', f'Seleccionó «{r.especie_seleccionada}», la correcta es «{r.especie_correcta}», pero quedó es_correcta={bool(r.es_correcta)}.', eid)
+                        if a.get('especie') and r.especie_correcta and a.get('especie') != r.especie_correcta:
+                            hallazgo('especie_distinta_a_la_asignada', f'Se le asignó «{a.get("especie")}» y el resultado dice que la correcta es «{r.especie_correcta}».', eid)
+                        if p_e and all(p.es_paso_correcto for p in p_e) and not r.es_correcta:
+                            hallazgo('pasos_correctos_pero_fallo', f'Todos sus pasos (no deshechos) fueron correctos, pero el resultado quedó como fallo (concluyó «{r.especie_seleccionada}»). Revise la clave.', eid)
+                        if p_e and any(not p.es_paso_correcto for p in p_e) and r.es_correcta:
+                            hallazgo('fallos_en_pasos_pero_acierto', 'Tiene pasos fuera de la ruta correcta y aun así quedó como acierto.', eid)
+        resumen = {'personas_revisadas': len(usuarios), 'sesiones_revisadas': n_ses, 'hallazgos': len(hallazgos),
+                   'por_tipo': {t: sum(1 for h in hallazgos if h['tipo'] == t) for t in sorted({h['tipo'] for h in hallazgos})}}
+        return jsonify({'resumen': resumen, 'hallazgos': hallazgos, 'detalle': detalle, 'generado': _hora_col(_dt.datetime.utcnow())})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/admin/monitor_sesion', methods=['GET'])
 @admin_required
 def monitor_sesion():
@@ -2558,6 +2613,12 @@ def guardar_resultado():
         return jsonify({'error': 'No autenticado'}), 401
     try:
         data = request.json
+        ses_dueña = db.session.get(SesionExperimental, data['sesion_id'])
+        if not ses_dueña or ses_dueña.usuario_id != session.get('usuario_id'):
+            return jsonify({'error': 'Esa sesión no es tuya'}), 403
+        previo = ResultadoIdentificacion.query.filter_by(sesion_id=data['sesion_id'], especie_id=data['especimen_id'], orden=data['orden']).first()
+        if previo:                                                           # el navegador reintentó y el primer envío sí había llegado: no se duplica
+            return jsonify({'mensaje': 'Resultado ya guardado', 'duplicado': True})
         resultado = ResultadoIdentificacion(
             sesion_id=data['sesion_id'],
             especie_id=data['especimen_id'],
