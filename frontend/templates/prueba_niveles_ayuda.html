@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probar la ayuda «¿Dónde mirar?»</title>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0A0E17; color: #E0E0E0; min-height: 100vh; padding: 20px; }
+  h1 { color: #00D4FF; font-size: 1.4rem; margin-bottom: 4px; }
+  .sub { color: #A0A0B0; font-size: 0.85rem; margin-bottom: 18px; }
+  .card { background: #121826; border: 1px solid #00D4FF30; border-radius: 14px; padding: 18px; max-width: 1180px; margin: 0 auto 16px; }
+  .aviso { background: #FFB02014; border-left: 4px solid #FFB020; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; margin: 12px 0; }
+  .info { background: #00D4FF14; border-left: 4px solid #00D4FF; border-radius: 6px; padding: 10px 14px; font-size: 0.85rem; margin: 12px 0; }
+  .btn { padding: 11px 20px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.95rem; color: white; background: linear-gradient(45deg, #00D4FF, #7B61FF); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.sec { background: #1A1F36; border: 1px solid #00D4FF50; color: #00D4FF; }
+  .formatos { display: flex; gap: 12px; margin: 14px 0; flex-wrap: wrap; }
+  .formato { flex: 1; min-width: 220px; padding: 14px; border: 2px solid #00D4FF30; border-radius: 12px; cursor: pointer; background: #1A1F36; }
+  .formato.activo { border-color: #00D4FF; background: #00D4FF14; }
+  .formato b { display: block; color: #00D4FF; margin-bottom: 4px; }
+  .grid { display: grid; grid-template-columns: minmax(300px, 440px) 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .insignia { display: inline-block; background: #00D4FF22; color: #00D4FF; padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; margin-bottom: 10px; }
+  .pareado { color: #7B61FF; font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+  .camino { font-size: 0.75rem; color: #7B61FF; background: #1A1F36; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; }
+  .opcion { display: block; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 10px; border: 2px solid #00D4FF30; border-radius: 12px; background: #1A1F36; color: #E0E0E0; cursor: pointer; font-size: 0.92rem; line-height: 1.4; }
+  .opcion:hover { border-color: #00D4FF; }
+  .opcion b { color: #00D4FF; margin-right: 6px; }
+  .ayuda-encuadre-btn { width: 100%; padding: 10px; border: 1px solid #FFB02080; border-radius: 10px; background: #FFB02014; color: #FFB020; font-weight: 600; cursor: pointer; font-size: 0.9rem; margin-bottom: 8px; }
+  .ayuda-rasgo { padding: 7px 12px; margin: 6px 6px 0 0; border-radius: 8px; border: 1px solid #00D4FF50; background: #1A1F36; color: #E0E0E0; font-size: 0.8rem; cursor: pointer; text-align: left; }
+  .ayuda-rasgo.activo { border-color: #FFB020; color: #FFB020; background: #FFB02014; }
+  .ayuda-rasgo.normal { border-color: #7B61FF80; color: #A0A0F0; }
+  @keyframes pulsoAyuda { 0%,100% { box-shadow: 0 0 0 0 rgba(255,176,32,0.75); } 50% { box-shadow: 0 0 0 14px rgba(255,176,32,0); } }
+  #marcadorAyuda { position: absolute; width: 38px; height: 38px; border: 3px solid #FFB020; border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; animation: pulsoAyuda 1.4s infinite; z-index: 5; }
+  .visor { position: relative; height: 480px; border-radius: 14px; overflow: hidden; border: 1px solid #00D4FF30; background: #0A0E17; }
+  .estado-modelo { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #A0A0B0; background: #0A0E17; pointer-events: none; }
+  .estado-modelo.error { color: #FF375F; font-weight: 600; }
+  .tabs2d { display: flex; gap: 6px; padding: 8px; background: #121826; border-bottom: 1px solid #00D4FF30; }
+  .tab2d { padding: 7px 16px; border: 1px solid #00D4FF40; border-radius: 8px; background: #1A1F36; color: #A0A0B0; cursor: pointer; font-size: 0.85rem; }
+  .tab2d.activa { border-color: #00D4FF; color: #00D4FF; background: #00D4FF14; }
+  .marco2d { position: relative; height: calc(100% - 50px); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 12px; touch-action: none; }
+  .marco2d img { max-width: 100%; max-height: 100%; width: auto; height: auto; transform-origin: center center; user-select: none; -webkit-user-drag: none; border-radius: 8px; }
+  .zoom-btns { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 6; }
+  .zoom-btns button { width: 38px; height: 38px; border-radius: 10px; border: 1px solid #00D4FF70; background: rgba(18,24,38,0.92); color: #00D4FF; font-size: 1.1rem; cursor: pointer; }
+  .hint { position: absolute; left: 10px; bottom: 10px; font-size: 0.72rem; color: #C8D0E0; background: rgba(5,7,12,0.78); padding: 4px 10px; border-radius: 8px; pointer-events: none; z-index: 6; }
+  .resultado { border-radius: 12px; padding: 14px; margin: 12px 0; font-size: 0.95rem; }
+  .resultado.ok { background: #00E67622; border: 1px solid #00E676; }
+  .resultado.mal { background: #FF375F22; border: 1px solid #FF375F; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 10px; }
+  td, th { padding: 8px 10px; border-bottom: 1px solid #00D4FF20; text-align: left; }
+  th { color: #00D4FF; }
+</style>
+</head>
+<body>
+
+<div class="card" id="pantallaIntro">
+  <h1>🧪 Probar la ayuda «¿Dónde mirar?»</h1>
+  <p class="sub">Recorre la clave como un estudiante, con las calibraciones que guardaste en «Zoom Caracteres». No se guarda nada.</p>
+  <div class="formatos">
+    <div class="formato activo" id="fmt3d" onclick="elegirFormato('3d')"><b>🧊 Modelo 3D</b>El espécimen se ve como modelo que se puede girar.</div>
+    <div class="formato" id="fmt2d" onclick="elegirFormato('2d')"><b>📷 Fotografías 2D</b>El espécimen se ve en fotos (cabeza, lateral y dorsal).</div>
+  </div>
+  <div id="resumenCalib" class="info">Cargando calibraciones…</div>
+  <button class="btn" id="btnEmpezar" onclick="empezar()">▶ Empezar la prueba (3 especímenes)</button>
+</div>
+
+<div class="card" id="pantallaPrueba" style="display:none;">
+  <div class="grid">
+    <div id="panelPregunta"></div>
+    <div id="panelVisor"></div>
+  </div>
+</div>
+
+<div class="card" id="pantallaResumen" style="display:none;">
+  <h1>📋 Resumen de la prueba</h1>
+  <table id="tablaResumen"></table>
+  <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn" onclick="volverAlInicio()">↺ Probar otra vez</button>
+    <button class="btn sec" onclick="window.close()">Cerrar</button>
+  </div>
+</div>
+
+<script>
+// ===== Datos reales de la clave (los mismos de las 4 versiones que ven los estudiantes) =====
+const DATOS = {"CLAVE": {"1": {"pregunta": "Pareado 1", "opciones": [{"texto": "Porción anterior a la bula de la glándula metapleural con pelos adpresos en cantidad moderada a abundante (a veces los individuos deben ser observados en posición dorso-oblicua)", "desc": "", "siguiente": 2}, {"texto": "Porción anterior a la bula de la glándula metapleural con unos pocos o careciendo de pelos adpresos", "desc": "", "siguiente": 4}]}, "2": {"pregunta": "Pareado 2", "opciones": [{"texto": "Pronoto con un par de setas erectas (pueden estar caídas), palpos maxilares largos, más de la mitad de la longitud de la cabeza; surco metanotal ligeramente marcado o no marcado, propodeo bajo y redondeado", "desc": "", "resultado": "neotropicum"}, {"texto": "Pronoto usualmente sin setas erectas, raras veces un par; palpos maxilares con una longitud máxima igual o inferior a la longitud de la cabeza; surco metanotal marcado ligeramente o de manera moderada; propodeo inclinado hacia adelante, con una cara dorsal y una posterior formando un ángulo obtuso", "desc": "", "siguiente": 3}]}, "3": {"pregunta": "Pareado 3", "opciones": [{"texto": "Escapos antenales relativamente cortos, usualmente con un tamaño inferior a la longitud de la cabeza; pronoto y primer terguito del gáster con setas (a veces pueden estar perdidas); mesonoto angular, con un declive posterior y en ocasiones abultado", "desc": "", "resultado": "gallardoi"}, {"texto": "Escapos antenales largos, iguales o mayores a la longitud de la cabeza; pronoto y primer terguito del gáster sin setas; mesonoto recto, no angular o abultado", "desc": "", "resultado": "humile"}]}, "4": {"pregunta": "Pareado 4", "opciones": [{"texto": "Porción posterior del clípeo con un surco débil o sin surco (surco pre-sutural del clípeo)", "desc": "", "siguiente": 5}, {"texto": "Surco pre-sutural del clípeo presente y bien marcado", "desc": "", "siguiente": 6}]}, "5": {"pregunta": "Pareado 5", "opciones": [{"texto": "Dorso de la cabeza con más de 5 setas erectas, mesosoma esbelto, dorso del mesonoto con una impresión media moderada a fuerte, superficie del cuerpo brillante y lustrosa", "desc": "", "resultado": "iniquum"}, {"texto": "Dorso de la cabeza nunca con más de 5 setas, mesosoma más robusto, mesonoto con una impresión media ligeramente impresa o ausente, cuerpo no tan brillante y lustroso como arriba", "desc": "", "resultado": "dispertitum"}]}, "6": {"pregunta": "Pareado 6", "opciones": [{"texto": "Pronoto con más de 10 setas erectas, superficie de todo el cuerpo con setas erectas largas o cortas", "desc": "", "resultado": "hirsutum"}, {"texto": "Pronoto con menos de 10 setas erectas, superficie de todo el cuerpo nunca cubierto con muchas setas erectas", "desc": "", "siguiente": 7}]}, "7": {"pregunta": "Pareado 7", "opciones": [{"texto": "Margen posterior de la cabeza profundamente cóncavo, dorso del mesonoto nunca con una impresión media, pronoto usualmente con 4 (2–8) setas erectas a suberectas", "desc": "", "resultado": "tsachila"}, {"texto": "Margen posterior de la cabeza recto a ligeramente cóncavo, dorso del mesonoto con una ligera impresión media o sin impresión, pronoto nunca con más de 4 setas erectas", "desc": "", "siguiente": 8}]}, "8": {"pregunta": "Pareado 8", "opciones": [{"texto": "Escapos antenales cortos, sobrepasando el margen posterior de la cabeza por una longitud inferior a la del pedicelo, propodeo relativamente alto, con caras anterior dorsal y posterior distinguibles, a veces la cara dorsal ligeramente deprimida", "desc": "", "resultado": "angulatum"}, {"texto": "Escapos antenales relativamente largos, sobrepasando el margen posterior de la cabeza por una longitud igual o superior a la del pedicelo, propodeo usualmente redondeado, no como arriba", "desc": "", "resultado": "piliferum"}]}}, "RASGOS": [{"id": "p1a", "pareado": 1, "nombre": "Pelos adpresos en la bula de la glándula metapleural", "A": "pelos adpresos en cantidad moderada a abundante", "B": "unos pocos o careciendo de pelos adpresos"}, {"id": "p2a", "pareado": 2, "nombre": "Setas erectas en el pronoto", "A": "Pronoto con un par de setas erectas (pueden estar caídas)", "B": "Pronoto usualmente sin setas erectas, raras veces un par"}, {"id": "p2b", "pareado": 2, "nombre": "Longitud de los palpos maxilares", "A": "palpos maxilares largos, más de la mitad de la longitud de la cabeza", "B": "palpos maxilares con una longitud máxima igual o inferior a la longitud de la cabeza"}, {"id": "p2c", "pareado": 2, "nombre": "Surco metanotal", "A": "surco metanotal ligeramente marcado o no marcado", "B": "surco metanotal marcado ligeramente o de manera moderada"}, {"id": "p2d", "pareado": 2, "nombre": "Forma del propodeo", "A": "propodeo bajo y redondeado", "B": "propodeo inclinado hacia adelante, con una cara dorsal y una posterior formando un ángulo obtuso"}, {"id": "p3a", "pareado": 3, "nombre": "Longitud de los escapos antenales", "A": "Escapos antenales relativamente cortos, usualmente con un tamaño inferior a la longitud de la cabeza", "B": "Escapos antenales largos, iguales o mayores a la longitud de la cabeza"}, {"id": "p3b", "pareado": 3, "nombre": "Setas en el pronoto y el primer terguito del gáster", "A": "pronoto y primer terguito del gáster con setas (a veces pueden estar perdidas)", "B": "pronoto y primer terguito del gáster sin setas"}, {"id": "p3c", "pareado": 3, "nombre": "Forma del mesonoto", "A": "mesonoto angular, con un declive posterior y en ocasiones abultado", "B": "mesonoto recto, no angular o abultado"}, {"id": "p4a", "pareado": 4, "nombre": "Surco pre-sutural del clípeo", "A": "Porción posterior del clípeo con un surco débil o sin surco (surco pre-sutural del clípeo)", "B": "Surco pre-sutural del clípeo presente y bien marcado"}, {"id": "p5a", "pareado": 5, "nombre": "Cantidad de setas en el dorso de la cabeza", "A": "Dorso de la cabeza con más de 5 setas erectas", "B": "Dorso de la cabeza nunca con más de 5 setas"}, {"id": "p5b", "pareado": 5, "nombre": "Forma del mesosoma", "A": "mesosoma esbelto", "B": "mesosoma más robusto"}, {"id": "p5c", "pareado": 5, "nombre": "Impresión media del mesonoto", "A": "dorso del mesonoto con una impresión media moderada a fuerte", "B": "mesonoto con una impresión media ligeramente impresa o ausente"}, {"id": "p5d", "pareado": 5, "nombre": "Brillo de la superficie del cuerpo", "A": "superficie del cuerpo brillante y lustrosa", "B": "cuerpo no tan brillante y lustroso como arriba"}, {"id": "p6a", "pareado": 6, "nombre": "Densidad de setas erectas", "A": "Pronoto con más de 10 setas erectas, superficie de todo el cuerpo con setas erectas largas o cortas", "B": "Pronoto con menos de 10 setas erectas, superficie de todo el cuerpo nunca cubierto con muchas setas erectas"}, {"id": "p7a", "pareado": 7, "nombre": "Margen posterior de la cabeza", "A": "Margen posterior de la cabeza profundamente cóncavo", "B": "Margen posterior de la cabeza recto a ligeramente cóncavo"}, {"id": "p7b", "pareado": 7, "nombre": "Impresión media del mesonoto", "A": "dorso del mesonoto nunca con una impresión media", "B": "dorso del mesonoto con una ligera impresión media o sin impresión"}, {"id": "p7c", "pareado": 7, "nombre": "Setas en el pronoto", "A": "pronoto usualmente con 4 (2–8) setas erectas a suberectas", "B": "pronoto nunca con más de 4 setas erectas"}, {"id": "p8a", "pareado": 8, "nombre": "Escapos antenales frente al pedicelo", "A": "Escapos antenales cortos, sobrepasando el margen posterior de la cabeza por una longitud inferior a la del pedicelo", "B": "Escapos antenales relativamente largos, sobrepasando el margen posterior de la cabeza por una longitud igual o superior a la del pedicelo"}, {"id": "p8b", "pareado": 8, "nombre": "Forma del propodeo", "A": "propodeo relativamente alto, con caras anterior dorsal y posterior distinguibles, a veces la cara dorsal ligeramente deprimida", "B": "propodeo usualmente redondeado, no como arriba"}], "ESPECIES": {"neotropicum": {"nombre": "Linepithema neotropicum"}, "gallardoi": {"nombre": "Linepithema gallardoi"}, "humile": {"nombre": "Linepithema humile"}, "iniquum": {"nombre": "Linepithema iniquum"}, "dispertitum": {"nombre": "Linepithema dispertitum"}, "hirsutum": {"nombre": "Linepithema hirsutum"}, "tsachila": {"nombre": "Linepithema tsachila"}, "angulatum": {"nombre": "Linepithema angulatum"}, "piliferum": {"nombre": "Linepithema piliferum"}}, "MODELOS": {"gallardoi": "/static/modelos3d/esp1.glb", "humile": "/static/modelos3d/esp2.glb", "tsachila": "/static/modelos3d/esp3.glb", "piliferum": "/static/modelos3d/esp4.glb", "hirsutum": "/static/modelos3d/esp5.glb", "angulatum": "/static/modelos3d/esp6.glb", "neotropicum": "/static/modelos3d/esp7.glb", "dispertitum": "/static/modelos3d/esp8.glb", "iniquum": "/static/modelos3d/esp9.glb"}, "CODIGO_ESPECIE": {"gallardoi": "esp1", "humile": "esp2", "tsachila": "esp3", "piliferum": "esp4", "hirsutum": "esp5", "angulatum": "esp6", "neotropicum": "esp7", "dispertitum": "esp8", "iniquum": "esp9"}};
+const CLAVE = DATOS.CLAVE, RASGOS = DATOS.RASGOS, ESPECIES = DATOS.ESPECIES, MODELOS = DATOS.MODELOS, CODIGO = DATOS.CODIGO_ESPECIE;
+const VISTAS = [{ id: 'cabeza', t: 'Cabeza' }, { id: 'lateral', t: 'Lateral' }, { id: 'dorsal', t: 'Dorsal' }];
+
+let formato = '3d', calib = {};
+let especimenes = [], indice = 0, paso = 1, camino = [], terminado = false, resultados = [];
+let usos = [], inicioEsp = 0, ayudaActiva = false;
+
+// ===== Calibraciones (misma normalización que las claves) =====
+function normalizar(d) {
+    const s = {};
+    Object.entries(d || {}).forEach(([k, v]) => {
+        if (/^\d+$/.test(k)) { if (!(('p' + k + 'a') in d)) s['p' + k + 'a'] = v; } else s[k] = v;
+    });
+    return s;
+}
+function calibracionDe(id) {
+    const c = calib[id] && calib[id][formato];
+    if (!c) return null;
+    if (formato === '3d') return (c.orbit || c.theta !== undefined) ? c : null;
+    return (typeof c.x === 'number' && typeof c.y === 'number') ? c : null;
+}
+function rasgosConAyuda(par) { return RASGOS.filter(r => r.pareado === par && calibracionDe(r.id)); }
+
+async function cargarCalibraciones() {
+    try { calib = normalizar(await (await fetch('/api/config/zoom_caracteres')).json()); } catch (e) { calib = {}; }
+    refrescarResumen();
+}
+function refrescarResumen() {
+    const n = f => RASGOS.filter(r => calib[r.id] && calib[r.id][f]).length;
+    const n2 = n('2d'), n3 = n('3d'), actual = formato === '3d' ? n3 : n2;
+    const el = document.getElementById('resumenCalib');
+    el.className = actual ? 'info' : 'aviso';
+    el.innerHTML = `Rasgos calibrados: <strong>${n2} de ${RASGOS.length}</strong> en 2D · <strong>${n3} de ${RASGOS.length}</strong> en 3D.` +
+        (actual ? ` En esta prueba verás el botón <strong>«¿Dónde mirar?»</strong> en los pareados que tengan rasgos calibrados en ${formato.toUpperCase()}.`
+                : ` <strong>Aún no hay calibraciones en ${formato.toUpperCase()}</strong>: la prueba funcionará, pero no aparecerá el botón de ayuda. Calibra en «Zoom Caracteres».`);
+}
+function elegirFormato(f) {
+    formato = f;
+    document.getElementById('fmt3d').classList.toggle('activo', f === '3d');
+    document.getElementById('fmt2d').classList.toggle('activo', f === '2d');
+    refrescarResumen();
+}
+
+// ===== Flujo de la prueba =====
+function mezclar(a) { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function empezar() {
+    especimenes = mezclar(Object.keys(ESPECIES)).slice(0, 3); indice = 0; resultados = [];
+    document.getElementById('pantallaIntro').style.display = 'none';
+    document.getElementById('pantallaResumen').style.display = 'none';
+    document.getElementById('pantallaPrueba').style.display = 'block';
+    cargarEspecimen();
+}
+function volverAlInicio() {
+    document.getElementById('pantallaResumen').style.display = 'none';
+    document.getElementById('pantallaIntro').style.display = 'block';
+    refrescarResumen();
+}
+function cargarEspecimen() {
+    paso = 1; camino = []; terminado = false; usos = []; ayudaActiva = false; marca = null;
+    inicioEsp = Date.now();
+    montarVisor();
+    renderPregunta();
+}
+
+// ===== Panel de la pregunta =====
+function htmlAyuda(par) {
+    const rasgos = rasgosConAyuda(par);
+    if (!rasgos.length) return '';
+    return `<div id="ayudaEncuadre" style="margin-bottom:12px;">
+        <button class="ayuda-encuadre-btn" id="btnAyudaEncuadre" onclick="toggleAyuda()">💡 ¿Dónde mirar?</button>
+        <div id="ayudaEncuadreLista" style="display:none;">
+            <div style="font-size:0.75rem;color:#A0A0B0;">¿Qué carácter quieres ubicar en el espécimen?</div>
+            ${rasgos.map(r => `<button class="ayuda-rasgo" data-rasgo="${r.id}" onclick="verRasgo('${r.id}')">${r.nombre}</button>`).join('')}
+            <button class="ayuda-rasgo normal" onclick="volverVistaNormal()">↩ Vista normal</button>
+            <div id="ayudaEncuadreMsg" style="font-size:0.75rem;color:#FFB020;margin-top:8px;min-height:1em;"></div>
+        </div>
+    </div>`;
+}
+function renderPregunta() {
+    const p = CLAVE[paso];
+    let h = `<span class="insignia">Espécimen ${indice + 1} de ${especimenes.length}</span>`;
+    h += `<div class="pareado">Pareado ${paso}</div>`;
+    if (camino.length) h += `<div class="camino">🧭 Tu camino: ${camino.map(c => `P${c.pregunta}:${c.opcion === 0 ? 'A' : 'B'}`).join(' → ')} → <strong>Pregunta ${paso}</strong></div>`;
+    if (!terminado) h += htmlAyuda(paso);
+    p.opciones.forEach((o, i) => { h += `<button class="opcion" ${terminado ? 'disabled' : ''} onclick="elegir(${i})"><b>${i === 0 ? 'A' : 'B'}.</b> ${o.texto}</button>`; });
+    if (camino.length && !terminado) h += `<button class="btn sec" style="margin-top:4px;" onclick="anterior()">← Anterior</button>`;
+    h += '<div id="zonaResultado"></div>';
+    document.getElementById('panelPregunta').innerHTML = h;
+}
+function anterior() {
+    if (!camino.length) return;
+    if (ayudaActiva) volverVistaNormal();
+    paso = camino.pop().pregunta; renderPregunta();
+}
+function elegir(i) {
+    if (terminado) return;
+    if (ayudaActiva) volverVistaNormal();
+    const o = CLAVE[paso].opciones[i];
+    camino.push({ pregunta: paso, opcion: i });
+    if (o.siguiente) { paso = o.siguiente; renderPregunta(); return; }
+    // llegó a una especie
+    terminado = true;
+    const real = especimenes[indice], dijo = o.resultado, correcto = dijo === real;
+    resultados.push({ real, dijo, correcto, usos: [...usos], seg: Math.round((Date.now() - inicioEsp) / 1000) });
+    renderPregunta();
+    const ultimo = indice === especimenes.length - 1;
+    document.getElementById('zonaResultado').innerHTML = `
+        <div class="resultado ${correcto ? 'ok' : 'mal'}">${correcto ? '✅ ¡Correcto!' : '❌ Incorrecto'} Llegaste a <strong>${ESPECIES[dijo].nombre}</strong>${correcto ? '' : `; el espécimen era <strong>${ESPECIES[real].nombre}</strong>`}.<br>
+        <span style="font-size:0.8rem;color:#A0A0B0;">Usaste «¿Dónde mirar?» ${usos.length} ${usos.length === 1 ? 'vez' : 'veces'}${usos.length ? ': ' + usos.map(u => `${u.rasgo}@${u.t}s`).join(', ') : ''}.</span></div>
+        <button class="btn" id="btnSiguiente" onclick="${ultimo ? 'mostrarResumen()' : 'siguienteEspecimen()'}">${ultimo ? '📋 Ver el resumen' : 'Siguiente espécimen →'}</button>`;
+}
+function siguienteEspecimen() { indice++; cargarEspecimen(); }
+function mostrarResumen() {
+    document.getElementById('pantallaPrueba').style.display = 'none';
+    document.getElementById('pantallaResumen').style.display = 'block';
+    document.getElementById('tablaResumen').innerHTML = `<tr><th>#</th><th>Espécimen</th><th>Llegaste a</th><th>Resultado</th><th>Usos de la ayuda</th><th>Tiempo</th></tr>` +
+        resultados.map((r, i) => `<tr><td>${i + 1}</td><td>${ESPECIES[r.real].nombre}</td><td>${ESPECIES[r.dijo].nombre}</td><td>${r.correcto ? '✅' : '❌'}</td><td>${r.usos.length ? r.usos.map(u => `${u.rasgo}@${u.t}s`).join('; ') : '—'}</td><td>${r.seg} s</td></tr>`).join('');
+}
+
+// ===== Ayuda «¿Dónde mirar?» (misma lógica que las claves de los estudiantes) =====
+function toggleAyuda() { const l = document.getElementById('ayudaEncuadreLista'); if (l) l.style.display = l.style.display === 'none' ? 'block' : 'none'; }
+function marcarBoton(id) { document.querySelectorAll('.ayuda-rasgo[data-rasgo]').forEach(b => b.classList.toggle('activo', b.dataset.rasgo === id)); }
+async function verRasgo(id) {
+    const cfg = calibracionDe(id); if (!cfg) return;
+    usos.push({ rasgo: id, t: Math.round((Date.now() - inicioEsp) / 1000) });
+    ayudaActiva = true; marcarBoton(id);
+    const r = RASGOS.find(x => x.id === id), msg = document.getElementById('ayudaEncuadreMsg');
+    if (msg) msg.textContent = `Mostrando: ${r ? r.nombre : id}. ${formato === '3d' ? 'Gira el modelo para explorar la zona.' : 'Usa la rueda o arrastra para explorar la zona.'}`;
+    await aplicarEncuadre(cfg);
+}
+function volverVistaNormal() {
+    ayudaActiva = false; marcarBoton(null);
+    const msg = document.getElementById('ayudaEncuadreMsg'); if (msg) msg.textContent = '';
+    if (formato === '3d') {
+        const mv = document.getElementById('mv');
+        if (mv) { mv.cameraTarget = 'auto auto auto'; mv.cameraOrbit = 'auto auto auto'; mv.fieldOfView = 'auto'; }
+    } else { marca = null; resetZoom2D(); }
+}
+
+// ===== Visor: 3D (modelo) o 2D (fotos) =====
+function montarVisor() {
+    const cont = document.getElementById('panelVisor');
+    cont.innerHTML = '<div class="visor" id="visor"></div>';
+    const esp = especimenes[indice];
+    if (formato === '3d') {
+        document.getElementById('visor').innerHTML = `
+            <div class="estado-modelo" id="estadoModelo">⏳ Cargando el modelo… la primera vez puede tardar unos segundos</div>
+            <model-viewer id="mv" src="${MODELOS[esp]}" loading="eager" camera-controls touch-action="pan-y" min-camera-orbit="auto auto 5%"
+                shadow-intensity="1" exposure="1" alt="Espécimen ${indice + 1}" style="width:100%;height:100%;background:transparent;--poster-color:transparent;"><div slot="progress-bar"></div></model-viewer>`;
+        const mv = document.getElementById('mv'), est = document.getElementById('estadoModelo');
+        mv.addEventListener('load', () => { est.style.display = 'none'; });
+        mv.addEventListener('error', () => { est.classList.add('error'); est.innerHTML = `⚠️ No se pudo cargar el modelo.<br>Recarga la página con Ctrl+Shift+R.`; });
+    } else {
+        document.getElementById('visor').innerHTML = `
+            <div class="tabs2d">${VISTAS.map(v => `<button class="tab2d ${v.id === 'cabeza' ? 'activa' : ''}" data-vista="${v.id}" onclick="cambiarVista2D('${v.id}')">${v.t}</button>`).join('')}</div>
+            <div class="marco2d" id="marco2d">
+                <img id="foto2d" alt="Espécimen" draggable="false" src="/foto/${CODIGO[esp]}/cabeza.jpg">
+                <div class="zoom-btns"><button onclick="zoom2D(1.4)" title="Acercar">+</button><button onclick="zoom2D(1/1.4)" title="Alejar">−</button><button onclick="resetZoom2D()" title="Tamaño original" style="font-size:0.75rem;font-weight:700;">1×</button></div>
+                <div class="hint">Arrastra para mover · rueda para acercar · doble clic para ampliar</div>
+            </div>`;
+        z = { s: 1, x: 0, y: 0, vista: 'cabeza' }; marca = null; conectar2D();
+    }
+}
+
+// --- 3D: el encuadre se calibró sobre un modelo de referencia y se traslada al tamaño y centro de este modelo
+function aplicarEncuadre3D(cfg) {
+    const mv = document.getElementById('mv'); if (!mv) return;
+    if (cfg.ref && cfg.ref.center && cfg.ref.size && cfg.theta !== undefined && mv.loaded) {
+        const c = mv.getBoundingBoxCenter(), d = mv.getDimensions();
+        const k = [d.x / (cfg.ref.size[0] || d.x || 1), d.y / (cfg.ref.size[1] || d.y || 1), d.z / (cfg.ref.size[2] || d.z || 1)], km = (k[0] + k[1] + k[2]) / 3;
+        mv.cameraTarget = `${c.x + (cfg.tx - cfg.ref.center[0]) * k[0]}m ${c.y + (cfg.ty - cfg.ref.center[1]) * k[1]}m ${c.z + (cfg.tz - cfg.ref.center[2]) * k[2]}m`;
+        mv.cameraOrbit = `${cfg.theta}rad ${cfg.phi}rad ${cfg.radius * km}m`;
+        mv.fieldOfView = `${cfg.fovGrados}deg`;
+    } else if (cfg.orbit) {
+        if (cfg.target) mv.cameraTarget = cfg.target;
+        mv.cameraOrbit = cfg.orbit; if (cfg.fov) mv.fieldOfView = cfg.fov;
+    }
+}
+
+// --- 2D: zoom/arrastre sobre la foto + círculo marcador
+let z = { s: 1, x: 0, y: 0, vista: 'cabeza' }, marca = null, punteros = new Map(), distPrev = 0;
+function aplicarZoom2D(sinAnimar) {
+    const img = document.getElementById('foto2d'); if (!img) return;
+    const W = img.offsetWidth, H = img.offsetHeight, mx = Math.max(0, W * (z.s - 1) / 2), my = Math.max(0, H * (z.s - 1) / 2);
+    z.x = Math.min(mx, Math.max(-mx, z.x)); z.y = Math.min(my, Math.max(-my, z.y));
+    img.style.transition = sinAnimar ? 'none' : 'transform 0.3s ease';
+    img.style.transform = `translate(${z.x}px, ${z.y}px) scale(${z.s})`;
+    img.style.cursor = z.s > 1 ? 'grab' : 'zoom-in';
+    posicionarMarca();
+}
+function posicionarMarca() {
+    let m = document.getElementById('marcadorAyuda'); const img = document.getElementById('foto2d'), cont = document.getElementById('marco2d');
+    if (!marca || !img || !cont) { if (m) m.remove(); return; }
+    if (!m) { m = document.createElement('div'); m.id = 'marcadorAyuda'; cont.appendChild(m); }
+    const W = img.offsetWidth, H = img.offsetHeight;
+    m.style.left = (img.offsetLeft + W / 2 + z.x + z.s * (marca.x / 100 * W - W / 2)) + 'px';
+    m.style.top = (img.offsetTop + H / 2 + z.y + z.s * (marca.y / 100 * H - H / 2)) + 'px';
+}
+function zoom2D(f, mx, my, sinAnimar) {
+    const img = document.getElementById('foto2d'); if (!img) return;
+    const W = img.offsetWidth, H = img.offsetHeight, s1 = z.s, s2 = Math.min(6, Math.max(1, s1 * f));
+    if (mx === undefined) { mx = W / 2; my = H / 2; }
+    const dx = mx - W / 2, dy = my - H / 2;
+    z.x = dx - (s2 / s1) * (dx - z.x); z.y = dy - (s2 / s1) * (dy - z.y); z.s = s2;
+    if (s2 === 1) { z.x = 0; z.y = 0; }
+    aplicarZoom2D(sinAnimar);
+}
+function resetZoom2D() { z.s = 1; z.x = 0; z.y = 0; marca = null; aplicarZoom2D(); }
+function cambiarVista2D(v, programatico) {
+    if (!programatico) { marca = null; ayudaActiva = false; marcarBoton(null); posicionarMarca(); }   // cambio manual: el círculo se quita ya, aunque la foto aún no haya cargado
+    return new Promise(resolve => {
+        const img = document.getElementById('foto2d'); if (!img) { resolve(); return; }
+        z.vista = v; z.s = 1; z.x = 0; z.y = 0; img.style.transform = 'none';
+        document.querySelectorAll('.tab2d').forEach(t => t.classList.toggle('activa', t.dataset.vista === v));
+        const ruta = `/foto/${CODIGO[especimenes[indice]]}/${v}.jpg`;
+        if (img.getAttribute('src') === ruta && img.complete && img.naturalWidth) { posicionarMarca(); resolve(); return; }
+        img.onload = () => { img.onload = null; resolve(); };
+        img.src = ruta; setTimeout(resolve, 3500);
+    });
+}
+async function aplicarEncuadre2D(cfg) {
+    marca = null;
+    const vista = cfg.vista || 'lateral';
+    if (vista !== z.vista) await cambiarVista2D(vista, true); else resetZoom2D();
+    const img = document.getElementById('foto2d'); if (!img) return;
+    const s = cfg.scale || 2.2, W = img.offsetWidth, H = img.offsetHeight, mx = Math.max(0, (s * W - W) / 2), my = Math.max(0, (s * H - H) / 2);
+    z.s = s; z.x = Math.min(mx, Math.max(-mx, -s * (cfg.x / 100 * W - W / 2))); z.y = Math.min(my, Math.max(-my, -s * (cfg.y / 100 * H - H / 2)));
+    marca = { x: cfg.x, y: cfg.y };
+    aplicarZoom2D();
+}
+function aplicarEncuadre(cfg) { return formato === '3d' ? aplicarEncuadre3D(cfg) : aplicarEncuadre2D(cfg); }
+function conectar2D() {
+    const cont = document.getElementById('marco2d'); punteros = new Map(); distPrev = 0;
+    cont.addEventListener('wheel', e => {
+        e.preventDefault(); const img = document.getElementById('foto2d'), r = img.getBoundingClientRect(), W = img.offsetWidth, H = img.offsetHeight;
+        const dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+        zoom2D(Math.min(2, Math.max(0.5, Math.exp(-dy * 0.002))), (e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height, true);
+    }, { passive: false });
+    cont.addEventListener('dblclick', () => { if (z.s > 1) resetZoom2D(); else zoom2D(2.5); });
+    cont.addEventListener('pointerdown', e => { if (e.target.closest('.zoom-btns')) return; try { cont.setPointerCapture(e.pointerId); } catch (_) {} punteros.set(e.pointerId, { x: e.clientX, y: e.clientY }); distPrev = 0; });
+    cont.addEventListener('pointermove', e => {
+        const p = punteros.get(e.pointerId); if (!p) return; const ax = p.x, ay = p.y; p.x = e.clientX; p.y = e.clientY;
+        if (punteros.size === 2) {
+            const [a, b] = [...punteros.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+            if (distPrev) zoom2D(d / distPrev, undefined, undefined, true); distPrev = d;
+        } else if (z.s > 1) { z.x += e.clientX - ax; z.y += e.clientY - ay; aplicarZoom2D(true); }
+    });
+    const soltar = e => { punteros.delete(e.pointerId); distPrev = 0; };
+    cont.addEventListener('pointerup', soltar); cont.addEventListener('pointercancel', soltar);
+}
+
+cargarCalibraciones();
+</script>
+</body>
+</html>
